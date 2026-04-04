@@ -132,13 +132,51 @@ fn apply_laplacian_3x3(channel: ArrayView2<u8>) -> Array2<u8> {
     }
     out
 }
+fn calculate_otsu_threshold(channel_data: ArrayView2<u8>) -> u8 {
+    let mut hist = [0usize; 256];
+    let mut total_pixels = 0;
 
+    // Calculate Histogram
+    for &pixel in channel_data.iter() {
+        hist[pixel as usize] += 1;
+        total_pixels += 1;
+    }
 
-// ==========================================
-// EXPORTED PYTHON FUNCTIONS
-// ==========================================
+    // Calculate total sum for means
+    let mut sum = 0.0;
+    for i in 0..256 {
+        sum += (i as f64) * (hist[i] as f64);
+    }
 
-// --- Point Operations & Grayscale ---
+    let mut sum_b = 0.0;
+    let mut w_b = 0;
+    let mut var_max = 0.0;
+    let mut threshold = 0;
+
+    // Iterate through all possible thresholds to maximize between-class variance
+    for t in 0..256 {
+        w_b += hist[t];
+        if w_b == 0 { continue; }
+        
+        let w_f = total_pixels - w_b;
+        if w_f == 0 { break; }
+
+        sum_b += (t as f64) * (hist[t] as f64);
+
+        let m_b = sum_b / (w_b as f64);
+        let m_f = (sum - sum_b) / (w_f as f64);
+
+        let var_between = (w_b as f64) * (w_f as f64) * (m_b - m_f).powi(2);
+
+        if var_between > var_max {
+            var_max = var_between;
+            threshold = t as u8;
+        }
+    }
+    
+    threshold
+}
+
 
 #[pyfunction]
 fn apply_negative<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<u8>) -> PyResult<&'py PyArrayDyn<u8>> {
@@ -188,7 +226,6 @@ fn apply_threshold<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<u8>, threshold_va
     Ok(result.into_pyarray(py))
 }
 
-// --- Histogram Equalization ---
 
 #[pyfunction]
 fn hist_equalize_rgb<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyResult<&'py PyArrayDyn<u8>> {
@@ -222,7 +259,6 @@ fn hist_equalize_gray<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> P
     Ok(result.into_pyarray(py).to_dyn())
 }
 
-// --- Histogram Specification ---
 
 #[pyfunction]
 fn hist_spec_rgb<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>, target_hist: PyReadonlyArrayDyn<'py, f32>) -> PyResult<Py<PyArrayDyn<u8>>> {
@@ -353,7 +389,22 @@ fn apply_frequency_filter<'py>(py: Python<'py>, f_shifted: PyReadonlyArray3<'py,
 }
 
 // --- Edge Detection ---
+#[pyfunction]
 
+#[pyfunction]
+fn apply_otsu_threshold<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyResult<(u8, &'py PyArrayDyn<u8>)> {
+    let arr = x.as_array();
+    let channel = arr.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("GrayScale Required"))?;
+
+    let threshold_value = calculate_otsu_threshold(channel.view());
+    let result = channel.mapv(|pixel| {
+        if pixel > threshold_value { 255 } else { 0 }
+    });
+
+    // Return both the value and the array
+    Ok((threshold_value, result.into_pyarray(py).to_dyn()))
+}
 #[pyfunction]
 fn apply_canny<'py>(py: Python<'py>, image: PyReadonlyArray3<'py, f64>, low_thresh: f64, high_thresh: f64) -> &'py PyArray3<f64> {
     let img = image.as_array();
@@ -476,35 +527,22 @@ fn apply_canny<'py>(py: Python<'py>, image: PyReadonlyArray3<'py, f64>, low_thre
     output.into_pyarray(py)
 }
 
-// ==========================================
-// UNIFIED MODULE REGISTRATION
-// ==========================================
 
 #[pymodule]
 fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
-    // Lab 3
     m.add_function(wrap_pyfunction!(apply_negative, m)?)?;
     m.add_function(wrap_pyfunction!(apply_log, m)?)?;
     m.add_function(wrap_pyfunction!(apply_gamma, m)?)?;
     m.add_function(wrap_pyfunction!(rgb_to_gray, m)?)?;
     m.add_function(wrap_pyfunction!(apply_threshold, m)?)?;
-    
-    // Lab 4
     m.add_function(wrap_pyfunction!(hist_equalize_rgb, m)?)?;
     m.add_function(wrap_pyfunction!(hist_equalize_gray, m)?)?;
-    
-    // Lab 5
     m.add_function(wrap_pyfunction!(hist_spec_rgb, m)?)?;
     m.add_function(wrap_pyfunction!(hist_spec_gray, m)?)?;
-    
-    // Lab 6
     m.add_function(wrap_pyfunction!(median_filter, m)?)?;
     m.add_function(wrap_pyfunction!(laplacian_filter, m)?)?;
-    
-    // Lab 7
     m.add_function(wrap_pyfunction!(apply_frequency_filter, m)?)?;
-    
-    // Lab 8
+    m.add_function(wrap_pyfunction!(apply_otsu_threshold, m)?)?;
     m.add_function(wrap_pyfunction!(apply_canny, m)?)?;
     
     Ok(())
