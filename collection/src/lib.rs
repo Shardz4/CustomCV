@@ -390,6 +390,16 @@ fn apply_frequency_filter<'py>(py: Python<'py>, f_shifted: PyReadonlyArray3<'py,
 
 // --- Edge Detection ---
 #[pyfunction]
+fn rgb_to_cmy<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyResult<&'py PyArrayDyn<u8>> {
+    let arr = x.as_array();
+    let shape = arr.shape();
+    if sahape.len() !=3 || shape[2] !=3 {
+        return Err(pyo3::exceptions::PyValueError::new_err("Input must be a color image with 3 channels"));
+    }
+
+    ler result = arr.mapv(|pixel| 1.0 - (pixel as f32 / 255.0));
+    Ok(result.into_pyarray(py).to_dyn())
+}
 
 #[pyfunction]
 fn apply_otsu_threshold<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyResult<(u8, &'py PyArrayDyn<u8>)> {
@@ -544,6 +554,7 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(apply_frequency_filter, m)?)?;
     m.add_function(wrap_pyfunction!(apply_otsu_threshold, m)?)?;
     m.add_function(wrap_pyfunction!(apply_canny, m)?)?;
+    m.add_function(wrap_pyfunction!(rgb_to_cmy, m)?)?;
     
     Ok(())
 }
