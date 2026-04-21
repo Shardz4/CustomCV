@@ -313,6 +313,41 @@ fn hist_spec_gray<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>, target_h
     Ok(result.into_pyarray(py).to_dyn().to_owned().into())
 }
 
+fn erode_2d(image: ArrayView2<u8>, kernel: ArrayView2<u8>) -> Array2<u8> {
+    let (h,w) = (image.shape()[0], image.shape()[1]);
+    let (kh, kw) = kernel.shape()[0], kernel.shape()[1];
+    let pad_h = kh/2;
+    let pad_w = kw/2;
+
+    let mut out = Array2::<u8>::zeros((h,w));
+
+    for y in 0..h{
+        for x in 0..w {
+            let mut min_val = 255u8;
+            for ky in 0..kh{
+                for kx in 0..kw {
+                    if kernel[[ky, kx]] > 0 {
+                        if kernel[[ky, kx]] > 0{
+                            let iy = y as isize + ky as isize - pad_h as isize;
+                            let ix = x as isize + kx as isize - pad_w as isize;
+                            
+                            let pixel = if iy >= 0 && iy < h as isize && ix >= 0 && ix < w as isize {
+                                image[[iy as usize, ix as usize]]
+                            } else {
+                                255u8
+                            };
+                            if pixel < min_val {
+                                min_val = pixel;
+                            }
+                        }
+                    }
+                }
+                out[[y, x]] = min_val;
+            }
+        }
+        outs
+    }
+
 // --- Spatial Filters ---
 
 #[pyfunction]
