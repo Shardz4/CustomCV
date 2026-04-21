@@ -390,14 +390,18 @@ fn apply_frequency_filter<'py>(py: Python<'py>, f_shifted: PyReadonlyArray3<'py,
 
 // --- Edge Detection ---
 #[pyfunction]
-fn rgb_to_cmy<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyResult<&'py PyArrayDyn<u8>> {
+fn rgb_to_cmy<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyResult<&'py PyArrayDyn<f32>> { // <-- Notice the f32 here!
     let arr = x.as_array();
+    
+    // Ensure the input is a 3D RGB image
     let shape = arr.shape();
-    if sahape.len() !=3 || shape[2] !=3 {
-        return Err(pyo3::exceptions::PyValueError::new_err("Input must be a color image with 3 channels"));
+    if shape.len() != 3 || shape[2] != 3 {
+        return Err(pyo3::exceptions::PyValueError::new_err("Input must be an RGB image with shape (H, W, 3)"));
     }
 
-    ler result = arr.mapv(|pixel| 1.0 - (pixel as f32 / 255.0));
+    // Convert to CMY floats [0.0, 1.0]
+    let result = arr.mapv(|pixel| 1.0 - (pixel as f32 / 255.0));
+
     Ok(result.into_pyarray(py).to_dyn())
 }
 
