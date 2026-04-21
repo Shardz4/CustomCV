@@ -613,6 +613,41 @@ fn apply_canny<'py>(py: Python<'py>, image: PyReadonlyArray3<'py, f64>, low_thre
     output.into_pyarray(py)
 }
 
+#[pyfunction]
+fn apply_erosion<'py>(
+    py: Python<'py>, 
+    image: PyReadonlyArrayDyn<'py, u8>, 
+    kernel: PyReadonlyArrayDyn<'py, u8>
+) -> PyResult<&'py PyArrayDyn<u8>> {
+    let img_arr = image.as_array();
+    let k_arr = kernel.as_array();
+
+    let img_2d = img_arr.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Erosion requires a 2D image"))?;
+    let k_2d = k_arr.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Kernel must be 2D"))?;
+
+    let result = erode_2d(img_2d.view(), k_2d.view());
+    Ok(result.into_pyarray(py).to_dyn())
+}
+
+#[pyfunction]
+fn apply_dilation<'py>(
+    py: Python<'py>, 
+    image: PyReadonlyArrayDyn<'py, u8>, 
+    kernel: PyReadonlyArrayDyn<'py, u8>
+) -> PyResult<&'py PyArrayDyn<u8>> {
+    let img_arr = image.as_array();
+    let k_arr = kernel.as_array();
+
+    let img_2d = img_arr.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Dilation requires a 2D image"))?;
+    let k_2d = k_arr.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Kernel must be 2D"))?;
+
+    let result = dilate_2d(img_2d.view(), k_2d.view());
+    Ok(result.into_pyarray(py).to_dyn())
+}
 
 #[pymodule]
 fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -631,6 +666,7 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(apply_otsu_threshold, m)?)?;
     m.add_function(wrap_pyfunction!(apply_canny, m)?)?;
     m.add_function(wrap_pyfunction!(rgb_to_cmy, m)?)?;
-    
+    m.add_function(wrap_pyfunction!(apply_erosion, m)?)?;
+    m.add_function(wrap_pyfunction!(apply_dilation, m)?)?;
     Ok(())
 }
