@@ -5,6 +5,7 @@ mod transforms;
 mod histogram;
 mod morphological;
 mod edge_detection;
+mod arithematic;
 
 #[pymodule]
 fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -32,6 +33,15 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     // --- Morphological Operations ---
     m.add_function(wrap_pyfunction!(morphological::apply_erosion, m)?)?;
     m.add_function(wrap_pyfunction!(morphological::apply_dilation, m)?)?;
+
+    // --- Arithmetic & Bitwise Operations ---
+    m.add_function(wrap_pyfunction!(arithematic::add_images, m)?)?;
+    m.add_function(wrap_pyfunction!(arithematic::sub_images, m)?)?;
+    m.add_function(wrap_pyfunction!(arithematic::add_weighted, m)?)?;
+    m.add_function(wrap_pyfunction!(arithematic::bitwise_and, m)?)?;
+    m.add_function(wrap_pyfunction!(arithematic::bitwise_or, m)?)?;
+    m.add_function(wrap_pyfunction!(arithematic::bitwise_not, m)?)?;
+    m.add_function(wrap_pyfunction!(arithematic::bitwise_xor, m)?)?;
 
     Ok(())
 }
