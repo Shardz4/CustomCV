@@ -85,3 +85,33 @@ pub fn apply_dilation<'py>(
     let result = dilate_2d(img_2d.view(), k_2d.view());
     Ok(result.into_pyarray(py).to_dyn())
 }
+
+#[pyfunction]
+pub fn opening<'py>(py:Python<'py>, image: PyReadonlyArrayDyn<'py, u8>, kernel: PyReadonlyArrayDyn<'py, u8>)->PyResult<&'py PyArrayDyn<u8>>{
+    let img_arr = image.as_array();
+    let k_arr = kernel.as_array();
+    let img_2d = img_arr.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Opening requires 2D image"))?;
+    let k_2d = k_arr.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Kernel must be 2D"))?;
+    
+    let eroded = erode_2d(img_2d.view(), k_2d.view());
+    let opened = dilate_2d(eroded.view(), k_2d.view());
+    
+    Ok(opened.into_pyarray(py).to_dyn())
+}
+
+#[pyfunction]
+pub fn apply_closing<'py>(py:Python<'py>, image: PyReadonlyArrayDyn<'py, u8>, kernel: PyReadonlyArrayDyn<'py, u8>)->PyResult<&'py PyArrayDyn<u8>>{
+    let img_arr = image.as_array();
+    let k_arr = kernel.as_array();
+    let img_2d = img_arr.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Closing requires 2D image"))?;
+    let k_2d = k_arr.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Kernel must be 2D"))?;
+    
+    let dilated = dilate_2d(img_2d.view(), k_2d.view());
+    let closed = erode_2d(dilated.view(), k_2d.view());
+    
+    Ok(closed.into_pyarray(py).to_dyn())
+}
