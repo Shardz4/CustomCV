@@ -78,4 +78,4 @@ cv2.destroyAllWindows()
 ```
 
 ## License
-MIT License
+BSD 3-Clause License
