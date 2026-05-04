@@ -35,6 +35,9 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(morphological::apply_dilation, m)?)?;
     m.add_function(wrap_pyfunction!(morphological::opening, m)?)?;
     m.add_function(wrap_pyfunction!(morphological::apply_closing, m)?)?;
+    m.add_function(wrap_pyfunction!(morphological::morphological_gradient, m)?)?;
+    m.add_function(wrap_pyfunction!(morphological::top_hat, m)?)?;
+    m.add_function(wrap_pyfunction!(morphological::black_hat, m)?)?;
 
     // --- Arithmetic & Bitwise Operations ---
     m.add_function(wrap_pyfunction!(arithematic::add_images, m)?)?;

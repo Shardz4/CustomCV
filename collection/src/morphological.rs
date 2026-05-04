@@ -115,3 +115,52 @@ pub fn apply_closing<'py>(py:Python<'py>, image: PyReadonlyArrayDyn<'py, u8>, ke
     
     Ok(closed.into_pyarray(py).to_dyn())
 }
+
+#[pyfunction]
+pub fn morphological_gradient<'py>(py:Python<'py>, image:PyReadonlyArrayDyn<'py, u8>, kernel:PyReadonlyArrayDyn<'py, u8>)->PyResult<&'py PyArrayDyn<u8>>{
+    let img_arr = image.as_array();
+    let k_arr = kernel.as_array();
+    let img_2d = img_arr.into_dimensionality::<numpy::ndarray::Ix2>()
+    .map_err(|_| pyo3::exceptions::PyValueError::new_err("Morphological Gradient requires 2D image"))?;
+    let k_2d = k_arr.into_dimensionality::<numpy::ndarray::Ix2>()
+    .map_err(|_| pyo3::exceptions::PyValueError::new_err("Kernel must be 2D"))?;
+    
+    let dilated = dilate_2d(img_2d.view(), k_2d.view());
+    let eroded = erode_2d(img_2d.view(), k_2d.view());
+    
+    let gradient = &dilated - &eroded;
+    Ok(gradient.into_pyarray(py).to_dyn())
+}
+
+
+#[pyfunction]
+pub fn top_hat<'py>(py:Python<'py>, image: PyReadonlyArrayDyn<'py, u8>, kernel: PyReadonlyArrayDyn<'py, u8>)->PyResult<&'py PyArrayDyn<u8>>{
+    let img_arr = image.as_array();
+    let k_arr = kernel.as_array();
+    let img_2d = img_arr.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Top Hat requires 2D image"))?;
+    let k_2d = k_arr.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Kernel must be 2D"))?;
+    
+    let eroded = erode_2d(img_2d.view(), k_2d.view());
+    let opened = dilate_2d(eroded.view(), k_2d.view());
+    let top_hat = &img_2d - &opened;
+    Ok(top_hat.into_pyarray(py).to_dyn())
+}
+
+#[pyfunction]
+pub fn black_hat<'py>(py:Python<'py>, image: PyReadonlyArrayDyn<'py, u8>, kernel: PyReadonlyArrayDyn<'py, u8>)->PyResult<&'py PyArrayDyn<u8>>{
+    let img_arr = image.as_array();
+    let k_arr = kernel.as_array();
+    let img_2d = img_arr.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Black Hat requires 2D image"))?;
+    let k_2d = k_arr.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Kernel must be 2D"))?;
+    
+    let dilated = dilate_2d(img_2d.view(), k_2d.view());
+    let closed = erode_2d(dilated.view(), k_2d.view());
+    let black_hat = &closed - &img_2d;
+    Ok(black_hat.into_pyarray(py).to_dyn())
+}
+
+
