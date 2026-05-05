@@ -1,81 +1,108 @@
-# CustomCV (rust_cv_lib)
+# CustomCV (`rust_cv_lib`)
 
-A high-performance Computer Vision library written in Rust with Python bindings using PyO3 and rust-numpy. This library accelerates typical CV operations by executing them natively in Rust, allowing seamless integration with Python's NumPy ecosystem.
+A high-performance Computer Vision library written in **Rust** with seamless **Python** bindings.
+Operations execute natively in Rust through [PyO3](https://pyo3.rs) + [rust-numpy](https://github.com/PyO3/rust-numpy), so every function accepts and returns regular NumPy arrays — no data-copy overhead.
 
-## Features
+---
 
-This library includes various modules for image processing tasks:
+## ✨ What's Inside
 
-### 1. Point / Pixel Transforms (`transforms`)
-- **Negative:** `apply_negative(image)`
-- **Log Transform:** `apply_log(image, c)`
-- **Gamma Correction:** `apply_gamma(image, gamma, c)`
-- **Thresholding:** `apply_threshold(image, thresh)`
-- **Color Space Conversions:** `rgb_to_gray(image)`, `rgb_to_cmy(image)`
-- **Frequency Filtering:** `apply_frequency_filter(image, filter_mask)`
+| Category | Highlights |
+|---|---|
+| **Point / Pixel Transforms** | Negative, log, gamma, threshold, RGB ↔ Gray / CMY, frequency-domain filtering |
+| **Histogram Operations** | Equalization (RGB & gray), specification, Otsu's thresholding |
+| **Spatial Filters** | 3×3 median filter, Laplacian edge sharpening |
+| **Edge & Feature Detection** | Canny, Harris corners, Shi-Tomasi corners, Hough lines & circles |
+| **Morphological Operations** | Erosion, dilation, opening, closing, gradient, top-hat, black-hat |
+| **Arithmetic & Bitwise Ops** | Add, subtract, weighted blend, AND / OR / XOR / NOT |
+| **Geometric Transforms** | Resize (nearest-neighbor), translate, rotate, perspective warp |
 
-### 2. Histogram Operations (`histogram`)
-- **Histogram Equalization:** `hist_equalize_rgb(image)`, `hist_equalize_gray(image)`
-- **Histogram Specification:** `hist_spec_rgb(source, reference)`, `hist_spec_gray(source, reference)`
-- **Otsu's Thresholding:** `apply_otsu_threshold(image)`
+> For the complete function reference and repo structure, see [`collection/README.md`](collection/README.md).
 
-### 3. Edge Detection & Spatial Filters (`edge_detection`)
-- **Median Filter:** `median_filter(image, kernel_size)`
-- **Laplacian Filter:** `laplacian_filter(image, kernel)`
-- **Canny Edge Detection:** `apply_canny(image, low_threshold, high_threshold)`
+---
 
-### 4. Morphological Operations (`morphological`)
-- **Erosion:** `apply_erosion(image, kernel)`
-- **Dilation:** `apply_dilation(image, kernel)`
-- **Opening:** `opening(image, kernel)`
-- **Closing:** `apply_closing(image, kernel)`
+## 📋 Prerequisites
 
-### 5. Arithmetic & Bitwise Operations (`arithematic`)
-- **Arithmetic:** `add_images(img1, img2)`, `sub_images(img1, img2)`, `add_weighted(img1, alpha, img2, beta, gamma)`
-- **Bitwise:** `bitwise_and(img1, img2)`, `bitwise_or(img1, img2)`, `bitwise_xor(img1, img2)`, `bitwise_not(img)`
+| Tool | Version |
+|---|---|
+| **Rust** | Stable toolchain (install via [rustup.rs](https://rustup.rs)) |
+| **Python** | ≥ 3.8 |
+| **pip** | Latest recommended |
 
-## Installation and Build
+---
 
-You need Rust installed on your machine along with a Python environment.
+## 🚀 Installation
 
-1. Install `maturin` in your Python environment:
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/Shardz4/CustomCV.git
+   cd CustomCV/collection
+   ```
+
+2. **Install the build tool** ([maturin](https://github.com/PyO3/maturin))
    ```bash
    pip install maturin
    ```
 
-2. Build and install the module directly into your current Python environment:
+3. **Build & install into your current Python environment**
    ```bash
    maturin develop --release
    ```
-   *Note: Using `--release` ensures the Rust code is optimized for better performance.*
+   > `--release` compiles with full Rust optimisations — highly recommended for any real workload.
 
-## Usage Example
+4. **Verify the install**
+   ```python
+   import rust_cv_lib
+   print(dir(rust_cv_lib))   # should list all available functions
+   ```
 
-After building with `maturin`, you can import and use the library directly in Python via NumPy arrays.
+---
+
+## ⚡ Quick Start
 
 ```python
 import numpy as np
 import cv2
 import rust_cv_lib
 
-# Load an image using OpenCV (or any other library yielding a NumPy array)
-image = cv2.imread("image.png")
+# Load an image (any loader that gives you a NumPy array works)
+image = cv2.imread("photo.png")
 
-# Convert to Grayscale
-gray_image = rust_cv_lib.rgb_to_gray(image)
+# Convert to grayscale
+gray = rust_cv_lib.rgb_to_gray(image)
 
-# Apply Canny Edge Detection
-edges = rust_cv_lib.apply_canny(gray_image, 50, 150)
+# Canny edge detection
+edges = rust_cv_lib.apply_canny(gray, 50.0, 150.0)
 
-# Apply Morphological Dilation
+# Dilate the edges
 kernel = np.ones((3, 3), dtype=np.uint8)
-dilated = rust_cv_lib.apply_dilation(edges, kernel)
+dilated = rust_cv_lib.apply_dilation(edges.astype(np.uint8), kernel)
 
-# Display the result
+# Show result
 cv2.imshow("Edges", dilated)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
 ```
 
-## License
+---
+
+## 🛠 Development
+
+```bash
+# Build in debug mode (faster compile, slower runtime)
+maturin develop
+
+# Run Rust tests
+cargo test
+
+# Lint
+cargo clippy
+```
+
+The project also ships a GitHub Actions CI workflow (`.github/workflows/CI.yml`) that builds wheels for Linux, macOS, and Windows on every push.
+
+---
+
+## 📄 License
+
 MIT License
