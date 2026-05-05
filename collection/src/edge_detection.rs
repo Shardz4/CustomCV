@@ -169,3 +169,97 @@ pub fn shi_tomasi_corners<'py>(py: Python<'py>, image:PyReadonlyArrayDyn<'py, u8
     }
     Ok(response.into_pyarray_bound(py).to_dyn().clone().unbind())
 }
+
+#[pyfunction]
+fn hough_lines(image: PyReadonlyArrayDyn<'_, u8>, threshold: u32, theta_res: usize) -> PyResult<Vec<(f64, f64)>> {
+    let arr = image.as_array();
+    let img_2d = arr.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Requires 2D binary/edge image"))?;
+    
+    let (h, w) = (img_2d.shape()[0], img_2d.shape()[1]);
+    let max_rho = ((h as f64).powi(2) + (w as f64).powi(2)).sqrt().ceil() as usize;
+    
+    // Accumulator: Rows are rhos (-max_rho to +max_rho), Cols are thetas (0 to 180 degrees)
+    let rho_offset = max_rho;
+    let mut accumulator = vec![vec![0u32; 180 / theta_res]; max_rho * 2 + 1];
+
+    // Precompute sine and cosine for thetas
+    let mut thetas = Vec::new();
+    let mut cos_t = Vec::new();
+    let mut sin_t = Vec::new();
+    for t in (0..180).step_by(theta_res) {
+        let rad = (t as f64).to_radians();
+        thetas.push(rad);
+        cos_t.push(rad.cos());
+        sin_t.push(rad.sin());
+    }
+
+    // Voting Process
+    for y in 0..h {
+        for x in 0..w {
+            if img_2d[[y, x]] > 0 { // If it's an edge pixel
+                for (i, _) in thetas.iter().enumerate() {
+                    let rho = (x as f64 * cos_t[i] + y as f64 * sin_t[i]).round() as isize;
+                    let rho_idx = (rho + rho_offset as isize) as usize;
+                    accumulator[rho_idx][i] += 1;
+                }
+            }
+        }
+    }
+
+    // Extract peaks
+    let mut lines = Vec::new();
+    for r in 0..(max_rho * 2 + 1) {
+        for t_idx in 0..(180 / theta_res) {
+            if accumulator[r][t_idx] >= threshold {
+                let actual_rho = r as f64 - rho_offset as f64;
+                let actual_theta = thetas[t_idx];
+                lines.push((actual_rho, actual_theta));
+            }
+        }
+    }
+
+    Ok(lines)
+}
+
+
+#[pyfunction]
+fn hough_circles(image: PyReadonlyArrayDyn<'_,u8>, radius: usize, threshold: i32) -> PyResult<Vec<(i32, i32, usize)>> {
+    let arr = image.as_array();
+    let img_2d = arr.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Requires 2D binary/edge image"))?;
+    
+    let (h, w) = (img_2d.shape()[0], img_2d.shape()[1]);
+    let r = radius as i32;
+    let mut accumulator = vec![vec![0u32; w]; h];
+
+    for y in 0..h {
+        for x in 0..w {
+            if img_2d[[y, x]] > 0 { // If it's an edge pixel
+                // Check points on the circle rim
+                for theta_deg in 0..360 {
+                    let rad = (theta_deg as f64).to_radians();
+                    let cx_offset = r * (rad.cos() as i32);
+                    let cy_offset = r * (rad.sin() as i32);
+                    
+                    let cx = x as i32 + cx_offset;
+                    let cy = y as i32 + cy_offset;
+
+                    if cx >= 0 && cx < w as i32 && cy >= 0 && cy < h as i32 {
+                        accumulator[cy as usize][cx as usize] += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    let mut circles = Vec::new();
+    for y in 0..h {
+        for x in 0..w {
+            if accumulator[y][x] >= threshold {
+                circles.push((x as i32, y as i32, radius));
+            }
+        }
+    }
+    Ok(circles)
+}
