@@ -11,9 +11,20 @@ use numpy::ndarray;
 // ==========================================
 
 #[pyfunction]
-pub fn apply_canny<'py>(py: Python<'py>, image: PyReadonlyArray3<'py, f64>, low_thresh: f64, high_thresh: f64) -> &'py PyArray3<f64> {
-    let img = image.as_array();
-    let (rows, cols, channels) = (img.shape()[0], img.shape()[1], img.shape()[2]);
+pub fn apply_canny<'py>(py: Python<'py>, image: PyReadonlyArrayDyn<'py, f64>, low_thresh: f64, high_thresh: f64) -> PyResult<&'py PyArrayDyn<f64>> {
+    let img_dyn = image.as_array();
+    let (rows, cols, channels) = match img_dyn.ndim() {
+        2 => (img_dyn.shape()[0], img_dyn.shape()[1], 1),
+        3 => (img_dyn.shape()[0], img_dyn.shape()[1], img_dyn.shape()[2]),
+        _ => return Err(pyo3::exceptions::PyValueError::new_err("Image must be 2D or 3D")),
+    };
+
+    let img = if img_dyn.ndim() == 2 {
+        img_dyn.into_shape((rows, cols, 1)).unwrap().to_owned()
+    } else {
+        img_dyn.into_dimensionality::<ndarray::Ix3>().unwrap().to_owned()
+    };
+
     let mut output = ndarray::Array3::<f64>::zeros((rows, cols, channels));
 
     let gaussian = [
@@ -122,11 +133,11 @@ pub fn apply_canny<'py>(py: Python<'py>, image: PyReadonlyArray3<'py, f64>, low_
         }
     }
 
-    output.into_pyarray(py)
+    Ok(output.into_pyarray(py).to_dyn())
 }
 
 #[pyfunction]
-fn harris_corner<'py> (py: Python<'py>, image: PyReadonlyArrayDyn<'py, u8>, window_size: usize, k: i32) -> PyResult<Py<PyArrayDyn<f32>>> {
+pub fn harris_corner<'py> (py: Python<'py>, image: PyReadonlyArrayDyn<'py, u8>, window_size: usize, k: i32) -> PyResult<Py<PyArrayDyn<f32>>> {
     let arr = image.as_array();
     let img_2d = arr.into_dimensionality::<ndarray::Ix2>()
         .map_err(|_| pyo3::exceptions::PyValueError::new_err("Image must be 2D Grayscale"))?;
@@ -171,7 +182,7 @@ pub fn shi_tomasi_corners<'py>(py: Python<'py>, image:PyReadonlyArrayDyn<'py, u8
 }
 
 #[pyfunction]
-fn hough_lines(image: PyReadonlyArrayDyn<'_, u8>, threshold: u32, theta_res: usize) -> PyResult<Vec<(f64, f64)>> {
+pub fn hough_lines(image: PyReadonlyArrayDyn<'_, u8>, threshold: u32, theta_res: usize) -> PyResult<Vec<(f64, f64)>> {
     let arr = image.as_array();
     let img_2d = arr.into_dimensionality::<numpy::ndarray::Ix2>()
         .map_err(|_| pyo3::exceptions::PyValueError::new_err("Requires 2D binary/edge image"))?;
@@ -181,7 +192,8 @@ fn hough_lines(image: PyReadonlyArrayDyn<'_, u8>, threshold: u32, theta_res: usi
     
     // Accumulator: Rows are rhos (-max_rho to +max_rho), Cols are thetas (0 to 180 degrees)
     let rho_offset = max_rho;
-    let mut accumulator = vec![vec![0u32; 180 / theta_res]; max_rho * 2 + 1];
+    let num_thetas = (0..180).step_by(theta_res).count();
+    let mut accumulator = vec![vec![0u32; num_thetas]; max_rho * 2 + 1];
 
     // Precompute sine and cosine for thetas
     let mut thetas = Vec::new();
@@ -209,8 +221,9 @@ fn hough_lines(image: PyReadonlyArrayDyn<'_, u8>, threshold: u32, theta_res: usi
 
     // Extract peaks
     let mut lines = Vec::new();
+    let num_thetas = (0..180).step_by(theta_res).count();
     for r in 0..(max_rho * 2 + 1) {
-        for t_idx in 0..(180 / theta_res) {
+        for t_idx in 0..num_thetas {
             if accumulator[r][t_idx] >= threshold {
                 let actual_rho = r as f64 - rho_offset as f64;
                 let actual_theta = thetas[t_idx];
@@ -224,7 +237,7 @@ fn hough_lines(image: PyReadonlyArrayDyn<'_, u8>, threshold: u32, theta_res: usi
 
 
 #[pyfunction]
-fn hough_circles(image: PyReadonlyArrayDyn<'_,u8>, radius: usize, threshold: i32) -> PyResult<Vec<(i32, i32, usize)>> {
+pub fn hough_circles(image: PyReadonlyArrayDyn<'_,u8>, radius: usize, threshold: i32) -> PyResult<Vec<(i32, i32, usize)>> {
     let arr = image.as_array();
     let img_2d = arr.into_dimensionality::<numpy::ndarray::Ix2>()
         .map_err(|_| pyo3::exceptions::PyValueError::new_err("Requires 2D binary/edge image"))?;
@@ -239,8 +252,8 @@ fn hough_circles(image: PyReadonlyArrayDyn<'_,u8>, radius: usize, threshold: i32
                 // Check points on the circle rim
                 for theta_deg in 0..360 {
                     let rad = (theta_deg as f64).to_radians();
-                    let cx_offset = r * (rad.cos() as i32);
-                    let cy_offset = r * (rad.sin() as i32);
+                    let cx_offset = (r as f64 * rad.cos()).round() as i32;
+                    let cy_offset = (r as f64 * rad.sin()).round() as i32;
                     
                     let cx = x as i32 + cx_offset;
                     let cy = y as i32 + cy_offset;
@@ -256,7 +269,7 @@ fn hough_circles(image: PyReadonlyArrayDyn<'_,u8>, radius: usize, threshold: i32
     let mut circles = Vec::new();
     for y in 0..h {
         for x in 0..w {
-            if accumulator[y][x] >= threshold {
+            if accumulator[y][x] >= threshold as u32 {
                 circles.push((x as i32, y as i32, radius));
             }
         }
