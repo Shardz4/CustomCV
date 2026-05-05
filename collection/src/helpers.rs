@@ -82,3 +82,61 @@ pub fn calculate_otsu_threshold(channel_data: ArrayView2<u8>) -> u8 {
     
     threshold
 }
+
+pub fn compute_structure_tensor(image: &numpy::ndarray::Arrayview2<u8>, window_size: usize) -> (numpy::ndarray::Array2<f32>, numpy::ndarray::Array2<f32>, numpy::ndarray::Array2<f32>) {
+    let (h, w) = (image.shape()[0], image.shape()[1]);
+
+    let mut ix = numpy::ndarray::Array2::<f32>::zeros((h,w));
+    let mut iy = numpy::ndarray::Array2::<f32>::zeros((h,w));
+    
+    for y in 1..h-1{
+        for x in 1..w-1{
+            let p00 = image[[y-1, x-1]] as f32;
+            let p01 = image[[y-1, x]] as f32;
+            let p02 = image[[y-1, x+1]] as f32;
+            let p10 = image[[y, x-1]] as f32;
+            // centre
+            let p12 = image[[y, x+1]] as f32;
+            let p20 = image[[y+1, x-1]] as f32;
+            let p21 = image[[y+1, x]] as f32;
+            let p22 = image[[y+1, x+1]] as f32;
+
+            ix[[y,x]] = -p00 + p02 - 2.0*p10 + 2.0*p12 - p20 + p22;
+            iy[[y,x]] = -p00 - 2.0*p01 - p02 + p20 + 2.0*p21 + p22;
+        }
+    }
+
+    let ixx = ix.mapv(|v| v * v);
+    let iyy = iy.mapv(|v| v * v);
+    let ixy = numpy::ndarray::Zip::from(&ix).and(&iy).map_collect(|&x, &y| x * y);
+
+    let pad = window_size / 2;
+    
+    let mut sxx = numpy::ndarray::Array2::<f32>::zeros((h,w));
+    let mut syy = numpy::ndarray::Array2::<f32>::zeros((h,w));
+    let mut sxy = numpy::ndarray::Array2::<f32>::zeros((h,w));
+    
+    for y in pad.. h - pad {
+        for x in pad..w - pad {
+            let mut sum_xx = 0.0;
+            let mut sum_yy = 0.0;
+            let mut sum_xy = 0.0;
+
+            for wy in 0..window_size {
+                for wx in 0..window_size {
+                    let ny = y + wy - pad;
+                    let nx = x + wx - pad;
+                    
+                    sum_xx += ixx[[ny, nx]];
+                    sum_yy += iyy[[ny, nx]];
+                    sum_xy += ixy[[ny, nx]];
+                }
+            }
+            sxx[[y,x]] = sum_xx;
+            syy[[y,x]] = sum_yy;
+            sxy[[y,x]] = sum_xy;
+        }
+    }
+    (sxx, syy, sxy)
+    
+}
