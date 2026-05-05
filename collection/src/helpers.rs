@@ -83,7 +83,7 @@ pub fn calculate_otsu_threshold(channel_data: ArrayView2<u8>) -> u8 {
     threshold
 }
 
-pub fn compute_structure_tensor(image: &numpy::ndarray::Arrayview2<u8>, window_size: usize) -> (numpy::ndarray::Array2<f32>, numpy::ndarray::Array2<f32>, numpy::ndarray::Array2<f32>) {
+pub fn compute_structure_tensor(image: &numpy::ndarray::ArrayView2<u8>, window_size: usize) -> (numpy::ndarray::Array2<f32>, numpy::ndarray::Array2<f32>, numpy::ndarray::Array2<f32>) {
     let (h, w) = (image.shape()[0], image.shape()[1]);
 
     let mut ix = numpy::ndarray::Array2::<f32>::zeros((h,w));

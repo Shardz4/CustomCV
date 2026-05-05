@@ -1,8 +1,10 @@
 use pyo3::prelude::*;
 use numpy::{
-    Array3, IntoPyArray, PyArray3, PyReadonlyArray3,
+    IntoPyArray, PyArray3, PyReadonlyArray3, PyArrayDyn, PyReadonlyArrayDyn, PyArrayMethods
 };
 use std::f64::consts::PI;
+use crate::helpers;
+use numpy::ndarray;
 
 // ==========================================
 // CANNY EDGE DETECTION
@@ -12,7 +14,7 @@ use std::f64::consts::PI;
 pub fn apply_canny<'py>(py: Python<'py>, image: PyReadonlyArray3<'py, f64>, low_thresh: f64, high_thresh: f64) -> &'py PyArray3<f64> {
     let img = image.as_array();
     let (rows, cols, channels) = (img.shape()[0], img.shape()[1], img.shape()[2]);
-    let mut output = Array3::<f64>::zeros((rows, cols, channels));
+    let mut output = ndarray::Array3::<f64>::zeros((rows, cols, channels));
 
     let gaussian = [
         [2.0, 4.0, 5.0, 4.0, 2.0],
@@ -121,4 +123,23 @@ pub fn apply_canny<'py>(py: Python<'py>, image: PyReadonlyArray3<'py, f64>, low_
     }
 
     output.into_pyarray(py)
+}
+
+#[pyfunction]
+fn harris_corner<'py> (py: Python<'py>, image: PyReadonlyArrayDyn<'py, u8>, window_size: usize, k: i32) -> PyResult<Py<PyArrayDyn<f32>>> {
+    let arr = image.as_array();
+    let img_2d = arr.into_dimensionality::<ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Image must be 2D Grayscale"))?;
+    let (h,w) = (img_2d.shape()[0], img_2d.shape()[1]);
+    let (sxx, syy, sxy) = helpers::compute_structure_tensor(&img_2d, window_size);
+    let mut response = ndarray::Array2::<f32>::zeros((h, w));
+
+    for y in 0..h {
+        for x in 0..w {
+            let det = (sxx[[y,x]] * syy[[y,x]]) - (sxy[[y,x]] * sxy[[y,x]]);
+            let trace = sxx[[y,x]] + syy[[y,x]];
+            response[[y,x]] = det - (k as f32) * (trace * trace);
+        }
+    }
+    Ok(response.into_pyarray_bound(py).to_dyn().clone().unbind())
 }
