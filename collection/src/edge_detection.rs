@@ -143,3 +143,29 @@ fn harris_corner<'py> (py: Python<'py>, image: PyReadonlyArrayDyn<'py, u8>, wind
     }
     Ok(response.into_pyarray_bound(py).to_dyn().clone().unbind())
 }
+
+#[pyfunction]
+pub fn shi_tomasi_corners<'py>(py: Python<'py>, image:PyReadonlyArrayDyn<'py, u8>, window_size: usize)-> PyResult<Py<PyArrayDyn<f32>>>{
+    let arr = image.as_array();
+    let img_2d = arr.into_dimensionality::<ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Image must be 2D Grayscale"))?;
+    let (h,w) = (img_2d.shape()[0], img_2d.shape()[1]);
+    let (sxx, syy, sxy) = helpers::compute_structure_tensor(&img_2d, window_size);
+    let mut response = ndarray::Array2::<f32>::zeros((h, w));
+
+    for y in 0..h{
+        for x in 0..w{
+            let a = sxx[[y , x]];
+            let b = sxy[[y , x]];
+            let c = syy[[y , x]];
+            
+            let trace = a + c;
+            let det = (a * c) - (b * b);
+
+            let gap = ((trace * trace) / 4.0 - det).max(0.0).sqrt();
+            let lambda_min = (trace / 2.0) - gap;
+            response[[y,x]] = lambda_min;
+        }
+    }
+    Ok(response.into_pyarray_bound(py).to_dyn().clone().unbind())
+}
