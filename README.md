@@ -11,7 +11,7 @@ Operations execute natively in Rust through [PyO3](https://pyo3.rs) + [rust-nump
 |---|---|
 | **Point / Pixel Transforms** | Negative, log, gamma, threshold, RGB ↔ Gray / CMY, frequency-domain filtering |
 | **Histogram Operations** | Equalization (RGB & gray), specification, Otsu's thresholding |
-| **Spatial Filters** | 3×3 median filter, Laplacian edge sharpening |
+| **Spatial Filters & Smoothing** | 3×3 median, Laplacian edge sharpening, box blur, Gaussian blur |
 | **Edge & Feature Detection** | Canny, Harris corners, Shi-Tomasi corners, Hough lines & circles |
 | **Morphological Operations** | Erosion, dilation, opening, closing, gradient, top-hat, black-hat |
 | **Arithmetic & Bitwise Ops** | Add, subtract, weighted blend, AND / OR / XOR / NOT |

@@ -19,6 +19,7 @@ collection/
 │   ├── transforms.rs         # Point / pixel transforms & frequency filtering
 │   ├── histogram.rs          # Histogram equalization, specification, Otsu threshold
 │   ├── filters.rs            # Spatial filters (median, laplacian) — delegates to helpers
+│   ├── smoothing.rs          # Image smoothing filters (box blur, Gaussian blur)
 │   ├── edge_detection.rs     # Canny, Harris, Shi-Tomasi, Hough lines & circles
 │   ├── morphological.rs      # Erosion, dilation, opening, closing, gradient, top/black hat
 │   ├── arithematic.rs        # Arithmetic & bitwise image operations
@@ -139,6 +140,17 @@ All geometric functions support **2D (grayscale)** and **3D (colour)** images.
 
 ---
 
+### 8. Smoothing Filters — `smoothing.rs`
+
+All smoothing functions support **2D (grayscale)** and **3D (colour)** images.
+
+| Function | Signature | Description |
+|---|---|---|
+| `apply_blur` | `(image: ndarray[u8], ksize_w: int, ksize_h: int) → ndarray[u8]` | Applies a normalized box filter to blur the image. |
+| `apply_gaussian_blur` | `(image: ndarray[u8], ksize: int, sigma: float) → ndarray[u8]` | Applies a Gaussian blur with the specified kernel size and standard deviation. |
+
+---
+
 ### Internal Helpers — `helpers.rs`
 
 These are **not** exposed to Python. They are used internally by other modules.
@@ -149,3 +161,4 @@ These are **not** exposed to Python. They are used internally by other modules.
 | `apply_laplacian_3x3` | `filters.rs` | Applies a 3×3 Laplacian kernel to a single 2D channel. |
 | `calculate_otsu_threshold` | `histogram.rs` | Computes the optimal Otsu threshold for a grayscale channel. |
 | `compute_structure_tensor` | `edge_detection.rs` | Computes Sxx, Syy, Sxy structure tensor components (Sobel-based) for corner detection. |
+| `convolve_2d_channel` | `smoothing.rs` | Convolves a single 2D channel with an arbitrary 2D float kernel. |
