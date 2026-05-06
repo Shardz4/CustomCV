@@ -25,3 +25,29 @@ fn apply_filter2d<'py>(py: Python<'py>, img: ReadonlyArrayDyn<'py, u8>, kernel: 
         Err(pyo3::exceptions::PyValueError::new_err("Image must be a 2d or 3d"))
     }
 }
+
+#[pyfunction]
+pub fn apply_blur<'py>(py: Python<'py>, img:PyReadonlyArrayDyn<'py, u8>, ksize_w: usize, ksize_h) -> PyResult<Py<Py<arrayDyn<u8>>> {
+    let area = (ksize_w * ksize_h) as f64;
+    let kernel = numpy::ndarray::Array2::<f64>::from_elem((ksize_h, ksize_w), 1.0 / area);
+    apply_filter2d(py, img, kernel.into_pyarray_bound(py).readonly())
+}
+
+#[pyfunction]
+pub fn apply_gaussian_blur<'py>(py: Python<'py>, img: PyReadonlyArrayDyn<'py, u8>, ksize: usize, sigma: f64) -> Pyresult<Py<PyArrayDyn<u8>>> {
+    let mut kernel = numpy::ndarray::Array2::<f64>::zeros((kszie, ksize));
+    let center  = (ksize / 2) as f64;
+    let mut sum = 0.0;
+    let s2 = 2.0 * sigma * sigma;
+    for y in 0..ksize {
+        for x in 0..ksize {
+            let dx = x as f64 - center;
+            let dy = y as f64 - center;
+            let val = (-(dx * dx + dy * dy) / s2).exp();
+            kernel[[y , x]] = val;
+            sum += val;
+        }
+    }
+    kernel.mapv_inplace(|v| v / sum);
+    apply_filter2d(py, img, kernel.into_pyarray_bound(py).readonly())
+}
