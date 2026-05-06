@@ -149,7 +149,7 @@ pub fn convolve_2d_channel(channel:numpy::ndarray::ArrayView2<u8>, kernel:numpy:
     let pad_w = kw/2;
     let mut out = numpy::ndarray::Array2::<u8>::zeros((h, w));
 
-    fo y in 0..h{
+    for y in 0..h{
         for x in 0..w{
             let mut sum = 0.0;
             for ky in 0..kh{

@@ -8,6 +8,7 @@ mod edge_detection;
 mod arithematic;
 mod geometric;
 mod filters;
+mod smoothing;
 
 #[pymodule]
 fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -61,5 +62,10 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(geometric::apply_translate, m)?)?;
     m.add_function(wrap_pyfunction!(geometric::apply_rotate, m)?)?;
     m.add_function(wrap_pyfunction!(geometric::apply_warp, m)?)?;
+
+    // --- Smoothing Filters ---
+    m.add_function(wrap_pyfunction!(smoothing::apply_blur, m)?)?;
+    m.add_function(wrap_pyfunction!(smoothing::apply_gaussian_blur, m)?)?;
+
     Ok(())
 }
