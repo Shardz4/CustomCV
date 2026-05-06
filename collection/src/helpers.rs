@@ -140,3 +140,29 @@ pub fn compute_structure_tensor(image: &numpy::ndarray::ArrayView2<u8>, window_s
     (sxx, syy, sxy)
     
 }
+
+pub fn convolve_2d_channel(channel:numpy::ndarray::ArrayView2<u8>, kernel:numpy::ndarray::ArrayView2<f64>) -> numpy::ndarray::Array2<u8> {
+    let (h,w) = (channel.shape()[0], channel.shape()[1]);
+    let (kh, kw) = (kernel.shape()[0], kernel.shape()[1]);
+    
+    let pad_h = kh/2;
+    let pad_w = kw/2;
+    let mut out = numpy::ndarray::Array2::<u8>::zeros((h, w));
+
+    fo y in 0..h{
+        for x in 0..w{
+            let mut sum = 0.0;
+            for ky in 0..kh{
+                for kx in 0..kw {
+
+                    let iy = (y as isize + ky as isize - pad_h as isize).clamp(0, h as isize - 1) as usize;
+                    let ix = (x as isize + kx as isize - pad_w as isize).clamp(0, w as isize - 1) as usize;
+
+                    sum += channel[[iy, ix]] as f64 * kernel[[ky, kx]];
+                }
+            }
+            out[[y,x]] = sum.clamp(0.0, 255.0) as u8;
+        }
+    }
+    out
+}
