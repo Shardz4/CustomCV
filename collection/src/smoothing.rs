@@ -57,7 +57,7 @@ pub fn apply_gaussian_blur<'py>(py: Python<'py>, img: PyReadonlyArrayDyn<'py, u8
     apply_filter2d(py, img, kernel.into_dyn().into_pyarray_bound(py).readonly())
 }
 
-[#pyfunction]
+#[pyfunction]
 pub fn apply_median_blur<'py>(py:Python<'py>, img: PyReadonlyArrayDyn<'py, u8>, ksize: usize) -> PyResult<Py<PyArrayDyn<u8>>>{
     let arr = img.as_array();
     let ndim = arr.ndim();
@@ -74,7 +74,7 @@ pub fn apply_median_blur<'py>(py:Python<'py>, img: PyReadonlyArrayDyn<'py, u8>, 
                 window.clear();
                 for ky in 0..ksize{
                     for kx in 0..ksize{
-                        let iy = (u as isize + ky as isize - pad as isize).clamp(0, h as isize - 1) as usize;
+                        let iy = (y as isize + ky as isize - pad as isize).clamp(0, h as isize - 1) as usize;
                         let ix = (x as isize + kx as isize - pad as isize).clamp(0, w as isize - 1) as usize;
                         window.push(channel[[iy,ix]])
                     }
@@ -83,9 +83,9 @@ pub fn apply_median_blur<'py>(py:Python<'py>, img: PyReadonlyArrayDyn<'py, u8>, 
                 out[[y,x]] = window[window.len()/2];
 
             }
-            out
-
-        };
+        }
+        out
+    };
         if ndim ==3 {
             let (h,w,c) = (shape[0], shape[1], shape[2]);
             let mut out_arr = numpy::ndarray::Array3::<u8>::zeros((h, w, c));
@@ -100,7 +100,7 @@ pub fn apply_median_blur<'py>(py:Python<'py>, img: PyReadonlyArrayDyn<'py, u8>, 
             Err(pyo3::exceptions::PyValueError::new_err("Image must be a 2d or 3d"))
         }
     }
-}
+
 
 #[pyfunction]
 pub fn apply_bilateral_filter<'py>(py:Python<'py>, img: PyReadonlyArrayDyn<'py, u8>, diameter: usize, sigma_color:f64, sigma_space: f64) -> PyResult<Py<PyArrayDyn<u8>>>{
@@ -124,11 +124,11 @@ pub fn apply_bilateral_filter<'py>(py:Python<'py>, img: PyReadonlyArrayDyn<'py, 
         for y in 0..h {
             for x in 0..w {
                 let center_val = channel[[y,x]] as f64;
-                let mut sum = 0.0;
+                let mut sum_weight = 0.0;
                 let mut sum_val = 0.0;
 
                 for ky in 0..diameter{
-                    for kf in 0..diameter{
+                    for kx in 0..diameter{
                         let iy = (y as isize + ky as isize - pad as isize).clamp(0, h as isize - 1) as usize;
                         let ix = (x as isize + kx as isize - pad as isize).clamp(0, w as isize - 1) as usize;
                         
