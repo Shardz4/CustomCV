@@ -56,3 +56,48 @@ pub fn apply_gaussian_blur<'py>(py: Python<'py>, img: PyReadonlyArrayDyn<'py, u8
     kernel.mapv_inplace(|v| v / sum);
     apply_filter2d(py, img, kernel.into_dyn().into_pyarray_bound(py).readonly())
 }
+
+[#pyfunction]
+pub fn apply_median_blur<'py>(py:Python<'py>, img: PyReadonlyArrayDyn<'py, u8>, ksize: usize) -> PyResult<Py<PyArrayDyn<u8>>>{
+    let arr = img.as_array();
+    let ndim = arr.ndim();
+    let shape = arr.shape();
+    let pad = ksize/2;
+
+    let process_channel = |channel: numpy::ndarray::ArrayView2<u8>|-> numpy::ndarray::Array2<u8> {
+        let(h, w) = (channel.shape()[0], channel.shape()[1]);
+        let mut out = numpy::ndarray::Array2::<u8>::zeros((h, w));
+        let mut window = Vec::with_capacity(ksize * ksize);
+
+        for y in 0..h{
+            for x in 0..w{
+                window.clear();
+                for ky in 0..ksize{
+                    for kx in 0..ksize{
+                        let iy = (u as isize + ky as isize - pad as isize).clamp(0, h as isize - 1) as usize;
+                        let ix = (x as isize + kx as isize - pad as isize).clamp(0, w as isize - 1) as usize;
+                        window.push(channel[[iy,ix]])
+                    }
+                }
+                window.sort_unstable();
+                out[[y,x]] = window[window.len()/2];
+
+            }
+            out
+
+        };
+        if ndim ==3 {
+            let (h,w,c) = (shape[0], shape[1], shape[2]);
+            let mut out_arr = numpy::ndarray::Array3::<u8>::zeros((h, w, c));
+            for ch in 0..c {
+                out_arr.slice_mut(s![.., .., ch]).assign(&process_channel(arr.slice(s![.., .., ch])));
+            }
+            Ok(out_arr.into_dyn().into_pyarray_bound(py).unbind())
+        } else if ndim == 2{
+            let channel = arr.into_dimensionality::<numpy::ndarray::Ix2>().unwrap();
+            Ok(process_channel(channel.view()).into_dyn().into_pyarray_bound(py).unbind())
+        } else {
+            Err(pyo3::exceptions::PyValueError::new_err("Image must be a 2d or 3d"))
+        }
+    }
+}
