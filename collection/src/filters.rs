@@ -61,7 +61,7 @@ pub fn laplacian_filter<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) ->
 // ==========================================
 
 #[pyfunction]
-fn pyr_down<'py>(py: Python<'py>, img: PyReadonlyArrayDyn<'py, u8>) -> PyResult<Py<PyArrayDyn<u8>>> {
+pub fn pyr_down<'py>(py: Python<'py>, img: PyReadonlyArrayDyn<'py, u8>) -> PyResult<&'py PyArrayDyn<u8>> {
     let arr = img.as_array();
     let ndim = arr.ndim();
     let shape = arr.shape();
@@ -108,17 +108,17 @@ fn pyr_down<'py>(py: Python<'py>, img: PyReadonlyArrayDyn<'py, u8>) -> PyResult<
         for ch in 0..c {
             out.slice_mut(s![.., .., ch]).assign(&process_channel(arr.slice(s![.., .., ch])));
         }
-        Ok(out.into_pyarray_bound(py).to_dyn().into())
+        Ok(out.into_pyarray(py).to_dyn())
     } else if ndim == 2 {
         let channel = arr.into_dimensionality::<numpy::ndarray::Ix2>().unwrap();
-        Ok(process_channel(channel.view()).into_pyarray_bound(py).to_dyn().into())
+        Ok(process_channel(channel.view()).into_pyarray(py).to_dyn())
     } else {
         Err(pyo3::exceptions::PyValueError::new_err("Image must be 2D or 3D"))
     }
 }
 
 #[pyfunction]
-fn pyr_up<'py>(py: Python<'py>, img: PyReadonlyArrayDyn<'py, u8>) -> PyResult<Py<PyArrayDyn<u8>>> {
+pub fn pyr_up<'py>(py: Python<'py>, img: PyReadonlyArrayDyn<'py, u8>) -> PyResult<&'py PyArrayDyn<u8>> {
     let arr = img.as_array();
     let ndim = arr.ndim();
     let shape = arr.shape();
@@ -172,10 +172,10 @@ fn pyr_up<'py>(py: Python<'py>, img: PyReadonlyArrayDyn<'py, u8>) -> PyResult<Py
         for ch in 0..c {
             out.slice_mut(s![.., .., ch]).assign(&process_channel(arr.slice(s![.., .., ch])));
         }
-        Ok(out.into_pyarray_bound(py).to_dyn().into())
+        Ok(out.into_pyarray(py).to_dyn())
     } else if ndim == 2 {
         let channel = arr.into_dimensionality::<numpy::ndarray::Ix2>().unwrap();
-        Ok(process_channel(channel.view()).into_pyarray_bound(py).to_dyn().into())
+        Ok(process_channel(channel.view()).into_pyarray(py).to_dyn())
     } else {
         Err(pyo3::exceptions::PyValueError::new_err("Image must be 2D or 3D"))
     }
