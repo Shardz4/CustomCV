@@ -32,6 +32,10 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(filters::median_filter, m)?)?;
     m.add_function(wrap_pyfunction!(filters::laplacian_filter, m)?)?;
 
+        // --- Image Pyramids ---
+    m.add_function(wrap_pyfunction!(filters::pyr_down, m)?)?;
+    m.add_function(wrap_pyfunction!(filters::pyr_up, m)?)?;
+
     // --- Edge & Feature Detection ---
     m.add_function(wrap_pyfunction!(edge_detection::apply_canny, m)?)?;
     m.add_function(wrap_pyfunction!(edge_detection::harris_corner, m)?)?;
