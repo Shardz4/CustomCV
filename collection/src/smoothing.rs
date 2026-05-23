@@ -99,7 +99,7 @@ pub fn apply_median_blur<'py>(py:Python<'py>, img: PyReadonlyArrayDyn<'py, u8>, 
         } else {
             Err(pyo3::exceptions::PyValueError::new_err("Image must be a 2d or 3d"))
         }
-    }
+}
 
 
 #[pyfunction]
