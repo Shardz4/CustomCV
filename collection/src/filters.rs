@@ -180,14 +180,3 @@ pub fn pyr_up<'py>(py: Python<'py>, img: PyReadonlyArrayDyn<'py, u8>) -> PyResul
         Err(pyo3::exceptions::PyValueError::new_err("Image must be 2D or 3D"))
     }
 }
-
-#[pyfunction]
-pub fn bilateral_blur<'py>(
-    py: Python<'py>,
-    img: PyReadonlyArrayDyn<'py, u8>,
-    diameter: usize,
-    sigma_color: f64,
-    sigma_space: f64,
-) -> PyResult<Py<PyArrayDyn<u8>>> {
-    crate::smoothing::apply_bilateral_filter(py, img, diameter, sigma_color, sigma_space)
-}
