@@ -84,7 +84,7 @@ Images are passed in as NumPy arrays (`np.ndarray`) and results are returned the
 ---
 
 ### 4. Edge & Feature Detection — `edge_detection.rs`
-
+ add 
 | Function | Signature | Description |
 |---|---|---|
 | `apply_canny` | `(image: ndarray[f64], low_thresh: float, high_thresh: float) → ndarray[f64]` | Full Canny pipeline: Gaussian blur → Sobel gradients → non-max suppression → hysteresis. Supports 2D & 3D. |
@@ -150,6 +150,18 @@ All smoothing functions support **2D (grayscale)** and **3D (colour)** images.
 | `apply_gaussian_blur` | `(image: ndarray[u8], ksize: int, sigma: float) → ndarray[u8]` | Applies a Gaussian blur with the specified kernel size and standard deviation. |
 | `apply_median_blur` | `(image: ndarray[u8], ksize: int) → ndarray[u8]` | Applies a median filter to blur the image using a sliding window. |
 | `apply_bilateral_filter` | `(image: ndarray[u8], diameter: int, sigma_color: float, sigma_space: float) → ndarray[u8]` | Applies a bilateral filter to the image, reducing noise while preserving edges. |
+
+---
+
+### 9. Video Operations — `vid.rs`
+
+Provides utilities for camera input, frame extraction, and compiling image sequences into videos.
+
+| Function | Signature | Description |
+|---|---|---|
+| `video_capture` | `(device_index: int = 0, save_path: Optional[str] = None) → None` | Opens webcam feed in a window. Press 'q' or 'ESC' to exit. Optionally saves captured frames to a file path. |
+| `extract_images_from_video` | `(video_path: str, output_dir: str, frame_interval: int = 1) → None` | Decodes a video and saves individual frames to the output directory. |
+| `extract_video_from_images` | `(image_paths: list[str], output_video_path: str, fps: float = 20.0) → None` | Takes a list of image file paths, sorts them alphabetically, and compiles them into a video. |
 
 ---
 

@@ -9,6 +9,7 @@ mod arithematic;
 mod geometric;
 mod filters;
 mod smoothing;
+mod vid;
 
 #[pymodule]
 fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -72,5 +73,10 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(smoothing::apply_gaussian_blur, m)?)?;
     m.add_function(wrap_pyfunction!(smoothing::apply_median_blur, m)?)?;
     m.add_function(wrap_pyfunction!(smoothing::apply_bilateral_filter, m)?)?;
+
+    // --- Video Operations ---
+    m.add_function(wrap_pyfunction!(vid::video_capture, m)?)?;
+    m.add_function(wrap_pyfunction!(vid::extract_images_from_video, m)?)?;
+    m.add_function(wrap_pyfunction!(vid::extract_video_from_images, m)?)?;
     Ok(())
 }
