@@ -80,6 +80,7 @@ Images are passed in as NumPy arrays (`np.ndarray`) and results are returned the
 |---|---|---|
 | `median_filter` | `(image: ndarray[u8]) → ndarray[u8]` | 3×3 median filter. Supports 2D (grayscale) and 3D (colour) images. |
 | `laplacian_filter` | `(image: ndarray[u8]) → ndarray[u8]` | 3×3 Laplacian edge-sharpening filter. Supports 2D and 3D images. |
+| `bilateral_blur` | `(image: ndarray[u8], diameter: int, sigma_color: float, sigma_space: float) → ndarray[u8]` | Applies a bilateral filter to the image, reducing noise while preserving edges. |
 
 ---
 
