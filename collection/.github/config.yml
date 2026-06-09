@@ -1,0 +1,22 @@
+# Configuration for the welcome bot
+# https://github.com/apps/welcome
+
+# Message posted on first-time issues
+newIssueWelcomeComment: >
+  👋 Thanks for opening your first issue here! We appreciate you taking the
+  time to report this. A maintainer will take a look soon. In the meantime,
+  please make sure you've included steps to reproduce the problem and any
+  relevant environment details (OS, Rust version, Python version).
+
+# Message posted on first-time pull requests
+newPRWelcomeComment: >
+  🎉 Welcome, and thanks for your first pull request to **CustomCV**! A
+  maintainer will review it shortly. Please make sure CI is passing and that
+  you've run `cargo clippy` and `cargo test` locally before requesting a
+  review. Check out our [Contributing Guide](../CONTRIBUTING.md) if you
+  haven't already!
+
+# Message posted when a first-time contributor's PR is merged
+firstPRMergeComment: >
+  🚀 Congrats on getting your first PR merged — you're officially a
+  **CustomCV** contributor! Thanks for helping make this project better. 🙌
