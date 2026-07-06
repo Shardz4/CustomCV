@@ -16,6 +16,7 @@ Operations execute natively in Rust through [PyO3](https://pyo3.rs) + [rust-nump
 | **Morphological Operations** | Erosion, dilation, opening, closing, gradient, top-hat, black-hat |
 | **Arithmetic & Bitwise Ops** | Add, subtract, weighted blend, AND / OR / XOR / NOT |
 | **Geometric Transforms** | Resize (nearest-neighbor), translate, rotate, perspective warp |
+| **Video & Background Subtraction** | Webcam capture, frame extraction, image→video, MOG2 background subtraction |
 
 > For the complete function reference and repo structure, see [`collection/README.md`](collection/README.md).
 

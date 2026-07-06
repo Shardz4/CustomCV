@@ -162,6 +162,7 @@ Provides utilities for camera input, frame extraction, and compiling image seque
 | `video_capture` | `(device_index: int = 0, save_path: Optional[str] = None) → None` | Opens webcam feed in a window. Press 'q' or 'ESC' to exit. Optionally saves captured frames to a file path. |
 | `extract_images_from_video` | `(video_path: str, output_dir: str, frame_interval: int = 1) → None` | Decodes a video and saves individual frames to the output directory. |
 | `extract_video_from_images` | `(image_paths: list[str], output_video_path: str, fps: float = 20.0) → None` | Takes a list of image file paths, sorts them alphabetically, and compiles them into a video. |
+| `background_subtract_mog2` | `(video_path: str, history: int = 500, var_threshold: float = 16.0, detect_shadows: bool = True, kernel_size: int = 5, output_path: Optional[str] = None) → None` | Applies MOG2 background subtraction. Outputs a foreground mask per frame (0=bg, 127=shadow, 255=fg), cleaned with morphological opening. Displays live or saves to `output_path`. |
 
 ---
 

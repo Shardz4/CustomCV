@@ -138,3 +138,118 @@ pub fn extract_video_from_images<'py>(
     writer.call_method0("release")?;
     Ok(())
 }
+
+/// Applies MOG2 background subtraction to a video file.
+///
+/// Processes each frame through a Mixture of Gaussians (v2) background model,
+/// returning a foreground mask. The mask is cleaned with morphological opening
+/// to remove noise.
+///
+/// Mask values: 0 = background, 127 = shadow (when detectShadows=true), 255 = foreground.
+///
+/// If `output_path` is provided, the foreground mask video is saved to that path.
+/// Otherwise, the mask is displayed in a window (press 'q' or ESC to exit).
+#[pyfunction]
+#[pyo3(signature = (video_path, history = 500, var_threshold = 16.0, detect_shadows = true, kernel_size = 5, output_path = None))]
+pub fn background_subtract_mog2<'py>(
+    py: Python<'py>,
+    video_path: &str,
+    history: i32,
+    var_threshold: f64,
+    detect_shadows: bool,
+    kernel_size: i32,
+    output_path: Option<String>,
+) -> PyResult<()> {
+    let cv2 = py.import_bound("cv2")?;
+    let np = py.import_bound("numpy")?;
+
+    // Create the MOG2 background subtractor
+    let mog2 = cv2.call_method(
+        "createBackgroundSubtractorMOG2",
+        (),
+        Some(&pyo3::types::PyDict::new_bound(py).tap(|d| {
+            let _ = d.set_item("history", history);
+            let _ = d.set_item("varThreshold", var_threshold);
+            let _ = d.set_item("detectShadows", detect_shadows);
+        })),
+    )?;
+
+    // Open the video
+    let cap = cv2.call_method1("VideoCapture", (video_path,))?;
+    if !cap.call_method0("isOpened")?.extract::<bool>()? {
+        return Err(pyo3::exceptions::PyRuntimeError::new_err(format!(
+            "Failed to open video file: {}",
+            video_path
+        )));
+    }
+
+    // Build the morphological kernel (elliptical)
+    let morph_ellipse = cv2.getattr("MORPH_ELLIPSE")?.extract::<i32>()?;
+    let kernel = cv2.call_method1("getStructuringElement", (morph_ellipse, (kernel_size, kernel_size)))?;
+
+    // Set up an optional writer for saving the mask video
+    let mut writer: Option<Bound<PyAny>> = None;
+    if let Some(ref path) = output_path {
+        let width = cap.call_method1("get", (3,))?.extract::<f64>()? as i32;
+        let height = cap.call_method1("get", (4,))?.extract::<f64>()? as i32;
+        let fps = cap.call_method1("get", (5,))?.extract::<f64>()?;
+        let fps = if fps > 0.0 { fps } else { 20.0 };
+        let fourcc = cv2.call_method1("VideoWriter_fourcc", ("m", "p", "4", "v"))?;
+        // isColor=false since the mask is single-channel grayscale
+        writer = Some(cv2.call_method(
+            "VideoWriter",
+            (path, &fourcc, fps, (width, height)),
+            Some(&pyo3::types::PyDict::new_bound(py).tap(|d| {
+                let _ = d.set_item("isColor", false);
+            })),
+        )?);
+    }
+
+    let morph_open = cv2.getattr("MORPH_OPEN")?.extract::<i32>()?;
+    let window_name = "MOG2 Background Subtraction (Press 'q' or 'ESC' to exit)";
+
+    while cap.call_method0("isOpened")?.extract::<bool>()? {
+        let result = cap.call_method0("read")?;
+        let (ret, frame): (bool, Bound<PyAny>) = result.extract()?;
+        if !ret {
+            break;
+        }
+
+        // Apply MOG2 — produces the foreground mask
+        let mask = mog2.call_method1("apply", (&frame,))?;
+
+        // Clean up with morphological opening
+        let mask = cv2.call_method1("morphologyEx", (&mask, morph_open, &kernel))?;
+
+        if let Some(ref w) = writer {
+            w.call_method1("write", (&mask,))?;
+        } else {
+            cv2.call_method2("imshow", (window_name, &mask))?;
+            let key = cv2.call_method1("waitKey", (1,))?.extract::<i32>()?;
+            if key == 27 || key == b'q' as i32 {
+                break;
+            }
+        }
+    }
+
+    cap.call_method0("release")?;
+    if let Some(ref w) = writer {
+        w.call_method0("release")?;
+    }
+    if output_path.is_none() {
+        cv2.call_method0("destroyAllWindows")?;
+    }
+    Ok(())
+}
+
+/// Helper trait to allow chaining set_item calls on PyDict
+trait DictTap {
+    fn tap(self, f: impl FnOnce(&Self)) -> Self;
+}
+
+impl<T> DictTap for T {
+    fn tap(self, f: impl FnOnce(&Self)) -> Self {
+        f(&self);
+        self
+    }
+}
