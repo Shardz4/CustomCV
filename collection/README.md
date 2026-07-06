@@ -23,7 +23,8 @@ collection/
 │   ├── edge_detection.rs     # Canny, Harris, Shi-Tomasi, Hough lines & circles
 │   ├── morphological.rs      # Erosion, dilation, opening, closing, gradient, top/black hat
 │   ├── arithematic.rs        # Arithmetic & bitwise image operations
-│   └── geometric.rs          # Resize, translate, rotate, perspective warp
+│   ├── geometric.rs          # Resize, translate, rotate, perspective warp
+│   └── color_convert.rs      # Color space conversions (HSV, HLS, YCrCb, XYZ, Lab, Luv, YUV)
 ├── Cargo.toml                # Rust crate config (cdylib for PyO3)
 ├── Cargo.lock
 ├── pyproject.toml            # Maturin / PEP 517 build config
@@ -59,6 +60,24 @@ Images are passed in as NumPy arrays (`np.ndarray`) and results are returned the
 | `apply_threshold` | `(image: ndarray[u8], threshold_value: int) → ndarray[u8]` | Binary threshold — pixels > thresh → 255, else 0. |
 | `rgb_to_cmy` | `(image: ndarray[u8]) → ndarray[f32]` | Converts RGB [0, 255] → CMY [0.0, 1.0]. Input must be (H, W, 3). |
 | `apply_frequency_filter` | `(f_shifted: ndarray[complex128], d0: float, filter_type: str) → ndarray[complex128]` | Applies a frequency-domain mask. Supported types: `"ILPF"`, `"IHPF"`, `"GLPF"`, `"GHPF"`. |
+
+---
+
+### 1b. Color Space Conversions — `color_convert.rs`
+
+All colour functions accept and return NumPy arrays. RGB inputs must have shape **(H, W, 3)**.
+
+| Function | Signature | Description |
+|---|---|---|
+| `rgb_to_hsv` | `(image: ndarray[u8]) → ndarray[u8]` | RGB → HSV. H ∈ [0, 180], S ∈ [0, 255], V ∈ [0, 255] (OpenCV convention). |
+| `rgb_to_hls` | `(image: ndarray[u8]) → ndarray[u8]` | RGB → HLS. H ∈ [0, 180], L ∈ [0, 255], S ∈ [0, 255]. |
+| `rgb_to_ycrcb` | `(image: ndarray[u8]) → ndarray[u8]` | RGB → YCrCb (BT.601). All channels ∈ [0, 255]. Cr/Cb offset by 128. |
+| `rgb_to_xyz` | `(image: ndarray[u8]) → ndarray[f32]` | RGB → CIE XYZ (sRGB, D65). Applies inverse-gamma linearization. |
+| `rgb_to_lab` | `(image: ndarray[u8]) → ndarray[f32]` | RGB → CIE L\*a\*b\* (D65). L ∈ [0, 100], a/b ≈ [−128, 127]. |
+| `rgb_to_luv` | `(image: ndarray[u8]) → ndarray[f32]` | RGB → CIE L\*u\*v\* (D65). L ∈ [0, 100]; u/v can be negative. |
+| `bgr_to_rgb` | `(image: ndarray[u8]) → ndarray[u8]` | Swaps channels 0 ↔ 2 (BGR to RGB or vice-versa). |
+| `gray_to_rgb` | `(image: ndarray[u8]) → ndarray[u8]` | 2D grayscale (H, W) → 3-channel (H, W, 3) by replication. |
+| `rgb_to_yuv` | `(image: ndarray[u8]) → ndarray[u8]` | RGB → YUV (BT.601). All channels ∈ [0, 255]. U/V offset by 128. |
 
 ---
 
