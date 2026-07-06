@@ -10,6 +10,7 @@ mod geometric;
 mod filters;
 mod smoothing;
 mod vid;
+mod color_convert;
 
 #[pymodule]
 fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -21,6 +22,17 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(transforms::apply_threshold, m)?)?;
     m.add_function(wrap_pyfunction!(transforms::rgb_to_cmy, m)?)?;
     m.add_function(wrap_pyfunction!(transforms::apply_frequency_filter, m)?)?;
+
+    // --- Color Space Conversions ---
+    m.add_function(wrap_pyfunction!(color_convert::rgb_to_hsv, m)?)?;
+    m.add_function(wrap_pyfunction!(color_convert::rgb_to_hls, m)?)?;
+    m.add_function(wrap_pyfunction!(color_convert::rgb_to_ycrcb, m)?)?;
+    m.add_function(wrap_pyfunction!(color_convert::rgb_to_xyz, m)?)?;
+    m.add_function(wrap_pyfunction!(color_convert::rgb_to_lab, m)?)?;
+    m.add_function(wrap_pyfunction!(color_convert::rgb_to_luv, m)?)?;
+    m.add_function(wrap_pyfunction!(color_convert::bgr_to_rgb, m)?)?;
+    m.add_function(wrap_pyfunction!(color_convert::gray_to_rgb, m)?)?;
+    m.add_function(wrap_pyfunction!(color_convert::rgb_to_yuv, m)?)?;
 
     // --- Histogram Operations ---
     m.add_function(wrap_pyfunction!(histogram::hist_equalize_rgb, m)?)?;
