@@ -58,6 +58,9 @@ Images are passed in as NumPy arrays (`np.ndarray`) and results are returned the
 | `apply_gamma` | `(image: ndarray[u8], gamma: float) → ndarray[u8]` | Power-law (gamma) correction. |
 | `rgb_to_gray` | `(image: ndarray[u8]) → ndarray[u8]` | Weighted luminance conversion (0.299R + 0.587G + 0.114B). |
 | `apply_threshold` | `(image: ndarray[u8], threshold_value: int) → ndarray[u8]` | Binary threshold — pixels > thresh → 255, else 0. |
+| `apply_threshold_binary_inv` | `(image: ndarray[u8], threshold_value: int) → ndarray[u8]` | Inverse binary — pixels > thresh → 0, else 255. |
+| `apply_threshold_trunc` | `(image: ndarray[u8], threshold_value: int) → ndarray[u8]` | Truncate — pixels > thresh → thresh, else unchanged. |
+| `apply_threshold_tozero` | `(image: ndarray[u8], threshold_value: int) → ndarray[u8]` | To-zero — pixels > thresh → unchanged, else 0. |
 | `rgb_to_cmy` | `(image: ndarray[u8]) → ndarray[f32]` | Converts RGB [0, 255] → CMY [0.0, 1.0]. Input must be (H, W, 3). |
 | `apply_frequency_filter` | `(f_shifted: ndarray[complex128], d0: float, filter_type: str) → ndarray[complex128]` | Applies a frequency-domain mask. Supported types: `"ILPF"`, `"IHPF"`, `"GLPF"`, `"GHPF"`. |
 

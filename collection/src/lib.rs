@@ -20,6 +20,9 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(transforms::apply_gamma, m)?)?;
     m.add_function(wrap_pyfunction!(transforms::rgb_to_gray, m)?)?;
     m.add_function(wrap_pyfunction!(transforms::apply_threshold, m)?)?;
+    m.add_function(wrap_pyfunction!(transforms::apply_threshold_binary_inv, m)?)?;
+    m.add_function(wrap_pyfunction!(transforms::apply_threshold_trunc, m)?)?;
+    m.add_function(wrap_pyfunction!(transforms::apply_threshold_tozero, m)?)?;
     m.add_function(wrap_pyfunction!(transforms::rgb_to_cmy, m)?)?;
     m.add_function(wrap_pyfunction!(transforms::apply_frequency_filter, m)?)?;
 
