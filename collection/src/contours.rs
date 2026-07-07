@@ -1602,3 +1602,132 @@ pub fn match_shapes(
     
     Ok(score)
 }
+
+/// Test if a contour is convex.
+///
+/// Returns True if the contour is convex, False otherwise.
+#[pyfunction]
+pub fn is_contour_convex(contour: PyReadonlyArrayDyn<i32>) -> PyResult<bool> {
+    let arr = contour.as_array();
+    let ndim = arr.ndim();
+    let n = arr.shape()[0];
+    if n < 3 {
+        return Ok(true);
+    }
+    
+    let get_pt = |i: usize| -> (f64, f64) {
+        if ndim == 2 {
+            (arr[[i, 0]] as f64, arr[[i, 1]] as f64)
+        } else {
+            (arr[[i, 0, 0]] as f64, arr[[i, 0, 1]] as f64)
+        }
+    };
+    
+    let mut sign = 0.0;
+    
+    for i in 0..n {
+        let a = get_pt(i);
+        let b = get_pt((i + 1) % n);
+        let c = get_pt((i + 2) % n);
+        
+        let cross = (b.0 - a.0) * (c.1 - b.1) - (b.1 - a.1) * (c.0 - b.0);
+        
+        if cross != 0.0 {
+            if sign == 0.0 {
+                sign = cross.signum();
+            } else if cross.signum() != sign {
+                return Ok(false);
+            }
+        }
+    }
+    
+    Ok(true)
+}
+
+/// Test if a point is inside, outside, or on the boundary of a contour.
+///
+/// - `pt`: the 2D point (x, y) as a float tuple.
+/// - `measure_dist`: if True, returns the signed Euclidean distance to the nearest edge
+///                  (positive if inside, negative if outside, 0 if on the boundary).
+///                  If False, returns +1.0 (inside), -1.0 (outside), or 0.0 (boundary).
+#[pyfunction]
+pub fn point_polygon_test(
+    contour: PyReadonlyArrayDyn<i32>,
+    pt: (f64, f64),
+    measure_dist: bool,
+) -> PyResult<f64> {
+    let arr = contour.as_array();
+    let ndim = arr.ndim();
+    let n = arr.shape()[0];
+    if n == 0 {
+        return Ok(-1.0);
+    }
+    
+    let get_pt = |i: usize| -> (f64, f64) {
+        if ndim == 2 {
+            (arr[[i, 0]] as f64, arr[[i, 1]] as f64)
+        } else {
+            (arr[[i, 0, 0]] as f64, arr[[i, 0, 1]] as f64)
+        }
+    };
+    
+    let mut min_dist_sq = f64::MAX;
+    let mut on_boundary = false;
+    
+    for i in 0..n {
+        let p1 = get_pt(i);
+        let p2 = get_pt((i + 1) % n);
+        
+        let dx = p2.0 - p1.0;
+        let dy = p2.1 - p1.1;
+        let len_sq = dx * dx + dy * dy;
+        
+        let dist_sq = if len_sq < 1e-9 {
+            (pt.0 - p1.0).powi(2) + (pt.1 - p1.1).powi(2)
+        } else {
+            let t = ((pt.0 - p1.0) * dx + (pt.1 - p1.1) * dy) / len_sq;
+            let t = t.clamp(0.0, 1.0);
+            let proj_x = p1.0 + t * dx;
+            let proj_y = p1.1 + t * dy;
+            (pt.0 - proj_x).powi(2) + (pt.1 - proj_y).powi(2)
+        };
+        
+        if dist_sq < min_dist_sq {
+            min_dist_sq = dist_sq;
+        }
+        
+        if dist_sq < 1e-9 {
+            on_boundary = true;
+        }
+    }
+    
+    if on_boundary {
+        return Ok(0.0);
+    }
+    
+    let mut inside = false;
+    for i in 0..n {
+        let p1 = get_pt(i);
+        let p2 = get_pt((i + 1) % n);
+        
+        if ((p1.1 > pt.1) != (p2.1 > pt.1)) &&
+           (pt.0 < (p2.0 - p1.0) * (pt.1 - p1.1) / (p2.1 - p1.1) + p1.0) {
+            inside = !inside;
+        }
+    }
+    
+    if measure_dist {
+        let min_dist = min_dist_sq.sqrt();
+        if inside {
+            Ok(min_dist)
+        } else {
+            Ok(-min_dist)
+        }
+    } else {
+        if inside {
+            Ok(1.0)
+        } else {
+            Ok(-1.0)
+        }
+    }
+}

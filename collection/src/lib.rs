@@ -121,5 +121,7 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(contours::moments, m)?)?;
     m.add_function(wrap_pyfunction!(contours::hu_moments, m)?)?;
     m.add_function(wrap_pyfunction!(contours::match_shapes, m)?)?;
+    m.add_function(wrap_pyfunction!(contours::is_contour_convex, m)?)?;
+    m.add_function(wrap_pyfunction!(contours::point_polygon_test, m)?)?;
     Ok(())
 }
