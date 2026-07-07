@@ -99,6 +99,9 @@ All colour functions accept and return NumPy arrays. RGB inputs must have shape 
 | `hist_spec_rgb` | `(image: ndarray[u8], target_hist: ndarray[f32]) → ndarray[u8]` | Histogram specification (matching) per channel. `target_hist` must be 1D with 256 bins. |
 | `hist_spec_gray` | `(image: ndarray[u8], target_hist: ndarray[f32]) → ndarray[u8]` | Grayscale histogram specification. `target_hist` must be 1D with 256 bins. |
 | `apply_otsu_threshold` | `(image: ndarray[u8]) → (int, ndarray[u8])` | Otsu's method — returns `(optimal_threshold, binary_image)`. Input must be 2D grayscale. |
+| `calc_hist` | `(image: ndarray[u8], channel_idx: int, hist_size: int, ranges: (float, float)) → ndarray[f32]` | Calculates 1D histogram of the chosen channel. Returns `(hist_size, 1)` array. |
+| `compare_hist` | `(h1: ndarray[f32], h2: ndarray[f32], method: int) → float` | Compares two histograms. Method: 0=Correl, 1=ChiSqr, 2=Intersect, 3=Bhattacharyya. |
+| `match_template` | `(image: ndarray[u8], templ: ndarray[u8], method: int = 0) → ndarray[f32]` | Slides a template across a 2D grayscale image to compute matching scores. Returns `(H-th+1, W-tw+1)` map. |
 
 ---
 

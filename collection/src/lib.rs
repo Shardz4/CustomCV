@@ -49,6 +49,9 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(histogram::hist_spec_rgb, m)?)?;
     m.add_function(wrap_pyfunction!(histogram::hist_spec_gray, m)?)?;
     m.add_function(wrap_pyfunction!(histogram::apply_otsu_threshold, m)?)?;
+    m.add_function(wrap_pyfunction!(histogram::calc_hist, m)?)?;
+    m.add_function(wrap_pyfunction!(histogram::compare_hist, m)?)?;
+    m.add_function(wrap_pyfunction!(histogram::match_template, m)?)?;
 
     // --- Spatial Filters ---
     m.add_function(wrap_pyfunction!(filters::median_filter, m)?)?;
