@@ -11,7 +11,7 @@ Operations execute natively in Rust through [PyO3](https://pyo3.rs) + [rust-nump
 |---|---|
 | **Point / Pixel Transforms** | Negative, log, gamma, threshold, RGB ↔ Gray / CMY, frequency-domain filtering |
 | **Color Space Conversions** | HSV, HLS, YCrCb, XYZ, CIE Lab, CIE Luv, YUV, BGR ↔ RGB, Gray → RGB |
-| **Histogram Operations** | Equalization (RGB & gray), specification, Otsu's thresholding, 1D histogram calculation (`calcHist`), histogram comparison (`compareHist` via Correlation/Chi-Square/Intersection/Bhattacharyya), template matching (`matchTemplate` via SQDIFF/CCORR/CCOEFF and normalized modes) |
+| **Histogram Operations** | Equalization (RGB & gray), specification, Otsu's thresholding, 1D histogram calculation (`calcHist`), histogram comparison (`compareHist` via Correlation/Chi-Square/Intersection/Bhattacharyya), template matching (`matchTemplate` via SQDIFF/CCORR/CCOEFF and normalized modes), back projection (`calcBackProject`), Earth Mover's Distance (`EMD` / `emd_1d`) |
 | **Spatial Filters & Smoothing** | 3×3 median, Laplacian edge sharpening, box blur, Gaussian blur, median blur, Bilateral filter |
 | **Gradient & Edge Operators** | Sobel, Scharr, Laplacian (variable kernel size), filter2D (custom convolution) |
 | **Edge & Feature Detection** | Canny, Harris corners, Shi-Tomasi corners, Hough lines & circles |

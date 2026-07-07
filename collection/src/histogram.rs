@@ -487,3 +487,114 @@ pub fn match_template<'py>(
     
     Ok(result.into_pyarray(py).to_dyn())
 }
+
+/// Back-project a histogram model onto a single channel of an image.
+///
+/// - `image`: Grayscale (2D) or Color (3D) u8 image.
+/// - `channel_idx`: index of the channel.
+/// - `hist`: 1D histogram array of shape (hist_size, 1) or flat.
+/// - `ranges`: (low, high) float bounds (e.g. (0.0, 256.0)).
+/// - `scale`: float multiplier for the back-projected values.
+/// Returns a 2D u8 back-projection image.
+#[pyfunction]
+#[pyo3(signature = (image, channel_idx, hist, ranges, scale = 1.0))]
+pub fn calc_back_project<'py>(
+    py: Python<'py>,
+    image: PyReadonlyArrayDyn<'py, u8>,
+    channel_idx: usize,
+    hist: PyReadonlyArrayDyn<'py, f32>,
+    ranges: (f32, f32),
+    scale: f32,
+) -> PyResult<&'py PyArrayDyn<u8>> {
+    let img_arr = image.as_array();
+    let ndim = img_arr.ndim();
+    let shape = img_arr.shape();
+    
+    let channel = if ndim == 2 {
+        if channel_idx != 0 {
+            return Err(pyo3::exceptions::PyValueError::new_err("Grayscale image only has channel 0"));
+        }
+        img_arr.into_dimensionality::<numpy::ndarray::Ix2>().unwrap()
+    } else if ndim == 3 {
+        if channel_idx >= shape[2] {
+            return Err(pyo3::exceptions::PyValueError::new_err("Channel index out of bounds"));
+        }
+        img_arr.slice(s![.., .., channel_idx]).into_dimensionality::<numpy::ndarray::Ix2>().unwrap()
+    } else {
+        return Err(pyo3::exceptions::PyValueError::new_err("Image must be 2D or 3D"));
+    };
+    
+    let hist_arr = hist.as_array();
+    let hist_len = hist_arr.len();
+    
+    let (h, w) = (channel.shape()[0], channel.shape()[1]);
+    let mut back_proj = ndarray::Array2::<u8>::zeros((h, w));
+    
+    let (low, high) = ranges;
+    let range_width = high - low;
+    if range_width <= 0.0 {
+        return Err(pyo3::exceptions::PyValueError::new_err("Invalid range"));
+    }
+    
+    let hist_flat: Vec<f32> = hist_arr.iter().cloned().collect();
+    
+    for y in 0..h {
+        for x in 0..w {
+            let val_f = channel[[y, x]] as f32;
+            if val_f >= low && val_f < high {
+                let bin = (((val_f - low) / range_width) * hist_len as f32).floor() as usize;
+                let bin = bin.min(hist_len - 1);
+                let p_val = hist_flat[bin] * scale;
+                back_proj[[y, x]] = p_val.clamp(0.0, 255.0).round() as u8;
+            }
+        }
+    }
+    
+    Ok(back_proj.into_pyarray(py).to_dyn())
+}
+
+/// Compute the Earth Mover's Distance (EMD) between two 1D histograms.
+///
+/// Under L1 ground distance, EMD simplifies to the sum of absolute differences of their CDFs.
+/// - `h1`: First 1D histogram.
+/// - `h2`: Second 1D histogram (must be of same size).
+/// Returns EMD distance score.
+#[pyfunction]
+pub fn emd_1d(
+    h1: PyReadonlyArrayDyn<f32>,
+    h2: PyReadonlyArrayDyn<f32>,
+) -> PyResult<f64> {
+    let arr1 = h1.as_array();
+    let arr2 = h2.as_array();
+    
+    if arr1.shape() != arr2.shape() {
+        return Err(pyo3::exceptions::PyValueError::new_err("Histograms must have the same shape"));
+    }
+    
+    let n = arr1.len();
+    if n == 0 {
+        return Ok(0.0);
+    }
+    
+    let h1_flat: Vec<f64> = arr1.iter().map(|&v| v as f64).collect();
+    let h2_flat: Vec<f64> = arr2.iter().map(|&v| v as f64).collect();
+    
+    let sum1: f64 = h1_flat.iter().sum();
+    let sum2: f64 = h2_flat.iter().sum();
+    
+    if sum1 <= 0.0 || sum2 <= 0.0 {
+        return Err(pyo3::exceptions::PyValueError::new_err("Histograms must have non-zero sums"));
+    }
+    
+    let mut cdf1 = 0.0;
+    let mut cdf2 = 0.0;
+    let mut emd = 0.0;
+    
+    for i in 0..n {
+        cdf1 += h1_flat[i] / sum1;
+        cdf2 += h2_flat[i] / sum2;
+        emd += (cdf1 - cdf2).abs();
+    }
+    
+    Ok(emd)
+}

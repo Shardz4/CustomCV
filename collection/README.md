@@ -102,6 +102,8 @@ All colour functions accept and return NumPy arrays. RGB inputs must have shape 
 | `calc_hist` | `(image: ndarray[u8], channel_idx: int, hist_size: int, ranges: (float, float)) → ndarray[f32]` | Calculates 1D histogram of the chosen channel. Returns `(hist_size, 1)` array. |
 | `compare_hist` | `(h1: ndarray[f32], h2: ndarray[f32], method: int) → float` | Compares two histograms. Method: 0=Correl, 1=ChiSqr, 2=Intersect, 3=Bhattacharyya. |
 | `match_template` | `(image: ndarray[u8], templ: ndarray[u8], method: int = 0) → ndarray[f32]` | Slides a template across a 2D grayscale image to compute matching scores. Returns `(H-th+1, W-tw+1)` map. |
+| `calc_back_project` | `(image: ndarray[u8], channel_idx: int, hist: ndarray[f32], ranges: (float, float), scale: float = 1.0) → ndarray[u8]` | Back-projects a histogram model onto a single channel of an image. |
+| `emd_1d` | `(h1: ndarray[f32], h2: ndarray[f32]) → float` | Earth Mover's Distance (EMD) between two 1D histograms under L1 ground distance. |
 
 ---
 
