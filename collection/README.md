@@ -26,7 +26,8 @@ collection/
 │   ├── geometric.rs          # Resize, translate, rotate, perspective warp
 │   ├── color_convert.rs      # Color space conversions (HSV, HLS, YCrCb, XYZ, Lab, Luv, YUV)
 │   ├── gradient.rs           # Gradient & edge operators (Sobel, Scharr, Laplacian)
-│   └── contours.rs           # Contour & shape analysis (Suzuki85, boundingRect, minAreaRect, minEnclosingCircle, fitEllipse)
+│   ├── contours.rs           # Contour & shape analysis (Suzuki85, boundingRect, minAreaRect, minEnclosingCircle, fitEllipse)
+│   └── segmentation.rs       # Image segmentation (connectedComponents, distanceTransform, floodFill, watershed, grabCut)
 ├── Cargo.toml                # Rust crate config (cdylib for PyO3)
 ├── Cargo.lock
 ├── pyproject.toml            # Maturin / PEP 517 build config
@@ -228,6 +229,21 @@ All contour functions accept and return NumPy arrays representing points of shap
 | `match_shapes` | `(contour1: ndarray[i32], contour2: ndarray[i32], method: int = 1) → float` | Similarity score between two shapes based on Hu moments. Lower score = more similar. |
 | `is_contour_convex` | `(contour: ndarray[i32]) → bool` | Returns True if the contour is convex, False otherwise. |
 | `point_polygon_test` | `(contour: ndarray[i32], pt: (float, float), measure_dist: bool) → float` | Evaluates if a point is inside, outside, or on the boundary of the contour. Can return signed distance. |
+
+---
+
+### 11. Image Segmentation — `segmentation.rs`
+
+These functions segment images into foreground/background or distinct labeled regions.
+
+| Function | Signature | Description |
+|---|---|---|
+| `connected_components` | `(image: ndarray[u8], connectivity: int = 8) → ndarray[i32]` | Label connected components in a binary image. Returns 2D labeled image. |
+| `connected_components_with_stats` | `(image: ndarray[u8], connectivity: int = 8) → (int, ndarray[i32], ndarray[i32], ndarray[f64])` | Label connected components and return `(num_labels, labels, stats, centroids)`. |
+| `distance_transform` | `(image: ndarray[u8]) → ndarray[f32]` | Computes Chamfer distance to the nearest zero pixel for every pixel in a binary image. |
+| `flood_fill` | `(image: ndarray[u8], seed_point: (int, int), new_val: Union[int, list[int]], lo_diff: int = 0, up_diff: int = 0) → (int, ndarray[u8])` | Region growing flood fill. Returns `(filled_pixel_count, filled_image)`. |
+| `watershed` | `(image: ndarray[u8], markers: ndarray[i32]) → ndarray[i32]` | Marker-based watershed segmentation using Meyer's flooding algorithm. Modifies markers in-place. |
+| `grab_cut` | `(img: ndarray[u8], mask: ndarray[u8], rect: (int, int, int, int), bgd_model: PyObject, fgd_model: PyObject, iter_count: int = 5, mode: int = 1) → (ndarray[u8], PyObject, PyObject)` | GrabCut foreground extraction using GMM color mapping and ICM spatial smoothing. |
 
 ---
 

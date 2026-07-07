@@ -13,6 +13,7 @@ mod vid;
 mod color_convert;
 mod gradient;
 mod contours;
+mod segmentation;
 
 #[pymodule]
 fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -123,5 +124,13 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(contours::match_shapes, m)?)?;
     m.add_function(wrap_pyfunction!(contours::is_contour_convex, m)?)?;
     m.add_function(wrap_pyfunction!(contours::point_polygon_test, m)?)?;
+
+    // --- Image Segmentation ---
+    m.add_function(wrap_pyfunction!(segmentation::connected_components, m)?)?;
+    m.add_function(wrap_pyfunction!(segmentation::connected_components_with_stats, m)?)?;
+    m.add_function(wrap_pyfunction!(segmentation::distance_transform, m)?)?;
+    m.add_function(wrap_pyfunction!(segmentation::flood_fill, m)?)?;
+    m.add_function(wrap_pyfunction!(segmentation::watershed, m)?)?;
+    m.add_function(wrap_pyfunction!(segmentation::grab_cut, m)?)?;
     Ok(())
 }
