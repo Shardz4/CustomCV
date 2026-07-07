@@ -934,3 +934,313 @@ fn solve_5x5(mut s: [[f64; 5]; 5], mut b: [f64; 5]) -> Option<[f64; 5]> {
     }
     Some(x)
 }
+
+/// Compute the convex hull of a point set.
+///
+/// - `clockwise`: if True, returns hull points in clockwise order. Else, counter-clockwise.
+/// - `return_points`: if True, returns coordinate array (M, 2). Else, returns index array (M, 1).
+#[pyfunction]
+#[pyo3(signature = (contour, clockwise = false, return_points = true))]
+pub fn convex_hull<'py>(
+    py: Python<'py>,
+    contour: PyReadonlyArrayDyn<'py, i32>,
+    clockwise: bool,
+    return_points: bool,
+) -> PyResult<&'py PyArrayDyn<i32>> {
+    let arr = contour.as_array();
+    let ndim = arr.ndim();
+    let n = arr.shape()[0];
+    if n == 0 {
+        return Ok(Array2::<i32>::zeros((0, 2)).into_pyarray(py).to_dyn());
+    }
+    
+    let mut pts = Vec::with_capacity(n);
+    for i in 0..n {
+        let (x, y) = if ndim == 2 {
+            (arr[[i, 0]] as f64, arr[[i, 1]] as f64)
+        } else {
+            (arr[[i, 0, 0]] as f64, arr[[i, 0, 1]] as f64)
+        };
+        pts.push((x, y));
+    }
+    
+    let mut hull_indices = convex_hull_indexed(&pts);
+    if clockwise {
+        hull_indices.reverse();
+    }
+    
+    if return_points {
+        let m = hull_indices.len();
+        let mut out = Array2::<i32>::zeros((m, 2));
+        for i in 0..m {
+            let idx = hull_indices[i];
+            if ndim == 2 {
+                out[[i, 0]] = arr[[idx, 0]];
+                out[[i, 1]] = arr[[idx, 1]];
+            } else {
+                out[[i, 0]] = arr[[idx, 0, 0]];
+                out[[i, 1]] = arr[[idx, 0, 1]];
+            }
+        }
+        Ok(out.into_pyarray(py).to_dyn())
+    } else {
+        let m = hull_indices.len();
+        let mut out = Array2::<i32>::zeros((m, 1));
+        for i in 0..m {
+            out[[i, 0]] = hull_indices[i] as i32;
+        }
+        Ok(out.into_pyarray(py).to_dyn())
+    }
+}
+
+/// Find convexity defects in a contour.
+///
+/// - `contour`: a (N, 2) or (N, 1, 2) array of coordinates.
+/// - `convexhull`: index array of the hull vertices in the contour (e.g. from convex_hull with return_points=False).
+///
+/// Returns (K, 4) array containing: [start_index, end_index, far_index, depth_scaled_by_256]
+#[pyfunction]
+pub fn convexity_defects<'py>(
+    py: Python<'py>,
+    contour: PyReadonlyArrayDyn<'py, i32>,
+    convexhull: PyReadonlyArrayDyn<'py, i32>,
+) -> PyResult<&'py PyArrayDyn<i32>> {
+    let arr = contour.as_array();
+    let ndim = arr.ndim();
+    let n = arr.shape()[0];
+    
+    let hull_arr = convexhull.as_array();
+    let m = hull_arr.shape()[0];
+    
+    if n < 3 || m < 3 {
+        return Ok(Array2::<i32>::zeros((0, 4)).into_pyarray(py).to_dyn());
+    }
+    
+    // Parse hull indices
+    let mut hull = Vec::with_capacity(m);
+    for i in 0..m {
+        let idx = if hull_arr.ndim() == 2 {
+            hull_arr[[i, 0]] as usize
+        } else {
+            hull_arr[[i]] as usize
+        };
+        hull.push(idx);
+    }
+    
+    let get_pt = |i: usize| -> (f64, f64) {
+        if ndim == 2 {
+            (arr[[i, 0]] as f64, arr[[i, 1]] as f64)
+        } else {
+            (arr[[i, 0, 0]] as f64, arr[[i, 0, 1]] as f64)
+        }
+    };
+    
+    let mut defects = Vec::new();
+    
+    for i in 0..m {
+        let start = hull[i];
+        let end = hull[(i + 1) % m];
+        
+        let p_start = get_pt(start);
+        let p_end = get_pt(end);
+        let dx = p_end.0 - p_start.0;
+        let dy = p_end.1 - p_start.1;
+        let len_sq = dx * dx + dy * dy;
+        let len = len_sq.sqrt();
+        
+        if len < 1e-9 {
+            continue;
+        }
+        
+        let mut max_dist = 0.0;
+        let mut far_idx = start;
+        
+        // Walk from start to end along contour
+        let mut idx = (start + 1) % n;
+        while idx != end {
+            let p = get_pt(idx);
+            let dist = ((dy * p.0 - dx * p.1 + p_end.0 * p_start.1 - p_end.1 * p_start.0) / len).abs();
+            if dist > max_dist {
+                max_dist = dist;
+                far_idx = idx;
+            }
+            idx = (idx + 1) % n;
+        }
+        
+        if max_dist > 1.0 {
+            let depth_scaled = (max_dist * 256.0).round() as i32;
+            defects.push([start as i32, end as i32, far_idx as i32, depth_scaled]);
+        }
+    }
+    
+    let k = defects.len();
+    let mut out = Array2::<i32>::zeros((k, 4));
+    for i in 0..k {
+        out[[i, 0]] = defects[i][0];
+        out[[i, 1]] = defects[i][1];
+        out[[i, 2]] = defects[i][2];
+        out[[i, 3]] = defects[i][3];
+    }
+    
+    Ok(out.into_pyarray(py).to_dyn())
+}
+
+/// Approximate a polygonal curve with specified precision using Douglas-Peucker algorithm.
+///
+/// - `curve`: a (N, 2) or (N, 1, 2) array of coordinates.
+/// - `epsilon`: parameter specifying the approximation accuracy (maximum distance).
+/// - `closed`: if True, the approximated curve is closed.
+///
+/// Returns (M, 2) approximated curve coordinates.
+#[pyfunction]
+#[pyo3(signature = (curve, epsilon, closed = true))]
+pub fn approx_poly_dp<'py>(
+    py: Python<'py>,
+    curve: PyReadonlyArrayDyn<'py, i32>,
+    epsilon: f64,
+    closed: bool,
+) -> PyResult<&'py PyArrayDyn<i32>> {
+    let arr = curve.as_array();
+    let ndim = arr.ndim();
+    let n = arr.shape()[0];
+    if n < 3 {
+        return Ok(curve.as_array().to_owned().into_pyarray(py).to_dyn());
+    }
+    
+    let get_pt = |i: usize| -> (f64, f64) {
+        if ndim == 2 {
+            (arr[[i, 0]] as f64, arr[[i, 1]] as f64)
+        } else {
+            (arr[[i, 0, 0]] as f64, arr[[i, 0, 1]] as f64)
+        }
+    };
+    
+    let mut pts = Vec::with_capacity(n);
+    for i in 0..n {
+        pts.push(get_pt(i));
+    }
+    
+    let mut keep = vec![false; n];
+    keep[0] = true;
+    
+    if closed {
+        let mut loop_pts = pts.clone();
+        loop_pts.push(pts[0]);
+        let mut loop_keep = vec![false; n + 1];
+        loop_keep[0] = true;
+        loop_keep[n] = true;
+        
+        rdp(&loop_pts, 0, n, epsilon, &mut loop_keep);
+        
+        for i in 0..n {
+            if loop_keep[i] {
+                keep[i] = true;
+            }
+        }
+    } else {
+        keep[n - 1] = true;
+        rdp(&pts, 0, n - 1, epsilon, &mut keep);
+    }
+    
+    let mut indices = Vec::new();
+    for i in 0..n {
+        if keep[i] {
+            indices.push(i);
+        }
+    }
+    
+    let m = indices.len();
+    let mut out = Array2::<i32>::zeros((m, 2));
+    for i in 0..m {
+        let idx = indices[i];
+        if ndim == 2 {
+            out[[i, 0]] = arr[[idx, 0]];
+            out[[i, 1]] = arr[[idx, 1]];
+        } else {
+            out[[i, 0]] = arr[[idx, 0, 0]];
+            out[[i, 1]] = arr[[idx, 0, 1]];
+        }
+    }
+    
+    Ok(out.into_pyarray(py).to_dyn())
+}
+
+fn convex_hull_indexed(pts: &[(f64, f64)]) -> Vec<usize> {
+    let n = pts.len();
+    if n == 0 {
+        return Vec::new();
+    }
+    if n == 1 {
+        return vec![0];
+    }
+    
+    let mut ip: Vec<usize> = (0..n).collect();
+    ip.sort_unstable_by(|&i, &j| {
+        pts[i].0.partial_cmp(&pts[j].0).unwrap_or(std::cmp::Ordering::Equal)
+            .then(pts[i].1.partial_cmp(&pts[j].1).unwrap_or(std::cmp::Ordering::Equal))
+    });
+    
+    let cross = |o: usize, a: usize, b: usize| -> f64 {
+        (pts[a].0 - pts[o].0) * (pts[b].1 - pts[o].1) - (pts[a].1 - pts[o].1) * (pts[b].0 - pts[o].0)
+    };
+    
+    let mut lower = Vec::new();
+    for &p in &ip {
+        while lower.len() >= 2 && cross(lower[lower.len() - 2], lower[lower.len() - 1], p) <= 0.0 {
+            lower.pop();
+        }
+        lower.push(p);
+    }
+    
+    let mut upper = Vec::new();
+    for &p in ip.iter().rev() {
+        while upper.len() >= 2 && cross(upper[upper.len() - 2], upper[upper.len() - 1], p) <= 0.0 {
+            upper.pop();
+        }
+        upper.push(p);
+    }
+    
+    if lower.len() > 1 { lower.pop(); }
+    if upper.len() > 1 { upper.pop(); }
+    lower.extend(upper);
+    lower
+}
+
+fn rdp(pts: &[(f64, f64)], start: usize, end: usize, epsilon: f64, keep: &mut [bool]) {
+    if end <= start + 1 {
+        return;
+    }
+    
+    let p1 = pts[start];
+    let p2 = pts[end];
+    let dx = p2.0 - p1.0;
+    let dy = p2.1 - p1.1;
+    let len_sq = dx * dx + dy * dy;
+    
+    let mut max_dist_sq = 0.0;
+    let mut split_idx = start;
+    
+    for i in (start + 1)..end {
+        let p = pts[i];
+        let dist_sq = if len_sq < 1e-9 {
+            (p.0 - p1.0).powi(2) + (p.1 - p1.1).powi(2)
+        } else {
+            let t = ((p.0 - p1.0) * dx + (p.1 - p1.1) * dy) / len_sq;
+            let t = t.clamp(0.0, 1.0);
+            let proj_x = p1.0 + t * dx;
+            let proj_y = p1.1 + t * dy;
+            (p.0 - proj_x).powi(2) + (p.1 - proj_y).powi(2)
+        };
+        
+        if dist_sq > max_dist_sq {
+            max_dist_sq = dist_sq;
+            split_idx = i;
+        }
+    }
+    
+    if max_dist_sq > epsilon * epsilon {
+        keep[split_idx] = true;
+        rdp(pts, start, split_idx, epsilon, keep);
+        rdp(pts, split_idx, end, epsilon, keep);
+    }
+}

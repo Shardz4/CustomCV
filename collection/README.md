@@ -220,6 +220,9 @@ All contour functions accept and return NumPy arrays representing points of shap
 | `min_area_rect` | `(contour: ndarray[i32]) → ((float, float), (float, float), float)` | Minimum-area rotated bounding box. Returns `((cx, cy), (w, h), angle_in_degrees)`. |
 | `min_enclosing_circle` | `(contour: ndarray[i32]) → ((float, float), float)` | Smallest enclosing circle. Returns `((cx, cy), radius)`. |
 | `fit_ellipse` | `(contour: ndarray[i32]) → ((float, float), (float, float), float)` | Fits an ellipse to the point set using algebraic least squares. Returns `((cx, cy), (axis_width, axis_height), angle_in_degrees)`. |
+| `convex_hull` | `(contour: ndarray[i32], clockwise: bool = False, return_points: bool = True) → ndarray[i32]` | Computes the convex hull of the point set. Returns coordinates or original index list. |
+| `convexity_defects` | `(contour: ndarray[i32], convexhull: ndarray[i32]) → ndarray[i32]` | Computes convexity defects of a contour using its convex hull indices. Returns `(K, 4)` array of indices/depths. |
+| `approx_poly_dp` | `(curve: ndarray[i32], epsilon: float, closed: bool = True) → ndarray[i32]` | Approximates a polygonal curve with epsilon accuracy using the Douglas-Peucker algorithm. |
 
 ---
 
