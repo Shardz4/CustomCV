@@ -61,6 +61,9 @@ Images are passed in as NumPy arrays (`np.ndarray`) and results are returned the
 | `apply_threshold_binary_inv` | `(image: ndarray[u8], threshold_value: int) → ndarray[u8]` | Inverse binary — pixels > thresh → 0, else 255. |
 | `apply_threshold_trunc` | `(image: ndarray[u8], threshold_value: int) → ndarray[u8]` | Truncate — pixels > thresh → thresh, else unchanged. |
 | `apply_threshold_tozero` | `(image: ndarray[u8], threshold_value: int) → ndarray[u8]` | To-zero — pixels > thresh → unchanged, else 0. |
+| `apply_threshold_tozero_inv` | `(image: ndarray[u8], threshold_value: int) → ndarray[u8]` | To-zero inverse — pixels > thresh → 0, else unchanged. |
+| `apply_threshold_triangle` | `(image: ndarray[u8]) → (int, ndarray[u8])` | Triangle auto-threshold + binary. Returns `(threshold, image)`. |
+| `apply_otsu_with_mode` | `(image: ndarray[u8], mode: str) → (int, ndarray[u8])` | Otsu auto-threshold + any mode (`binary`, `binary_inv`, `trunc`, `tozero`, `tozero_inv`). |
 | `rgb_to_cmy` | `(image: ndarray[u8]) → ndarray[f32]` | Converts RGB [0, 255] → CMY [0.0, 1.0]. Input must be (H, W, 3). |
 | `apply_frequency_filter` | `(f_shifted: ndarray[complex128], d0: float, filter_type: str) → ndarray[complex128]` | Applies a frequency-domain mask. Supported types: `"ILPF"`, `"IHPF"`, `"GLPF"`, `"GHPF"`. |
 
