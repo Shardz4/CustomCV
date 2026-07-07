@@ -4,7 +4,7 @@ use numpy::ndarray::s;
 use crate::helpers;
 
 #[pyfunction]
-fn apply_filter2d<'py>(py: Python<'py>, img: PyReadonlyArrayDyn<'py, u8>, kernel: PyReadonlyArrayDyn<'py, f64>) -> PyResult<Py<PyArrayDyn<u8>>> {
+pub fn apply_filter2d<'py>(py: Python<'py>, img: PyReadonlyArrayDyn<'py, u8>, kernel: PyReadonlyArrayDyn<'py, f64>) -> PyResult<Py<PyArrayDyn<u8>>> {
     let arr = img.as_array();
     let k_arr = kernel.as_array();
     let k_2d = k_arr.into_dimensionality::<numpy::ndarray::Ix2>()

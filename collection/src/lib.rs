@@ -11,6 +11,7 @@ mod filters;
 mod smoothing;
 mod vid;
 mod color_convert;
+mod gradient;
 
 #[pymodule]
 fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -61,6 +62,12 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(edge_detection::shi_tomasi_corners, m)?)?;
     m.add_function(wrap_pyfunction!(edge_detection::hough_lines, m)?)?;
     m.add_function(wrap_pyfunction!(edge_detection::hough_circles, m)?)?;
+
+    // --- Gradient & Edge Operators ---
+    m.add_function(wrap_pyfunction!(gradient::apply_sobel, m)?)?;
+    m.add_function(wrap_pyfunction!(gradient::apply_scharr, m)?)?;
+    m.add_function(wrap_pyfunction!(gradient::apply_laplacian, m)?)?;
+    m.add_function(wrap_pyfunction!(smoothing::apply_filter2d, m)?)?;
 
     // --- Morphological Operations ---
     m.add_function(wrap_pyfunction!(morphological::apply_erosion, m)?)?;
