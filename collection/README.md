@@ -24,7 +24,8 @@ collection/
 │   ├── morphological.rs      # Erosion, dilation, opening, closing, gradient, top/black hat
 │   ├── arithematic.rs        # Arithmetic & bitwise image operations
 │   ├── geometric.rs          # Resize, translate, rotate, perspective warp
-│   └── color_convert.rs      # Color space conversions (HSV, HLS, YCrCb, XYZ, Lab, Luv, YUV)
+│   ├── color_convert.rs      # Color space conversions (HSV, HLS, YCrCb, XYZ, Lab, Luv, YUV)
+│   └── gradient.rs           # Gradient & edge operators (Sobel, Scharr, Laplacian)
 ├── Cargo.toml                # Rust crate config (cdylib for PyO3)
 ├── Cargo.lock
 ├── pyproject.toml            # Maturin / PEP 517 build config
@@ -108,8 +109,21 @@ All colour functions accept and return NumPy arrays. RGB inputs must have shape 
 
 ---
 
+### 3b. Gradient & Edge Operators — `gradient.rs` & `smoothing.rs`
+
+These functions return signed gradients or allow custom 2D filtering.
+
+| Function | Signature | Description |
+|---|---|---|
+| `apply_sobel` | `(image: ndarray[u8], dx: int, dy: int, ksize: int) → ndarray[f32]` | Sobel gradient operator. `dx`/`dy` ∈ {0, 1, 2}, `ksize` ∈ {1, 3, 5, 7}. Returns signed float values. |
+| `apply_scharr` | `(image: ndarray[u8], dx: int, dy: int) → ndarray[f32]` | Scharr gradient operator (3x3). `dx`/`dy` must be exactly one 1 and one 0. Returns signed float values. |
+| `apply_laplacian` | `(image: ndarray[u8], ksize: int) → ndarray[f32]` | Laplacian operator with configurable `ksize` ∈ {1, 3, 5, 7}. Returns signed float values. |
+| `apply_filter2d` | `(image: ndarray[u8], kernel: ndarray[f64]) → ndarray[u8]` | General 2D convolution with any custom 2D float kernel. |
+
+---
+
 ### 4. Edge & Feature Detection — `edge_detection.rs`
- add 
+
 | Function | Signature | Description |
 |---|---|---|
 | `apply_canny` | `(image: ndarray[f64], low_thresh: float, high_thresh: float) → ndarray[f64]` | Full Canny pipeline: Gaussian blur → Sobel gradients → non-max suppression → hysteresis. Supports 2D & 3D. |

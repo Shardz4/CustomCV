@@ -13,6 +13,7 @@ Operations execute natively in Rust through [PyO3](https://pyo3.rs) + [rust-nump
 | **Color Space Conversions** | HSV, HLS, YCrCb, XYZ, CIE Lab, CIE Luv, YUV, BGR ↔ RGB, Gray → RGB |
 | **Histogram Operations** | Equalization (RGB & gray), specification, Otsu's thresholding |
 | **Spatial Filters & Smoothing** | 3×3 median, Laplacian edge sharpening, box blur, Gaussian blur, median blur, Bilateral filter |
+| **Gradient & Edge Operators** | Sobel, Scharr, Laplacian (variable kernel size), filter2D (custom convolution) |
 | **Edge & Feature Detection** | Canny, Harris corners, Shi-Tomasi corners, Hough lines & circles |
 | **Morphological Operations** | Erosion, dilation, opening, closing, gradient, top-hat, black-hat |
 | **Arithmetic & Bitwise Ops** | Add, subtract, weighted blend, AND / OR / XOR / NOT |
