@@ -25,7 +25,8 @@ collection/
 │   ├── arithematic.rs        # Arithmetic & bitwise image operations
 │   ├── geometric.rs          # Resize, translate, rotate, perspective warp
 │   ├── color_convert.rs      # Color space conversions (HSV, HLS, YCrCb, XYZ, Lab, Luv, YUV)
-│   └── gradient.rs           # Gradient & edge operators (Sobel, Scharr, Laplacian)
+│   ├── gradient.rs           # Gradient & edge operators (Sobel, Scharr, Laplacian)
+│   └── contours.rs           # Contour & shape analysis (Suzuki85, boundingRect, minAreaRect, minEnclosingCircle, fitEllipse)
 ├── Cargo.toml                # Rust crate config (cdylib for PyO3)
 ├── Cargo.lock
 ├── pyproject.toml            # Maturin / PEP 517 build config
@@ -202,6 +203,23 @@ Provides utilities for camera input, frame extraction, and compiling image seque
 | `extract_images_from_video` | `(video_path: str, output_dir: str, frame_interval: int = 1) → None` | Decodes a video and saves individual frames to the output directory. |
 | `extract_video_from_images` | `(image_paths: list[str], output_video_path: str, fps: float = 20.0) → None` | Takes a list of image file paths, sorts them alphabetically, and compiles them into a video. |
 | `background_subtract_mog2` | `(video_path: str, history: int = 500, var_threshold: float = 16.0, detect_shadows: bool = True, kernel_size: int = 5, output_path: Optional[str] = None) → None` | Applies MOG2 background subtraction. Outputs a foreground mask per frame (0=bg, 127=shadow, 255=fg), cleaned with morphological opening. Displays live or saves to `output_path`. |
+
+---
+
+### 10. Contour & Shape Analysis — `contours.rs`
+
+All contour functions accept and return NumPy arrays representing points of shape **(N, 2)** or **(N, 1, 2)**.
+
+| Function | Signature | Description |
+|---|---|---|
+| `find_contours` | `(image: ndarray[u8]) → list[ndarray[i32]]` | Suzuki-Abe border following to find all contours in a binary image. Returns list of `(N, 2)` coordinate arrays. |
+| `draw_contours` | `(image: ndarray[u8], contours: list[ndarray[i32]], contour_idx: int, color: Union[int, list[int]], thickness: int = 1) → ndarray[u8]` | Draws outlines or fills contours on a 2D grayscale or 3D color image. Returns the annotated image. |
+| `contour_area` | `(contour: ndarray[i32], oriented: bool = False) → float` | Area enclosed by a contour (Shoelace formula). If `oriented` is True, returns signed area. |
+| `arc_length` | `(curve: ndarray[i32], closed: bool = True) → float` | Perimeter or arc length of a contour or curve. |
+| `bounding_rect` | `(contour: ndarray[i32]) → (int, int, int, int)` | Computes the axis-aligned bounding box: `(x, y, width, height)`. |
+| `min_area_rect` | `(contour: ndarray[i32]) → ((float, float), (float, float), float)` | Minimum-area rotated bounding box. Returns `((cx, cy), (w, h), angle_in_degrees)`. |
+| `min_enclosing_circle` | `(contour: ndarray[i32]) → ((float, float), float)` | Smallest enclosing circle. Returns `((cx, cy), radius)`. |
+| `fit_ellipse` | `(contour: ndarray[i32]) → ((float, float), (float, float), float)` | Fits an ellipse to the point set using algebraic least squares. Returns `((cx, cy), (axis_width, axis_height), angle_in_degrees)`. |
 
 ---
 

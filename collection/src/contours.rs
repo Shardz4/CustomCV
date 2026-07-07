@@ -531,3 +531,406 @@ pub fn arc_length(curve: PyReadonlyArrayDyn<i32>, closed: bool) -> PyResult<f64>
     
     Ok(length)
 }
+
+/// Compute the axis-aligned bounding rectangle of a contour.
+///
+/// Returns (x, y, width, height).
+#[pyfunction]
+pub fn bounding_rect(contour: PyReadonlyArrayDyn<i32>) -> PyResult<(i32, i32, i32, i32)> {
+    let arr = contour.as_array();
+    let ndim = arr.ndim();
+    let n = arr.shape()[0];
+    if n == 0 {
+        return Ok((0, 0, 0, 0));
+    }
+    
+    let get_pt = |i: usize| -> (i32, i32) {
+        if ndim == 2 {
+            (arr[[i, 0]], arr[[i, 1]])
+        } else {
+            (arr[[i, 0, 0]], arr[[i, 0, 1]])
+        }
+    };
+    
+    let (mut min_x, mut min_y) = get_pt(0);
+    let (mut max_x, mut max_y) = get_pt(0);
+    
+    for i in 1..n {
+        let (x, y) = get_pt(i);
+        if x < min_x { min_x = x; }
+        if x > max_x { max_x = x; }
+        if y < min_y { min_y = y; }
+        if y > max_y { max_y = y; }
+    }
+    
+    let width = max_x - min_x + 1;
+    let height = max_y - min_y + 1;
+    
+    Ok((min_x, min_y, width, height))
+}
+
+/// Compute the minimum-area rotated bounding rectangle of a contour.
+///
+/// Returns ((center_x, center_y), (width, height), angle_in_degrees)
+#[pyfunction]
+pub fn min_area_rect(contour: PyReadonlyArrayDyn<i32>) -> PyResult<((f64, f64), (f64, f64), f64)> {
+    let arr = contour.as_array();
+    let ndim = arr.ndim();
+    let n = arr.shape()[0];
+    if n == 0 {
+        return Ok(((0.0, 0.0), (0.0, 0.0), 0.0));
+    }
+    
+    let mut pts = Vec::with_capacity(n);
+    for i in 0..n {
+        let (x, y) = if ndim == 2 {
+            (arr[[i, 0]] as f64, arr[[i, 1]] as f64)
+        } else {
+            (arr[[i, 0, 0]] as f64, arr[[i, 0, 1]] as f64)
+        };
+        pts.push((x, y));
+    }
+    
+    let hull = convex_hull_points(pts);
+    if hull.len() <= 1 {
+        let p = if hull.is_empty() { (0.0, 0.0) } else { hull[0] };
+        return Ok(((p.0, p.1), (0.0, 0.0), 0.0));
+    }
+    
+    let mut min_area = f64::MAX;
+    let mut best_center = (0.0, 0.0);
+    let mut best_size = (0.0, 0.0);
+    let mut best_angle = 0.0;
+    
+    let h_len = hull.len();
+    for i in 0..h_len {
+        let p1 = hull[i];
+        let p2 = hull[(i + 1) % h_len];
+        let dx = p2.0 - p1.0;
+        let dy = p2.1 - p1.1;
+        let angle = dy.atan2(dx);
+        
+        let cos_a = angle.cos();
+        let sin_a = angle.sin();
+        
+        let mut min_rx = f64::MAX;
+        let mut max_rx = f64::MIN;
+        let mut min_ry = f64::MAX;
+        let mut max_ry = f64::MIN;
+        
+        for p in &hull {
+            let rx = p.0 * cos_a + p.1 * sin_a;
+            let ry = -p.0 * sin_a + p.1 * cos_a;
+            if rx < min_rx { min_rx = rx; }
+            if rx > max_rx { max_rx = rx; }
+            if ry < min_ry { min_ry = ry; }
+            if ry > max_ry { max_ry = ry; }
+        }
+        
+        let w = max_rx - min_rx;
+        let h = max_ry - min_ry;
+        let area = w * h;
+        
+        if area < min_area {
+            min_area = area;
+            let cx_r = (min_rx + max_rx) / 2.0;
+            let cy_r = (min_ry + max_ry) / 2.0;
+            let cx = cx_r * cos_a - cy_r * sin_a;
+            let cy = cx_r * sin_a + cy_r * cos_a;
+            best_center = (cx, cy);
+            best_size = (w, h);
+            best_angle = angle.to_degrees();
+        }
+    }
+    
+    Ok((best_center, best_size, best_angle))
+}
+
+/// Compute the minimum enclosing circle of a contour.
+///
+/// Returns ((center_x, center_y), radius)
+#[pyfunction]
+pub fn min_enclosing_circle(contour: PyReadonlyArrayDyn<i32>) -> PyResult<((f64, f64), f64)> {
+    let arr = contour.as_array();
+    let ndim = arr.ndim();
+    let n = arr.shape()[0];
+    if n == 0 {
+        return Ok(((0.0, 0.0), 0.0));
+    }
+    
+    let mut pts = Vec::with_capacity(n);
+    for i in 0..n {
+        let (x, y) = if ndim == 2 {
+            (arr[[i, 0]] as f64, arr[[i, 1]] as f64)
+        } else {
+            (arr[[i, 0, 0]] as f64, arr[[i, 0, 1]] as f64)
+        };
+        pts.push((x, y));
+    }
+    
+    shuffle_points(&mut pts);
+    let circle = welzl(&pts, Vec::new(), pts.len());
+    Ok(circle)
+}
+
+/// Fit an ellipse to a 2D point set.
+///
+/// Returns ((center_x, center_y), (axis_width, axis_height), angle_in_degrees)
+#[pyfunction]
+pub fn fit_ellipse(contour: PyReadonlyArrayDyn<i32>) -> PyResult<((f64, f64), (f64, f64), f64)> {
+    let arr = contour.as_array();
+    let ndim = arr.ndim();
+    let n = arr.shape()[0];
+    if n < 5 {
+        return Err(pyo3::exceptions::PyValueError::new_err("fitEllipse requires at least 5 points"));
+    }
+    
+    let mut pts = Vec::with_capacity(n);
+    for i in 0..n {
+        let (x, y) = if ndim == 2 {
+            (arr[[i, 0]] as f64, arr[[i, 1]] as f64)
+        } else {
+            (arr[[i, 0, 0]] as f64, arr[[i, 0, 1]] as f64)
+        };
+        pts.push((x, y));
+    }
+    
+    let mut s = [[0.0; 5]; 5];
+    let mut b = [0.0; 5];
+    
+    for &(x, y) in &pts {
+        let x2 = x * x;
+        let xy = x * y;
+        let y2 = y * y;
+        let row = [x2, xy, y2, x, y];
+        for j in 0..5 {
+            for k in 0..5 {
+                s[j][k] += row[j] * row[k];
+            }
+            b[j] -= row[j];
+        }
+    }
+    
+    let a = match solve_5x5(s, b) {
+        Some(sol) => sol,
+        None => return Err(pyo3::exceptions::PyValueError::new_err("Could not fit ellipse (singular matrix)")),
+    };
+    
+    let aa = a[0];
+    let bb = a[1];
+    let cc = a[2];
+    let dd = a[3];
+    let ee = a[4];
+    let ff = 1.0;
+    
+    let denom = bb * bb - 4.0 * aa * cc;
+    if denom >= 0.0 {
+        // Conic is not an ellipse
+        return Err(pyo3::exceptions::PyValueError::new_err("Fitted conic is not an ellipse"));
+    }
+    
+    // Center of ellipse
+    let cx = (bb * ee - 2.0 * cc * dd) / denom;
+    let cy = (bb * dd - 2.0 * aa * ee) / denom;
+    
+    // Translate origin to center
+    let f_prime = aa * cx * cx + bb * cx * cy + cc * cy * cy + dd * cx + ee * cy + ff;
+    
+    // Eigenvalues of quadratic form
+    let val_sqrt = ((aa - cc).powi(2) + bb * bb).sqrt();
+    let l1 = (aa + cc + val_sqrt) / 2.0;
+    let l2 = (aa + cc - val_sqrt) / 2.0;
+    
+    let semi_a = if -f_prime / l1 > 0.0 { (-f_prime / l1).sqrt() } else { 0.0 };
+    let semi_b = if -f_prime / l2 > 0.0 { (-f_prime / l2).sqrt() } else { 0.0 };
+    
+    let axis_w = 2.0 * semi_a;
+    let axis_h = 2.0 * semi_b;
+    
+    let mut angle = if bb.abs() < 1e-12 {
+        if aa < cc { 0.0 } else { 90.0 }
+    } else {
+        (0.5 * bb.atan2(aa - cc)).to_degrees()
+    };
+    if angle < 0.0 {
+        angle += 180.0;
+    }
+    
+    Ok(((cx, cy), (axis_w, axis_h), angle))
+}
+
+// ==========================================
+// CONVEX HULL & WELZL HELPERS
+// ==========================================
+
+fn convex_hull_points(mut pts: Vec<(f64, f64)>) -> Vec<(f64, f64)> {
+    if pts.len() <= 1 {
+        return pts;
+    }
+    
+    pts.sort_unstable_by(|a, b| {
+        a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal)
+            .then(a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
+    });
+    
+    pts.dedup_by(|a, b| (a.0 - b.0).abs() < 1e-9 && (a.1 - b.1).abs() < 1e-9);
+    
+    if pts.len() <= 1 {
+        return pts;
+    }
+
+    let cross = |o: &(f64, f64), a: &(f64, f64), b: &(f64, f64)| -> f64 {
+        (a.0 - o.0) * (b.1 - o.1) - (a.1 - o.1) * (b.0 - o.0)
+    };
+
+    let mut lower = Vec::new();
+    for p in &pts {
+        while lower.len() >= 2 && cross(&lower[lower.len() - 2], &lower[lower.len() - 1], p) <= 0.0 {
+            lower.pop();
+        }
+        lower.push(*p);
+    }
+
+    let mut upper = Vec::new();
+    for p in pts.iter().rev() {
+        while upper.len() >= 2 && cross(&upper[upper.len() - 2], &upper[upper.len() - 1], p) <= 0.0 {
+            upper.pop();
+        }
+        upper.push(*p);
+    }
+
+    lower.pop();
+    upper.pop();
+    lower.extend(upper);
+    lower
+}
+
+fn distance(p1: (f64, f64), p2: (f64, f64)) -> f64 {
+    ((p1.0 - p2.0).powi(2) + (p1.1 - p2.1).powi(2)).sqrt()
+}
+
+fn is_inside(circle: &((f64, f64), f64), p: (f64, f64)) -> bool {
+    distance(circle.0, p) <= circle.1 + 1e-9
+}
+
+fn circumcircle(a: (f64, f64), b: (f64, f64), c: (f64, f64)) -> ((f64, f64), f64) {
+    let d = 2.0 * (a.0 * (b.1 - c.1) + b.0 * (c.1 - a.1) + c.0 * (a.1 - b.1));
+    if d.abs() < 1e-9 {
+        let d1 = distance(a, b);
+        let d2 = distance(b, c);
+        let d3 = distance(a, c);
+        if d1 >= d2 && d1 >= d3 {
+            (((a.0 + b.0) / 2.0, (a.1 + b.1) / 2.0), d1 / 2.0)
+        } else if d2 >= d1 && d2 >= d3 {
+            (((b.0 + c.0) / 2.0, (b.1 + c.1) / 2.0), d2 / 2.0)
+        } else {
+            (((a.0 + c.0) / 2.0, (a.1 + c.1) / 2.0), d3 / 2.0)
+        }
+    } else {
+        let ux = ((a.0.powi(2) + a.1.powi(2)) * (b.1 - c.1)
+            + (b.0.powi(2) + b.1.powi(2)) * (c.1 - a.1)
+            + (c.0.powi(2) + c.1.powi(2)) * (a.1 - b.1))
+            / d;
+        let uy = ((a.0.powi(2) + a.1.powi(2)) * (c.0 - b.0)
+            + (b.0.powi(2) + b.1.powi(2)) * (a.0 - c.0)
+            + (c.0.powi(2) + c.1.powi(2)) * (b.0 - a.0))
+            / d;
+        let center = (ux, uy);
+        (center, distance(center, a))
+    }
+}
+
+fn circle_from_boundary(boundary: &[(f64, f64)]) -> ((f64, f64), f64) {
+    match boundary.len() {
+        0 => ((0.0, 0.0), 0.0),
+        1 => (boundary[0], 0.0),
+        2 => {
+            let a = boundary[0];
+            let b = boundary[1];
+            (((a.0 + b.0) / 2.0, (a.1 + b.1) / 2.0), distance(a, b) / 2.0)
+        }
+        3 => {
+            let a = boundary[0];
+            let b = boundary[1];
+            let c = boundary[2];
+            let dot_a = (b.0 - a.0) * (c.0 - a.0) + (b.1 - a.1) * (c.1 - a.1);
+            let dot_b = (a.0 - b.0) * (c.0 - b.0) + (a.1 - b.1) * (c.1 - b.1);
+            let dot_c = (a.0 - c.0) * (b.0 - c.0) + (a.1 - c.1) * (b.1 - c.1);
+
+            if dot_a < 0.0 {
+                (((b.0 + c.0) / 2.0, (b.1 + c.1) / 2.0), distance(b, c) / 2.0)
+            } else if dot_b < 0.0 {
+                (((a.0 + c.0) / 2.0, (a.1 + c.1) / 2.0), distance(a, c) / 2.0)
+            } else if dot_c < 0.0 {
+                (((a.0 + b.0) / 2.0, (a.1 + b.1) / 2.0), distance(a, b) / 2.0)
+            } else {
+                circumcircle(a, b, c)
+            }
+        }
+        _ => ((0.0, 0.0), 0.0),
+    }
+}
+
+fn welzl(pts: &[(f64, f64)], boundary: Vec<(f64, f64)>, n: usize) -> ((f64, f64), f64) {
+    if n == 0 || boundary.len() == 3 {
+        return circle_from_boundary(&boundary);
+    }
+    let p = pts[n - 1];
+    let circle = welzl(pts, boundary.clone(), n - 1);
+    if is_inside(&circle, p) {
+        return circle;
+    }
+    let mut new_boundary = boundary;
+    new_boundary.push(p);
+    welzl(pts, new_boundary, n - 1)
+}
+
+fn shuffle_points(pts: &mut [(f64, f64)]) {
+    let mut state = 123456789u64;
+    let mut next_random = || -> usize {
+        state ^= state << 12;
+        state ^= state >> 25;
+        state ^= state << 27;
+        state as usize
+    };
+    let n = pts.len();
+    for i in (1..n).rev() {
+        let j = next_random() % (i + 1);
+        pts.swap(i, j);
+    }
+}
+
+fn solve_5x5(mut s: [[f64; 5]; 5], mut b: [f64; 5]) -> Option<[f64; 5]> {
+    let n = 5;
+    for i in 0..n {
+        let mut max_row = i;
+        for r in (i + 1)..n {
+            if s[r][i].abs() > s[max_row][i].abs() {
+                max_row = r;
+            }
+        }
+        if s[max_row][i].abs() < 1e-12 {
+            return None;
+        }
+        s.swap(i, max_row);
+        b.swap(i, max_row);
+        
+        for r in (i + 1)..n {
+            let factor = s[r][i] / s[i][i];
+            for c in i..n {
+                s[r][c] -= factor * s[i][c];
+            }
+            b[r] -= factor * b[i];
+        }
+    }
+    
+    let mut x = [0.0; 5];
+    for i in (0..n).rev() {
+        let mut sum = b[i];
+        for c in (i + 1)..n {
+            sum -= s[i][c] * x[c];
+        }
+        x[i] = sum / s[i][i];
+    }
+    Some(x)
+}
