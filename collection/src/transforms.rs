@@ -4,6 +4,7 @@ use numpy::{
     IntoPyArray, PyArray3, PyArrayDyn, PyArrayMethods, PyReadonlyArray3, PyReadonlyArrayDyn,
 };
 use num_complex::Complex64;
+use crate::helpers::{calculate_otsu_threshold, calculate_triangle_threshold};
 
 // ==========================================
 // POINT TRANSFORMATIONS
@@ -85,6 +86,52 @@ pub fn apply_threshold_tozero<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<u8>, t
         if pixel > threshold_value { pixel } else { 0 }
     });
     Ok(result.into_pyarray(py))
+}
+
+/// To-zero inverse threshold: pixels > thresh → 0, else → pixel (unchanged).
+#[pyfunction]
+pub fn apply_threshold_tozero_inv<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<u8>, threshold_value: u8) -> PyResult<&'py PyArrayDyn<u8>> {
+    let arr = x.as_array();
+    let result = arr.mapv(|pixel| {
+        if pixel > threshold_value { 0 } else { pixel }
+    });
+    Ok(result.into_pyarray(py))
+}
+
+/// Triangle automatic threshold.
+/// Computes the optimal threshold using the Triangle algorithm, then applies binary thresholding.
+/// Returns (threshold_value, thresholded_image).
+#[pyfunction]
+pub fn apply_threshold_triangle<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyResult<(u8, &'py PyArrayDyn<u8>)> {
+    let arr = x.as_array();
+    let channel = arr.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Grayscale (2D) image required"))?;
+    let thresh = calculate_triangle_threshold(channel.view());
+    let result = channel.mapv(|pixel| if pixel > thresh { 255 } else { 0 });
+    Ok((thresh, result.into_pyarray(py).to_dyn()))
+}
+
+/// Otsu threshold combined with any threshold mode.
+/// Auto-computes the optimal threshold using Otsu's method, then applies the given mode.
+/// Supported modes: "binary", "binary_inv", "trunc", "tozero", "tozero_inv".
+/// Returns (threshold_value, thresholded_image).
+#[pyfunction]
+pub fn apply_otsu_with_mode<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>, mode: &str) -> PyResult<(u8, &'py PyArrayDyn<u8>)> {
+    let arr = x.as_array();
+    let channel = arr.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Grayscale (2D) image required"))?;
+    let thresh = calculate_otsu_threshold(channel.view());
+    let result = match mode {
+        "binary"     => channel.mapv(|p| if p > thresh { 255 } else { 0 }),
+        "binary_inv" => channel.mapv(|p| if p > thresh { 0 } else { 255 }),
+        "trunc"      => channel.mapv(|p| if p > thresh { thresh } else { p }),
+        "tozero"     => channel.mapv(|p| if p > thresh { p } else { 0 }),
+        "tozero_inv" => channel.mapv(|p| if p > thresh { 0 } else { p }),
+        _ => return Err(pyo3::exceptions::PyValueError::new_err(
+            "Unknown mode. Use: binary, binary_inv, trunc, tozero, tozero_inv"
+        )),
+    };
+    Ok((thresh, result.into_pyarray(py).to_dyn()))
 }
 
 #[pyfunction]

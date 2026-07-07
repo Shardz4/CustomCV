@@ -83,6 +83,77 @@ pub fn calculate_otsu_threshold(channel_data: ArrayView2<u8>) -> u8 {
     threshold
 }
 
+/// Triangle threshold algorithm.
+/// Draws a line between the histogram peak and the farthest non-zero bin,
+/// then picks the threshold at the bin with maximum perpendicular distance.
+pub fn calculate_triangle_threshold(channel_data: ArrayView2<u8>) -> u8 {
+    // Build histogram
+    let mut hist = [0usize; 256];
+    for &pixel in channel_data.iter() {
+        hist[pixel as usize] += 1;
+    }
+
+    // Find the peak (mode) of the histogram
+    let mut peak_idx = 0usize;
+    let mut peak_val = 0usize;
+    for i in 0..256 {
+        if hist[i] > peak_val {
+            peak_val = hist[i];
+            peak_idx = i;
+        }
+    }
+
+    // Find the farthest non-zero bin from the peak
+    let mut left_nz = 0usize;
+    let mut right_nz = 255usize;
+    for i in 0..256 {
+        if hist[i] > 0 { left_nz = i; break; }
+    }
+    for i in (0..256).rev() {
+        if hist[i] > 0 { right_nz = i; break; }
+    }
+
+    // Determine which tail is longer (the line goes from peak to far end)
+    let (start, end, flip) = if (peak_idx - left_nz) < (right_nz - peak_idx) {
+        // Right tail is longer: line from peak to right_nz
+        (peak_idx, right_nz, false)
+    } else {
+        // Left tail is longer: line from left_nz to peak
+        (left_nz, peak_idx, true)
+    };
+
+    if start == end {
+        return peak_idx as u8;
+    }
+
+    // Line from (start, hist[start]) to (end, hist[end])
+    let x1 = start as f64;
+    let y1 = hist[start] as f64;
+    let x2 = end as f64;
+    let y2 = hist[end] as f64;
+    let dx = x2 - x1;
+    let dy = y2 - y1;
+    let line_len = (dx * dx + dy * dy).sqrt();
+
+    // Find the bin with maximum perpendicular distance from the line
+    let mut max_dist = 0.0f64;
+    let mut threshold = start;
+    for i in start..=end {
+        let px = i as f64;
+        let py = hist[i] as f64;
+        let dist = ((dy * px - dx * py + x2 * y1 - y2 * x1) / line_len).abs();
+        if dist > max_dist {
+            max_dist = dist;
+            threshold = i;
+        }
+    }
+
+    // If we used the left tail, the threshold is on the left side of the peak
+    if flip { threshold += 1; }
+
+    threshold as u8
+}
+
 pub fn compute_structure_tensor(image: &numpy::ndarray::ArrayView2<u8>, window_size: usize) -> (numpy::ndarray::Array2<f32>, numpy::ndarray::Array2<f32>, numpy::ndarray::Array2<f32>) {
     let (h, w) = (image.shape()[0], image.shape()[1]);
 
