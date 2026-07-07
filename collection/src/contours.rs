@@ -1244,3 +1244,361 @@ fn rdp(pts: &[(f64, f64)], start: usize, end: usize, epsilon: f64, keep: &mut [b
         rdp(pts, split_idx, end, epsilon, keep);
     }
 }
+
+// ==========================================
+// IMAGE MOMENTS & HU MOMENTS
+// ==========================================
+
+struct SpatialMoments {
+    m00: f64,
+    m10: f64,
+    m01: f64,
+    m20: f64,
+    m11: f64,
+    m02: f64,
+    m30: f64,
+    m21: f64,
+    m12: f64,
+    m03: f64,
+}
+
+fn compute_polygon_moments(pts: &[(f64, f64)]) -> SpatialMoments {
+    let n = pts.len();
+    let mut m = SpatialMoments {
+        m00: 0.0, m10: 0.0, m01: 0.0,
+        m20: 0.0, m11: 0.0, m02: 0.0,
+        m30: 0.0, m21: 0.0, m12: 0.0, m03: 0.0,
+    };
+    if n < 3 {
+        return m;
+    }
+    
+    for i in 0..n {
+        let p1 = pts[i];
+        let p2 = pts[(i + 1) % n];
+        let a = p1.0 * p2.1 - p2.0 * p1.1;
+        
+        m.m00 += a;
+        m.m10 += a * (p1.0 + p2.0);
+        m.m01 += a * (p1.1 + p2.1);
+        
+        m.m20 += a * (p1.0 * p1.0 + p1.0 * p2.0 + p2.0 * p2.0);
+        m.m02 += a * (p1.1 * p1.1 + p1.1 * p2.1 + p2.1 * p2.1);
+        m.m11 += a * (2.0 * p1.0 * p1.1 + p1.0 * p2.1 + p2.0 * p1.1 + 2.0 * p2.0 * p2.1);
+        
+        m.m30 += a * (p1.0 * p1.0 * p1.0 + p1.0 * p1.0 * p2.0 + p1.0 * p2.0 * p2.0 + p2.0 * p2.0 * p2.0);
+        m.m03 += a * (p1.1 * p1.1 * p1.1 + p1.1 * p1.1 * p2.1 + p1.1 * p2.1 * p2.1 + p2.1 * p2.1 * p2.1);
+        
+        m.m21 += a * (3.0 * p1.0 * p1.0 * p1.1 + p1.0 * p1.0 * p2.1 + 2.0 * p1.0 * p2.0 * p1.1 + 2.0 * p1.0 * p2.0 * p2.1 + p2.0 * p2.0 * p1.1 + 3.0 * p2.0 * p2.0 * p2.1);
+        m.m12 += a * (3.0 * p1.1 * p1.1 * p1.0 + p1.1 * p1.1 * p2.0 + 2.0 * p1.1 * p2.1 * p1.0 + 2.0 * p1.1 * p2.1 * p2.0 + p2.1 * p2.1 * p1.0 + 3.0 * p2.1 * p2.1 * p2.0);
+    }
+    
+    m.m00 /= 2.0;
+    m.m10 /= 6.0;
+    m.m01 /= 6.0;
+    m.m20 /= 12.0;
+    m.m02 /= 12.0;
+    m.m11 /= 24.0;
+    m.m30 /= 20.0;
+    m.m03 /= 20.0;
+    m.m21 /= 60.0;
+    m.m12 /= 60.0;
+    
+    m
+}
+
+fn compute_raster_moments(image: &ArrayView2<u8>) -> SpatialMoments {
+    let (h, w) = (image.shape()[0], image.shape()[1]);
+    let mut m = SpatialMoments {
+        m00: 0.0, m10: 0.0, m01: 0.0,
+        m20: 0.0, m11: 0.0, m02: 0.0,
+        m30: 0.0, m21: 0.0, m12: 0.0, m03: 0.0,
+    };
+    
+    for y in 0..h {
+        let y_f = y as f64;
+        let y2 = y_f * y_f;
+        let y3 = y2 * y_f;
+        for x in 0..w {
+            let val = image[[y, x]] as f64;
+            if val == 0.0 {
+                continue;
+            }
+            let x_f = x as f64;
+            let x2 = x_f * x_f;
+            let x3 = x2 * x_f;
+            
+            m.m00 += val;
+            m.m10 += val * x_f;
+            m.m01 += val * y_f;
+            m.m20 += val * x2;
+            m.m11 += val * x_f * y_f;
+            m.m02 += val * y2;
+            m.m30 += val * x3;
+            m.m21 += val * x2 * y_f;
+            m.m12 += val * x_f * y2;
+            m.m03 += val * y3;
+        }
+    }
+    m
+}
+
+fn build_moments_dict(py: Python<'_>, m: SpatialMoments) -> PyResult<PyObject> {
+    let dict = pyo3::types::PyDict::new_bound(py);
+    
+    dict.set_item("m00", m.m00)?;
+    dict.set_item("m10", m.m10)?;
+    dict.set_item("m01", m.m01)?;
+    dict.set_item("m20", m.m20)?;
+    dict.set_item("m11", m.m11)?;
+    dict.set_item("m02", m.m02)?;
+    dict.set_item("m30", m.m30)?;
+    dict.set_item("m21", m.m21)?;
+    dict.set_item("m12", m.m12)?;
+    dict.set_item("m03", m.m03)?;
+    
+    let (cx, cy) = if m.m00.abs() > 1e-9 {
+        (m.m10 / m.m00, m.m01 / m.m00)
+    } else {
+        (0.0, 0.0)
+    };
+    
+    let mu20 = m.m20 - cx * m.m10;
+    let mu11 = m.m11 - cx * m.m01;
+    let mu02 = m.m02 - cy * m.m01;
+    
+    let mu30 = m.m30 - 3.0 * cx * m.m20 + 2.0 * cx * cx * m.m10;
+    let mu21 = m.m21 - 2.0 * cx * m.m11 - cy * m.m20 + 2.0 * cx * cx * m.m01;
+    let mu12 = m.m12 - 2.0 * cy * m.m11 - cx * m.m02 + 2.0 * cy * cy * m.m10;
+    let mu03 = m.m03 - 3.0 * cy * m.m02 + 2.0 * cy * cy * m.m01;
+    
+    dict.set_item("mu20", mu20)?;
+    dict.set_item("mu11", mu11)?;
+    dict.set_item("mu02", mu02)?;
+    dict.set_item("mu30", mu30)?;
+    dict.set_item("mu21", mu21)?;
+    dict.set_item("mu12", mu12)?;
+    dict.set_item("mu03", mu03)?;
+    
+    let get_nu = |mu: f64, p: f64, q: f64| -> f64 {
+        if m.m00.abs() > 1e-9 {
+            let power = (p + q) / 2.0 + 1.0;
+            mu / m.m00.abs().powf(power)
+        } else {
+            0.0
+        }
+    };
+    
+    dict.set_item("nu20", get_nu(mu20, 2.0, 0.0))?;
+    dict.set_item("nu11", get_nu(mu11, 1.0, 1.0))?;
+    dict.set_item("nu02", get_nu(mu02, 0.0, 2.0))?;
+    dict.set_item("nu30", get_nu(mu30, 3.0, 0.0))?;
+    dict.set_item("nu21", get_nu(mu21, 2.0, 1.0))?;
+    dict.set_item("nu12", get_nu(mu12, 1.0, 2.0))?;
+    dict.set_item("nu03", get_nu(mu03, 0.0, 3.0))?;
+    
+    Ok(dict.unbind().into())
+}
+
+fn contour_moments_internal(contour: &PyReadonlyArrayDyn<i32>) -> PyResult<SpatialMoments> {
+    let arr = contour.as_array();
+    let ndim = arr.ndim();
+    let n = arr.shape()[0];
+    
+    let mut pts = Vec::with_capacity(n);
+    for i in 0..n {
+        let (px, py_val) = if ndim == 2 {
+            if arr.shape()[1] != 2 {
+                return Err(pyo3::exceptions::PyValueError::new_err("Contour array must have shape (N, 2) or (N, 1, 2)"));
+            }
+            (arr[[i, 0]] as f64, arr[[i, 1]] as f64)
+        } else if ndim == 3 {
+            if arr.shape()[1] != 1 || arr.shape()[2] != 2 {
+                return Err(pyo3::exceptions::PyValueError::new_err("Contour array must have shape (N, 2) or (N, 1, 2)"));
+            }
+            (arr[[i, 0, 0]] as f64, arr[[i, 0, 1]] as f64)
+        } else {
+            return Err(pyo3::exceptions::PyValueError::new_err("Contour array must have shape (N, 2) or (N, 1, 2)"));
+        };
+        pts.push((px, py_val));
+    }
+    Ok(compute_polygon_moments(&pts))
+}
+
+fn hu_moments_internal(m: SpatialMoments) -> Vec<f64> {
+    let (cx, cy) = if m.m00.abs() > 1e-9 {
+        (m.m10 / m.m00, m.m01 / m.m00)
+    } else {
+        (0.0, 0.0)
+    };
+    
+    let mu20 = m.m20 - cx * m.m10;
+    let mu11 = m.m11 - cx * m.m01;
+    let mu02 = m.m02 - cy * m.m01;
+    
+    let mu30 = m.m30 - 3.0 * cx * m.m20 + 2.0 * cx * cx * m.m10;
+    let mu21 = m.m21 - 2.0 * cx * m.m11 - cy * m.m20 + 2.0 * cx * cx * m.m01;
+    let mu12 = m.m12 - 2.0 * cy * m.m11 - cx * m.m02 + 2.0 * cy * cy * m.m10;
+    let mu03 = m.m03 - 3.0 * cy * m.m02 + 2.0 * cy * cy * m.m01;
+    
+    let get_nu = |mu: f64, p: f64, q: f64| -> f64 {
+        if m.m00.abs() > 1e-9 {
+            let power = (p + q) / 2.0 + 1.0;
+            mu / m.m00.abs().powf(power)
+        } else {
+            0.0
+        }
+    };
+    
+    let n20 = get_nu(mu20, 2.0, 0.0);
+    let n11 = get_nu(mu11, 1.0, 1.0);
+    let n02 = get_nu(mu02, 0.0, 2.0);
+    let n30 = get_nu(mu30, 3.0, 0.0);
+    let n21 = get_nu(mu21, 2.0, 1.0);
+    let n12 = get_nu(mu12, 1.0, 2.0);
+    let n03 = get_nu(mu03, 0.0, 3.0);
+    
+    let h1 = n20 + n02;
+    let h2 = (n20 - n02).powi(2) + 4.0 * n11 * n11;
+    let h3 = (n30 - 3.0 * n12).powi(2) + (3.0 * n21 - n03).powi(2);
+    let h4 = (n30 + n12).powi(2) + (n21 + n03).powi(2);
+    
+    let t1 = n30 + n12;
+    let t2 = n21 + n03;
+    let h5 = (n30 - 3.0 * n12) * t1 * (t1 * t1 - 3.0 * t2 * t2)
+        + (3.0 * n21 - n03) * t2 * (3.0 * t1 * t1 - t2 * t2);
+        
+    let h6 = (n20 - n02) * (t1 * t1 - t2 * t2) + 4.0 * n11 * t1 * t2;
+    
+    let h7 = (3.0 * n21 - n03) * t1 * (t1 * t1 - 3.0 * t2 * t2)
+        - (n30 - 3.0 * n12) * t2 * (3.0 * t1 * t1 - t2 * t2);
+        
+    vec![h1, h2, h3, h4, h5, h6, h7]
+}
+
+/// Compute spatial, central, and normalized moments of a grayscale image or a 2D contour.
+///
+/// Returns a python dictionary with keys like m00, m10, mu20, nu11, etc.
+#[pyfunction]
+pub fn moments<'py>(py: Python<'py>, x: PyObject) -> PyResult<PyObject> {
+    if let Ok(arr_u8) = x.extract::<PyReadonlyArrayDyn<u8>>(py) {
+        let arr = arr_u8.as_array();
+        let ndim = arr.ndim();
+        if ndim == 2 {
+            let channel = arr.into_dimensionality::<numpy::ndarray::Ix2>().unwrap();
+            let m = compute_raster_moments(&channel.view());
+            return build_moments_dict(py, m);
+        }
+    }
+    
+    if let Ok(arr_i32) = x.extract::<PyReadonlyArrayDyn<i32>>(py) {
+        let m = contour_moments_internal(&arr_i32)?;
+        return build_moments_dict(py, m);
+    }
+    
+    Err(pyo3::exceptions::PyValueError::new_err(
+        "Input must be a 2D u8 image or a 2D/3D i32 contour"
+    ))
+}
+
+/// Compute Hu invariant moments of a shape from its moments.
+///
+/// Returns a list of 7 Hu moments.
+#[pyfunction]
+pub fn hu_moments(moments_dict: &pyo3::types::PyDict) -> PyResult<Vec<f64>> {
+    let get_val = |key: &str| -> f64 {
+        moments_dict.get_item(key).ok().flatten()
+            .and_then(|v| v.extract::<f64>().ok())
+            .unwrap_or(0.0)
+    };
+    
+    let n20 = get_val("nu20");
+    let n11 = get_val("nu11");
+    let n02 = get_val("nu02");
+    let n30 = get_val("nu30");
+    let n21 = get_val("nu21");
+    let n12 = get_val("nu12");
+    let n03 = get_val("nu03");
+    
+    let h1 = n20 + n02;
+    let h2 = (n20 - n02).powi(2) + 4.0 * n11 * n11;
+    let h3 = (n30 - 3.0 * n12).powi(2) + (3.0 * n21 - n03).powi(2);
+    let h4 = (n30 + n12).powi(2) + (n21 + n03).powi(2);
+    
+    let t1 = n30 + n12;
+    let t2 = n21 + n03;
+    let h5 = (n30 - 3.0 * n12) * t1 * (t1 * t1 - 3.0 * t2 * t2)
+        + (3.0 * n21 - n03) * t2 * (3.0 * t1 * t1 - t2 * t2);
+        
+    let h6 = (n20 - n02) * (t1 * t1 - t2 * t2) + 4.0 * n11 * t1 * t2;
+    
+    let h7 = (3.0 * n21 - n03) * t1 * (t1 * t1 - 3.0 * t2 * t2)
+        - (n30 - 3.0 * n12) * t2 * (3.0 * t1 * t1 - t2 * t2);
+        
+    Ok(vec![h1, h2, h3, h4, h5, h6, h7])
+}
+
+/// Compare two contour shapes using Hu moments.
+///
+/// - `method`: comparison method (1 = CONTOURS_MATCH_I1, 2 = CONTOURS_MATCH_I2, 3 = CONTOURS_MATCH_I3).
+/// Returns a similarity score (lower is more similar).
+#[pyfunction]
+#[pyo3(signature = (contour1, contour2, method = 1))]
+pub fn match_shapes(
+    contour1: PyReadonlyArrayDyn<i32>,
+    contour2: PyReadonlyArrayDyn<i32>,
+    method: i32,
+) -> PyResult<f64> {
+    let m1 = contour_moments_internal(&contour1)?;
+    let m2 = contour_moments_internal(&contour2)?;
+    
+    let hu1 = hu_moments_internal(m1);
+    let hu2 = hu_moments_internal(m2);
+    
+    let mut score = 0.0;
+    
+    let get_m = |h: f64| -> f64 {
+        if h.abs() < 1e-20 {
+            0.0
+        } else {
+            h.signum() * h.abs().log10()
+        }
+    };
+    
+    let m_a: Vec<f64> = hu1.iter().map(|&h| get_m(h)).collect();
+    let m_b: Vec<f64> = hu2.iter().map(|&h| get_m(h)).collect();
+    
+    match method {
+        1 => {
+            for i in 0..7 {
+                let ma_val = m_a[i];
+                let mb_val = m_b[i];
+                if ma_val.abs() > 1e-9 && mb_val.abs() > 1e-9 {
+                    score += (1.0 / ma_val - 1.0 / mb_val).abs();
+                }
+            }
+        }
+        2 => {
+            for i in 0..7 {
+                score += (m_a[i] - m_b[i]).abs();
+            }
+        }
+        3 => {
+            let mut max_val = 0.0;
+            for i in 0..7 {
+                let ma_val = m_a[i];
+                let mb_val = m_b[i];
+                if ma_val.abs() > 1e-9 {
+                    let val = (ma_val - mb_val).abs() / ma_val.abs();
+                    if val > max_val {
+                        max_val = val;
+                    }
+                }
+            }
+            score = max_val;
+        }
+        _ => return Err(pyo3::exceptions::PyValueError::new_err("Unknown match method. Must be 1, 2, or 3.")),
+    }
+    
+    Ok(score)
+}

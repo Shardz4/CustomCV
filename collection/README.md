@@ -223,6 +223,9 @@ All contour functions accept and return NumPy arrays representing points of shap
 | `convex_hull` | `(contour: ndarray[i32], clockwise: bool = False, return_points: bool = True) → ndarray[i32]` | Computes the convex hull of the point set. Returns coordinates or original index list. |
 | `convexity_defects` | `(contour: ndarray[i32], convexhull: ndarray[i32]) → ndarray[i32]` | Computes convexity defects of a contour using its convex hull indices. Returns `(K, 4)` array of indices/depths. |
 | `approx_poly_dp` | `(curve: ndarray[i32], epsilon: float, closed: bool = True) → ndarray[i32]` | Approximates a polygonal curve with epsilon accuracy using the Douglas-Peucker algorithm. |
+| `moments` | `(x: Union[ndarray[u8], ndarray[i32]]) → dict[str, float]` | Spatial, central, and normalized moments of a 2D image (raster) or a contour (polygon). |
+| `hu_moments` | `(moments_dict: dict[str, float]) → list[float]` | 7 Hu invariant moments (rotation/scale/translation invariant). |
+| `match_shapes` | `(contour1: ndarray[i32], contour2: ndarray[i32], method: int = 1) → float` | Similarity score between two shapes based on Hu moments. Lower score = more similar. |
 
 ---
 
