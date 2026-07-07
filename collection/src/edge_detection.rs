@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 use numpy::{
-    IntoPyArray, PyArray3, PyReadonlyArray3, PyArrayDyn, PyReadonlyArrayDyn, PyArrayMethods
+    IntoPyArray, PyArrayDyn, PyReadonlyArrayDyn, PyArrayMethods
 };
 use std::f64::consts::PI;
 use crate::helpers;

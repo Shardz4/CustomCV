@@ -12,6 +12,7 @@ mod smoothing;
 mod vid;
 mod color_convert;
 mod gradient;
+mod contours;
 
 #[pymodule]
 fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -104,5 +105,11 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(vid::extract_images_from_video, m)?)?;
     m.add_function(wrap_pyfunction!(vid::extract_video_from_images, m)?)?;
     m.add_function(wrap_pyfunction!(vid::background_subtract_mog2, m)?)?;
+
+    // --- Contour & Shape Analysis ---
+    m.add_function(wrap_pyfunction!(contours::find_contours, m)?)?;
+    m.add_function(wrap_pyfunction!(contours::draw_contours, m)?)?;
+    m.add_function(wrap_pyfunction!(contours::contour_area, m)?)?;
+    m.add_function(wrap_pyfunction!(contours::arc_length, m)?)?;
     Ok(())
 }
