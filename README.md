@@ -10,6 +10,7 @@ Operations execute natively in Rust through [PyO3](https://pyo3.rs) + [rust-nump
 | Category | Highlights |
 |---|---|
 | **Point / Pixel Transforms** | Negative, log, gamma, threshold, RGB ↔ Gray / CMY, frequency-domain filtering |
+| **Color Space Conversions** | HSV, HLS, YCrCb, XYZ, CIE Lab, CIE Luv, YUV, BGR ↔ RGB, Gray → RGB |
 | **Histogram Operations** | Equalization (RGB & gray), specification, Otsu's thresholding |
 | **Spatial Filters & Smoothing** | 3×3 median, Laplacian edge sharpening, box blur, Gaussian blur, median blur, Bilateral filter |
 | **Edge & Feature Detection** | Canny, Harris corners, Shi-Tomasi corners, Hough lines & circles |

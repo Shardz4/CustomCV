@@ -57,6 +57,36 @@ pub fn apply_threshold<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<u8>, threshol
     Ok(result.into_pyarray(py))
 }
 
+/// Binary inverse threshold: pixels > thresh → 0, else → 255.
+#[pyfunction]
+pub fn apply_threshold_binary_inv<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<u8>, threshold_value: u8) -> PyResult<&'py PyArrayDyn<u8>> {
+    let arr = x.as_array();
+    let result = arr.mapv(|pixel| {
+        if pixel > threshold_value { 0 } else { 255 }
+    });
+    Ok(result.into_pyarray(py))
+}
+
+/// Truncate threshold: pixels > thresh → thresh, else → pixel (unchanged).
+#[pyfunction]
+pub fn apply_threshold_trunc<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<u8>, threshold_value: u8) -> PyResult<&'py PyArrayDyn<u8>> {
+    let arr = x.as_array();
+    let result = arr.mapv(|pixel| {
+        if pixel > threshold_value { threshold_value } else { pixel }
+    });
+    Ok(result.into_pyarray(py))
+}
+
+/// To-zero threshold: pixels > thresh → pixel (unchanged), else → 0.
+#[pyfunction]
+pub fn apply_threshold_tozero<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<u8>, threshold_value: u8) -> PyResult<&'py PyArrayDyn<u8>> {
+    let arr = x.as_array();
+    let result = arr.mapv(|pixel| {
+        if pixel > threshold_value { pixel } else { 0 }
+    });
+    Ok(result.into_pyarray(py))
+}
+
 #[pyfunction]
 pub fn rgb_to_cmy<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyResult<&'py PyArrayDyn<f32>> {
     let arr = x.as_array();
