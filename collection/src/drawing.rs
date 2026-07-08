@@ -189,7 +189,7 @@ pub fn circle<'py>(
         let mut y = radius;
         let mut d = 3 - 2 * radius;
         
-        let mut draw_pixel = |view: &mut ArrayViewMutD<u8>, px: i32, py: i32| {
+        let draw_pixel = |view: &mut ArrayViewMutD<u8>, px: i32, py: i32| {
             let t = thickness.max(1);
             let brush_r = t / 2;
             for dy_t in -brush_r..=brush_r {
@@ -209,7 +209,7 @@ pub fn circle<'py>(
             }
         };
         
-        let mut draw_8_symmetry = |view: &mut ArrayViewMutD<u8>, px: i32, py: i32| {
+        let draw_8_symmetry = |view: &mut ArrayViewMutD<u8>, px: i32, py: i32| {
             draw_pixel(view, cx + px, cy + py);
             draw_pixel(view, cx - px, cy + py);
             draw_pixel(view, cx + px, cy - py);
