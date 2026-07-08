@@ -27,7 +27,8 @@ collection/
 │   ├── color_convert.rs      # Color space conversions (HSV, HLS, YCrCb, XYZ, Lab, Luv, YUV)
 │   ├── gradient.rs           # Gradient & edge operators (Sobel, Scharr, Laplacian)
 │   ├── contours.rs           # Contour & shape analysis (Suzuki85, boundingRect, minAreaRect, minEnclosingCircle, fitEllipse)
-│   └── segmentation.rs       # Image segmentation (connectedComponents, distanceTransform, floodFill, watershed, grabCut)
+│   ├── segmentation.rs       # Image segmentation (connectedComponents, distanceTransform, floodFill, watershed, grabCut)
+│   └── drawing.rs            # Drawing primitives (line, rectangle, circle, ellipse)
 ├── Cargo.toml                # Rust crate config (cdylib for PyO3)
 ├── Cargo.lock
 ├── pyproject.toml            # Maturin / PEP 517 build config
@@ -249,6 +250,19 @@ These functions segment images into foreground/background or distinct labeled re
 | `flood_fill` | `(image: ndarray[u8], seed_point: (int, int), new_val: Union[int, list[int]], lo_diff: int = 0, up_diff: int = 0) → (int, ndarray[u8])` | Region growing flood fill. Returns `(filled_pixel_count, filled_image)`. |
 | `watershed` | `(image: ndarray[u8], markers: ndarray[i32]) → ndarray[i32]` | Marker-based watershed segmentation using Meyer's flooding algorithm. Modifies markers in-place. |
 | `grab_cut` | `(img: ndarray[u8], mask: ndarray[u8], rect: (int, int, int, int), bgd_model: PyObject, fgd_model: PyObject, iter_count: int = 5, mode: int = 1) → (ndarray[u8], PyObject, PyObject)` | GrabCut foreground extraction using GMM color mapping and ICM spatial smoothing. |
+
+---
+
+### 12. Drawing & Annotation — `drawing.rs`
+
+These functions draw geometric primitives on images. All operations return a new annotated image.
+
+| Function | Signature | Description |
+|---|---|---|
+| `line` | `(img: ndarray[u8], pt1: (int, int), pt2: (int, int), color: Union[int, list[int]], thickness: int = 1) → ndarray[u8]` | Draws a line segment from `pt1` to `pt2`. |
+| `rectangle` | `(img: ndarray[u8], pt1: (int, int), pt2: (int, int), color: Union[int, list[int]], thickness: int = 1) → ndarray[u8]` | Draws a rectangle from `pt1` to `pt2`. If `thickness` is negative, fills the rectangle. |
+| `circle` | `(img: ndarray[u8], center: (int, int), radius: int, color: Union[int, list[int]], thickness: int = 1) → ndarray[u8]` | Draws a circle outline. If `thickness` is negative, fills the circle. |
+| `ellipse` | `(img: ndarray[u8], center: (int, int), axes: (int, int), angle: float, start_angle: float, end_angle: float, color: Union[int, list[int]], thickness: int = 1) → ndarray[u8]` | Draws an ellipse or elliptic arc. If `thickness` is negative, fills the ellipse sector. |
 
 ---
 

@@ -14,6 +14,7 @@ mod color_convert;
 mod gradient;
 mod contours;
 mod segmentation;
+mod drawing;
 
 #[pymodule]
 fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -137,5 +138,11 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(segmentation::flood_fill, m)?)?;
     m.add_function(wrap_pyfunction!(segmentation::watershed, m)?)?;
     m.add_function(wrap_pyfunction!(segmentation::grab_cut, m)?)?;
+
+    // --- Drawing & Annotation ---
+    m.add_function(wrap_pyfunction!(drawing::line, m)?)?;
+    m.add_function(wrap_pyfunction!(drawing::rectangle, m)?)?;
+    m.add_function(wrap_pyfunction!(drawing::circle, m)?)?;
+    m.add_function(wrap_pyfunction!(drawing::ellipse, m)?)?;
     Ok(())
 }

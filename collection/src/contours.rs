@@ -180,7 +180,7 @@ pub fn find_contours_suzuki(image: &ArrayView2<u8>) -> Vec<Vec<(i32, i32)>> {
 }
 
 /// Bresenham's line algorithm to draw a line on a mutable array view.
-fn draw_line_bresenham(
+pub(crate) fn draw_line_bresenham(
     img: &mut ArrayViewMutD<u8>,
     x1: i32, y1: i32,
     x2: i32, y2: i32,
@@ -237,7 +237,7 @@ fn draw_line_bresenham(
 }
 
 /// Fill a polygon using the scanline fill algorithm.
-fn fill_polygon(img: &mut ArrayViewMutD<u8>, pts: &[(i32, i32)], color: &[u8]) {
+pub(crate) fn fill_polygon(img: &mut ArrayViewMutD<u8>, pts: &[(i32, i32)], color: &[u8]) {
     if pts.len() < 3 {
         return;
     }

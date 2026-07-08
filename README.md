@@ -16,6 +16,7 @@ Operations execute natively in Rust through [PyO3](https://pyo3.rs) + [rust-nump
 | **Gradient & Edge Operators** | Sobel, Scharr, Laplacian (variable kernel size), filter2D (custom convolution) |
 | **Edge & Feature Detection** | Canny, Harris corners, Shi-Tomasi corners, Hough lines & circles |
 | **Contour & Shape Analysis** | Outer & inner contours (Suzuki85), draw contours (with thickness & fill), area, perimeter (arc length), bounding box, rotated box, enclosing circle, ellipse fitting |
+| **Drawing & Annotation** | Draw line segments, rectangles (outline/filled), circles (outline/filled), ellipses & elliptic arcs (outline/filled) |
 | **Image Segmentation** | Marker-based watershed, GrabCut foreground extraction (GMM + ICM spatial smoothing), connected components (4/8 connectivity with stats/centroids), distance transform (Chamfer 3x3), region-growing flood fill |
 | **Morphological Operations** | Erosion, dilation, opening, closing, gradient, top-hat, black-hat |
 | **Arithmetic & Bitwise Ops** | Add, subtract, weighted blend, AND / OR / XOR / NOT |
