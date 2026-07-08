@@ -323,3 +323,114 @@ pub fn ellipse<'py>(
     
     Ok(out_arr.into_pyarray(py).to_dyn())
 }
+
+/// Draw one or more polygonal curves (polylines) on an image.
+///
+/// Returns a new annotated image.
+/// - `pts`: a list of 2D coordinates arrays representing polylines.
+/// - `is_closed`: if True, the function draws a line connecting the last and first points.
+/// - `color`: color value, either single int or (R, G, B) tuple.
+/// - `thickness`: line thickness (default 1).
+#[pyfunction]
+#[pyo3(signature = (img, pts, is_closed, color, thickness = 1))]
+pub fn polylines<'py>(
+    py: Python<'py>,
+    img: PyReadonlyArrayDyn<'py, u8>,
+    pts: Vec<PyReadonlyArrayDyn<'py, i32>>,
+    is_closed: bool,
+    color: PyObject,
+    thickness: i32,
+) -> PyResult<&'py PyArrayDyn<u8>> {
+    let arr = img.as_array();
+    let ndim = arr.ndim();
+    let shape = arr.shape();
+    
+    if ndim != 2 && ndim != 3 {
+        return Err(pyo3::exceptions::PyValueError::new_err("Image must be 2D or 3D"));
+    }
+    
+    let mut out_arr = arr.to_owned();
+    let channels = if ndim == 3 { shape[2] } else { 1 };
+    let parsed_color = parse_color(py, color, channels);
+    let mut out_view = out_arr.view_mut().into_dyn();
+    
+    for poly_dyn in &pts {
+        let poly_arr = poly_dyn.as_array();
+        let poly_ndim = poly_arr.ndim();
+        let n = poly_arr.shape()[0];
+        if n < 2 {
+            continue;
+        }
+        
+        let get_pt = |i: usize| -> (i32, i32) {
+            if poly_ndim == 2 {
+                (poly_arr[[i, 0]], poly_arr[[i, 1]])
+            } else {
+                (poly_arr[[i, 0, 0]], poly_arr[[i, 0, 1]])
+            }
+        };
+        
+        for i in 0..(n - 1) {
+            let p1 = get_pt(i);
+            let p2 = get_pt(i + 1);
+            draw_line_bresenham(&mut out_view, p1.0, p1.1, p2.0, p2.1, &parsed_color, thickness);
+        }
+        
+        if is_closed {
+            let p1 = get_pt(n - 1);
+            let p2 = get_pt(0);
+            draw_line_bresenham(&mut out_view, p1.0, p1.1, p2.0, p2.1, &parsed_color, thickness);
+        }
+    }
+    
+    Ok(out_arr.into_pyarray(py).to_dyn())
+}
+
+/// Fill the area bounded by several polygonal contours on an image.
+///
+/// Returns a new annotated image.
+/// - `pts`: a list of 2D coordinates arrays representing polygons to fill.
+/// - `color`: color value, either single int or (R, G, B) tuple.
+#[pyfunction]
+pub fn fill_poly<'py>(
+    py: Python<'py>,
+    img: PyReadonlyArrayDyn<'py, u8>,
+    pts: Vec<PyReadonlyArrayDyn<'py, i32>>,
+    color: PyObject,
+) -> PyResult<&'py PyArrayDyn<u8>> {
+    let arr = img.as_array();
+    let ndim = arr.ndim();
+    let shape = arr.shape();
+    
+    if ndim != 2 && ndim != 3 {
+        return Err(pyo3::exceptions::PyValueError::new_err("Image must be 2D or 3D"));
+    }
+    
+    let mut out_arr = arr.to_owned();
+    let channels = if ndim == 3 { shape[2] } else { 1 };
+    let parsed_color = parse_color(py, color, channels);
+    let mut out_view = out_arr.view_mut().into_dyn();
+    
+    for poly_dyn in &pts {
+        let poly_arr = poly_dyn.as_array();
+        let poly_ndim = poly_arr.ndim();
+        let n = poly_arr.shape()[0];
+        if n < 3 {
+            continue;
+        }
+        
+        let mut poly_pts = Vec::with_capacity(n);
+        for i in 0..n {
+            let pt = if poly_ndim == 2 {
+                (poly_arr[[i, 0]], poly_arr[[i, 1]])
+            } else {
+                (poly_arr[[i, 0, 0]], poly_arr[[i, 0, 1]])
+            };
+            poly_pts.push(pt);
+        }
+        
+        fill_polygon(&mut out_view, &poly_pts, &parsed_color);
+    }
+    
+    Ok(out_arr.into_pyarray(py).to_dyn())
+}

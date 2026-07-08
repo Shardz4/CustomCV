@@ -263,6 +263,8 @@ These functions draw geometric primitives on images. All operations return a new
 | `rectangle` | `(img: ndarray[u8], pt1: (int, int), pt2: (int, int), color: Union[int, list[int]], thickness: int = 1) → ndarray[u8]` | Draws a rectangle from `pt1` to `pt2`. If `thickness` is negative, fills the rectangle. |
 | `circle` | `(img: ndarray[u8], center: (int, int), radius: int, color: Union[int, list[int]], thickness: int = 1) → ndarray[u8]` | Draws a circle outline. If `thickness` is negative, fills the circle. |
 | `ellipse` | `(img: ndarray[u8], center: (int, int), axes: (int, int), angle: float, start_angle: float, end_angle: float, color: Union[int, list[int]], thickness: int = 1) → ndarray[u8]` | Draws an ellipse or elliptic arc. If `thickness` is negative, fills the ellipse sector. |
+| `polylines` | `(img: ndarray[u8], pts: list[ndarray[i32]], is_closed: bool, color: Union[int, list[int]], thickness: int = 1) → ndarray[u8]` | Draws one or more polygonal curves. |
+| `fill_poly` | `(img: ndarray[u8], pts: list[ndarray[i32]], color: Union[int, list[int]]) → ndarray[u8]` | Fills the area bounded by several polygonal contours. |
 
 ---
 

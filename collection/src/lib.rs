@@ -144,5 +144,7 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(drawing::rectangle, m)?)?;
     m.add_function(wrap_pyfunction!(drawing::circle, m)?)?;
     m.add_function(wrap_pyfunction!(drawing::ellipse, m)?)?;
+    m.add_function(wrap_pyfunction!(drawing::polylines, m)?)?;
+    m.add_function(wrap_pyfunction!(drawing::fill_poly, m)?)?;
     Ok(())
 }
