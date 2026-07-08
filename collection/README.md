@@ -265,6 +265,8 @@ These functions draw geometric primitives on images. All operations return a new
 | `ellipse` | `(img: ndarray[u8], center: (int, int), axes: (int, int), angle: float, start_angle: float, end_angle: float, color: Union[int, list[int]], thickness: int = 1) → ndarray[u8]` | Draws an ellipse or elliptic arc. If `thickness` is negative, fills the ellipse sector. |
 | `polylines` | `(img: ndarray[u8], pts: list[ndarray[i32]], is_closed: bool, color: Union[int, list[int]], thickness: int = 1) → ndarray[u8]` | Draws one or more polygonal curves. |
 | `fill_poly` | `(img: ndarray[u8], pts: list[ndarray[i32]], color: Union[int, list[int]]) → ndarray[u8]` | Fills the area bounded by several polygonal contours. |
+| `arrowed_line` | `(img: ndarray[u8], pt1: (int, int), pt2: (int, int), color: Union[int, list[int]], thickness: int = 1, tip_length: float = 0.1) → ndarray[u8]` | Draws an arrow segment from `pt1` to `pt2`. |
+| `put_text` | `(img: ndarray[u8], text: str, org: (int, int), font_scale: float, color: Union[int, list[int]], thickness: int = 1) → ndarray[u8]` | Renders text string at specified coordinates. |
 
 ---
 
