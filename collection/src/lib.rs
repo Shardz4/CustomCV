@@ -110,6 +110,13 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(arithematic::split_channels, m)?)?;
     m.add_function(wrap_pyfunction!(arithematic::merge_channels, m)?)?;
     m.add_function(wrap_pyfunction!(arithematic::mix_channels, m)?)?;
+    m.add_function(wrap_pyfunction!(arithematic::count_non_zero, m)?)?;
+    m.add_function(wrap_pyfunction!(arithematic::mean_std_dev, m)?)?;
+    m.add_function(wrap_pyfunction!(arithematic::min_max_loc, m)?)?;
+    m.add_function(wrap_pyfunction!(arithematic::calculate_phase, m)?)?;
+    m.add_function(wrap_pyfunction!(arithematic::calculate_magnitude, m)?)?;
+    m.add_function(wrap_pyfunction!(arithematic::cart_to_polar, m)?)?;
+    m.add_function(wrap_pyfunction!(arithematic::polar_to_cart, m)?)?;
 
     // --- Geometric Transforms ---
     m.add_function(wrap_pyfunction!(geometric::apply_resize, m)?)?;

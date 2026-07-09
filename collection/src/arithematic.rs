@@ -591,3 +591,227 @@ pub fn mix_channels<'py>(
     
     Ok(out_images)
 }
+
+/// Count non-zero array elements.
+#[pyfunction]
+pub fn count_non_zero<'py>(
+    _py: Python<'py>,
+    src: &pyo3::PyAny,
+) -> PyResult<usize> {
+    let arr = extract_f64_array(src)?;
+    let mut count = 0;
+    arr.for_each(|&val| {
+        if val != 0.0 {
+            count += 1;
+        }
+    });
+    Ok(count)
+}
+
+/// Compute mean and standard deviation of array elements.
+#[pyfunction]
+pub fn mean_std_dev<'py>(
+    _py: Python<'py>,
+    src: PyReadonlyArrayDyn<'py, u8>,
+) -> PyResult<(Vec<f64>, Vec<f64>)> {
+    let arr = src.as_array();
+    let ndim = arr.ndim();
+    
+    if ndim == 3 {
+        let img_3d = arr.into_dimensionality::<numpy::ndarray::Ix3>()
+            .map_err(|_| pyo3::exceptions::PyValueError::new_err("Failed to cast to 3D"))?;
+        let (h, w, c) = (img_3d.shape()[0], img_3d.shape()[1], img_3d.shape()[2]);
+        let total_pixels = (h * w) as f64;
+        
+        let mut means = vec![0.0; c];
+        let mut stddevs = vec![0.0; c];
+        
+        for ch in 0..c {
+            let mut sum = 0.0;
+            let mut sum_sq = 0.0;
+            for y in 0..h {
+                for x in 0..w {
+                    let val = img_3d[[y, x, ch]] as f64;
+                    let val_f = val;
+                    sum += val_f;
+                    sum_sq += val_f * val_f;
+                }
+            }
+            let mean = sum / total_pixels;
+            let variance = (sum_sq / total_pixels) - (mean * mean);
+            means[ch] = mean;
+            stddevs[ch] = variance.max(0.0).sqrt();
+        }
+        Ok((means, stddevs))
+    } else if ndim == 2 {
+        let img_2d = arr.into_dimensionality::<numpy::ndarray::Ix2>()
+            .map_err(|_| pyo3::exceptions::PyValueError::new_err("Failed to cast to 2D"))?;
+        let (h, w) = (img_2d.shape()[0], img_2d.shape()[1]);
+        let total_pixels = (h * w) as f64;
+        
+        let mut sum = 0.0;
+        let mut sum_sq = 0.0;
+        for y in 0..h {
+            for x in 0..w {
+                let val = img_2d[[y, x]] as f64;
+                sum += val;
+                sum_sq += val * val;
+            }
+        }
+        let mean = sum / total_pixels;
+        let variance = (sum_sq / total_pixels) - (mean * mean);
+        Ok((vec![mean], vec![variance.max(0.0).sqrt()]))
+    } else {
+        Err(pyo3::exceptions::PyValueError::new_err("Image must be 2D or 3D"))
+    }
+}
+
+/// Find minimum and maximum values and their locations in a 2D single-channel image.
+#[pyfunction]
+pub fn min_max_loc<'py>(
+    _py: Python<'py>,
+    src: PyReadonlyArrayDyn<'py, u8>,
+) -> PyResult<(f64, f64, (usize, usize), (usize, usize))> {
+    let arr = src.as_array();
+    let ndim = arr.ndim();
+    if ndim != 2 {
+        return Err(pyo3::exceptions::PyValueError::new_err("minMaxLoc is only supported on 2D single-channel images"));
+    }
+    
+    let img_2d = arr.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Failed to cast to 2D"))?;
+    let (h, w) = (img_2d.shape()[0], img_2d.shape()[1]);
+    
+    let mut min_val = f64::MAX;
+    let mut max_val = f64::MIN;
+    let mut min_loc = (0, 0);
+    let mut max_loc = (0, 0);
+    
+    for y in 0..h {
+        for x in 0..w {
+            let val = img_2d[[y, x]] as f64;
+            if val < min_val {
+                min_val = val;
+                min_loc = (x, y);
+            }
+            if val > max_val {
+                max_val = val;
+                max_loc = (x, y);
+            }
+        }
+    }
+    Ok((min_val, max_val, min_loc, max_loc))
+}
+
+/// Calculate the rotation angle of 2D vectors.
+#[pyfunction]
+#[pyo3(signature = (x, y, angle_in_degrees = false))]
+pub fn calculate_phase<'py>(
+    py: Python<'py>,
+    x: &pyo3::PyAny,
+    y: &pyo3::PyAny,
+    angle_in_degrees: bool,
+) -> PyResult<&'py PyArrayDyn<f64>> {
+    let arr_x = extract_f64_array(x)?;
+    let arr_y = extract_f64_array(y)?;
+    if arr_x.shape() != arr_y.shape() {
+        return Err(pyo3::exceptions::PyValueError::new_err("X and Y arrays must have the same shape"));
+    }
+    
+    let mut out = numpy::ndarray::ArrayD::<f64>::zeros(arr_x.shape());
+    Zip::from(&mut out).and(&arr_x).and(&arr_y).for_each(|res, &vx, &vy| {
+        let mut angle = vy.atan2(vx);
+        if angle < 0.0 {
+            angle += 2.0 * std::f64::consts::PI;
+        }
+        if angle_in_degrees {
+            *res = angle.to_degrees();
+        } else {
+            *res = angle;
+        }
+    });
+    
+    Ok(out.into_pyarray(py).to_dyn())
+}
+
+/// Calculate the magnitude of 2D vectors.
+#[pyfunction]
+pub fn calculate_magnitude<'py>(
+    py: Python<'py>,
+    x: &pyo3::PyAny,
+    y: &pyo3::PyAny,
+) -> PyResult<&'py PyArrayDyn<f64>> {
+    let arr_x = extract_f64_array(x)?;
+    let arr_y = extract_f64_array(y)?;
+    if arr_x.shape() != arr_y.shape() {
+        return Err(pyo3::exceptions::PyValueError::new_err("X and Y arrays must have the same shape"));
+    }
+    
+    let mut out = numpy::ndarray::ArrayD::<f64>::zeros(arr_x.shape());
+    Zip::from(&mut out).and(&arr_x).and(&arr_y).for_each(|res, &vx, &vy| {
+        *res = (vx * vx + vy * vy).sqrt();
+    });
+    
+    Ok(out.into_pyarray(py).to_dyn())
+}
+
+/// Convert Cartesian coordinates to polar.
+#[pyfunction]
+#[pyo3(signature = (x, y, angle_in_degrees = false))]
+pub fn cart_to_polar<'py>(
+    py: Python<'py>,
+    x: &pyo3::PyAny,
+    y: &pyo3::PyAny,
+    angle_in_degrees: bool,
+) -> PyResult<(&'py PyArrayDyn<f64>, &'py PyArrayDyn<f64>)> {
+    let arr_x = extract_f64_array(x)?;
+    let arr_y = extract_f64_array(y)?;
+    if arr_x.shape() != arr_y.shape() {
+        return Err(pyo3::exceptions::PyValueError::new_err("X and Y arrays must have the same shape"));
+    }
+    
+    let mut mag = numpy::ndarray::ArrayD::<f64>::zeros(arr_x.shape());
+    let mut ang = numpy::ndarray::ArrayD::<f64>::zeros(arr_x.shape());
+    
+    Zip::from(&mut mag).and(&mut ang).and(&arr_x).and(&arr_y).for_each(|m, a, &vx, &vy| {
+        *m = (vx * vx + vy * vy).sqrt();
+        let mut angle = vy.atan2(vx);
+        if angle < 0.0 {
+            angle += 2.0 * std::f64::consts::PI;
+        }
+        if angle_in_degrees {
+            *a = angle.to_degrees();
+        } else {
+            *a = angle;
+        }
+    });
+    
+    Ok((mag.into_pyarray(py).to_dyn(), ang.into_pyarray(py).to_dyn()))
+}
+
+/// Convert polar coordinates to Cartesian.
+#[pyfunction]
+#[pyo3(signature = (magnitude, angle, angle_in_degrees = false))]
+pub fn polar_to_cart<'py>(
+    py: Python<'py>,
+    magnitude: &pyo3::PyAny,
+    angle: &pyo3::PyAny,
+    angle_in_degrees: bool,
+) -> PyResult<(&'py PyArrayDyn<f64>, &'py PyArrayDyn<f64>)> {
+    let arr_m = extract_f64_array(magnitude)?;
+    let arr_a = extract_f64_array(angle)?;
+    if arr_m.shape() != arr_a.shape() {
+        return Err(pyo3::exceptions::PyValueError::new_err("Magnitude and Angle arrays must have the same shape"));
+    }
+    
+    let mut x = numpy::ndarray::ArrayD::<f64>::zeros(arr_m.shape());
+    let mut y = numpy::ndarray::ArrayD::<f64>::zeros(arr_m.shape());
+    
+    Zip::from(&mut x).and(&mut y).and(&arr_m).and(&arr_a).for_each(|vx, vy, &m, &a| {
+        let angle_rad = if angle_in_degrees { a.to_radians() } else { a };
+        *vx = m * angle_rad.cos();
+        *vy = m * angle_rad.sin();
+    });
+    
+    Ok((x.into_pyarray(py).to_dyn(), y.into_pyarray(py).to_dyn()))
+}
