@@ -415,3 +415,179 @@ pub fn apply_lut<'py>(
     
     Ok(out.into_pyarray_bound(py).into())
 }
+
+/// Split a multi-channel image into a list of single-channel images.
+#[pyfunction]
+pub fn split_channels<'py>(
+    py: Python<'py>,
+    image: PyReadonlyArrayDyn<'py, u8>,
+) -> PyResult<Vec<&'py PyArrayDyn<u8>>> {
+    let arr = image.as_array();
+    let ndim = arr.ndim();
+    
+    if ndim == 3 {
+        let img_3d = arr.into_dimensionality::<numpy::ndarray::Ix3>()
+            .map_err(|_| pyo3::exceptions::PyValueError::new_err("Failed to cast to 3D"))?;
+        let (h, w, c) = (img_3d.shape()[0], img_3d.shape()[1], img_3d.shape()[2]);
+        
+        let mut out_channels = Vec::new();
+        for ch in 0..c {
+            let mut chan_arr = numpy::ndarray::Array2::<u8>::zeros((h, w));
+            for y in 0..h {
+                for x in 0..w {
+                    chan_arr[[y, x]] = img_3d[[y, x, ch]];
+                }
+            }
+            out_channels.push(chan_arr.into_pyarray(py).to_dyn());
+        }
+        Ok(out_channels)
+    } else if ndim == 2 {
+        Ok(vec![image.to_object(py).extract::<&PyArrayDyn<u8>>(py)?])
+    } else {
+        Err(pyo3::exceptions::PyValueError::new_err("Image must be 2D or 3D"))
+    }
+}
+
+/// Merge several single-channel images into a single multi-channel image.
+#[pyfunction]
+pub fn merge_channels<'py>(
+    py: Python<'py>,
+    channels: Vec<PyReadonlyArrayDyn<'py, u8>>,
+) -> PyResult<&'py PyArrayDyn<u8>> {
+    if channels.is_empty() {
+        return Err(pyo3::exceptions::PyValueError::new_err("Channels list cannot be empty"));
+    }
+    
+    let shape_ref = channels[0].as_array().shape().to_vec();
+    if shape_ref.len() != 2 {
+        return Err(pyo3::exceptions::PyValueError::new_err("Each channel must be a 2D array"));
+    }
+    let h = shape_ref[0];
+    let w = shape_ref[1];
+    
+    for (i, chan) in channels.iter().enumerate() {
+        let sh = chan.as_array().shape().to_vec();
+        if sh != [h, w] {
+            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "Channel {} has shape {:?}, but expected {:?}",
+                i, sh, [h, w]
+            )));
+        }
+    }
+    
+    let c = channels.len();
+    let mut out = numpy::ndarray::Array3::<u8>::zeros((h, w, c));
+    
+    for ch in 0..c {
+        let chan_2d = channels[ch].as_array().into_dimensionality::<numpy::ndarray::Ix2>()
+            .map_err(|_| pyo3::exceptions::PyValueError::new_err("Failed to cast channel to 2D"))?;
+        for y in 0..h {
+            for x in 0..w {
+                out[[y, x, ch]] = chan_2d[[y, x]];
+            }
+        }
+    }
+    
+    Ok(out.into_pyarray(py).to_dyn())
+}
+
+/// Copy specified channels from input arrays to specified channels of output arrays.
+#[pyfunction]
+pub fn mix_channels<'py>(
+    py: Python<'py>,
+    src: Vec<PyReadonlyArrayDyn<'py, u8>>,
+    dst: Vec<PyReadonlyArrayDyn<'py, u8>>,
+    from_to: Vec<usize>,
+) -> PyResult<Vec<&'py PyArrayDyn<u8>>> {
+    if from_to.len() % 2 != 0 {
+        return Err(pyo3::exceptions::PyValueError::new_err("from_to list must contain an even number of elements (pairs of src_chan, dst_chan)"));
+    }
+    
+    let mut src_flat_chans = Vec::new();
+    for img in src.iter() {
+        let arr = img.as_array();
+        let ndim = arr.ndim();
+        if ndim == 2 {
+            src_flat_chans.push(arr.into_dimensionality::<numpy::ndarray::Ix2>().unwrap().to_owned());
+        } else if ndim == 3 {
+            let img_3d = arr.into_dimensionality::<numpy::ndarray::Ix3>().unwrap();
+            let (h, w, c) = (img_3d.shape()[0], img_3d.shape()[1], img_3d.shape()[2]);
+            for ch in 0..c {
+                let mut chan = numpy::ndarray::Array2::<u8>::zeros((h, w));
+                for y in 0..h {
+                    for x in 0..w {
+                        chan[[y, x]] = img_3d[[y, x, ch]];
+                    }
+                }
+                src_flat_chans.push(chan);
+            }
+        }
+    }
+    
+    let mut dst_flat_chans = Vec::new();
+    let mut dst_shapes = Vec::new();
+    for img in dst.iter() {
+        let arr = img.as_array();
+        let ndim = arr.ndim();
+        if ndim == 2 {
+            let shape = [arr.shape()[0], arr.shape()[1], 1];
+            dst_shapes.push(shape);
+            dst_flat_chans.push(numpy::ndarray::Array2::<u8>::zeros((shape[0], shape[1])));
+        } else if ndim == 3 {
+            let shape = [arr.shape()[0], arr.shape()[1], arr.shape()[2]];
+            dst_shapes.push(shape);
+            for _ in 0..shape[2] {
+                dst_flat_chans.push(numpy::ndarray::Array2::<u8>::zeros((shape[0], shape[1])));
+            }
+        }
+    }
+    
+    for i in (0..from_to.len()).step_by(2) {
+        let s_idx = from_to[i];
+        let d_idx = from_to[i + 1];
+        
+        if s_idx >= src_flat_chans.len() {
+            return Err(pyo3::exceptions::PyValueError::new_err(format!("source channel index {} is out of bounds", s_idx)));
+        }
+        if d_idx >= dst_flat_chans.len() {
+            return Err(pyo3::exceptions::PyValueError::new_err(format!("destination channel index {} is out of bounds", d_idx)));
+        }
+        
+        let src_chan = &src_flat_chans[s_idx];
+        let dst_chan = &mut dst_flat_chans[d_idx];
+        
+        if src_chan.shape() != dst_chan.shape() {
+            return Err(pyo3::exceptions::PyValueError::new_err("Source and destination channel sizes must match"));
+        }
+        
+        dst_chan.assign(src_chan);
+    }
+    
+    let mut out_images = Vec::new();
+    let mut flat_idx = 0;
+    for shape in dst_shapes.iter() {
+        let h = shape[0];
+        let w = shape[1];
+        let c = shape[2];
+        
+        if c == 1 {
+            let out_arr = dst_flat_chans[flat_idx].clone();
+            out_images.push(out_arr.into_pyarray(py).to_dyn());
+            flat_idx += 1;
+        } else {
+            let mut out_arr = numpy::ndarray::Array3::<u8>::zeros((h, w, c));
+            for ch in 0..c {
+                let chan = &dst_flat_chans[flat_idx];
+                for y in 0..h {
+                    for x in 0..w {
+                        out_arr[[y, x, ch]] = chan[[y, x]];
+                    }
+                }
+                flat_idx += 1;
+            }
+            out_images.push(out_arr.into_pyarray(py).to_dyn());
+        }
+    }
+    
+    Ok(out_images)
+}
