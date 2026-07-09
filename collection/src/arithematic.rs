@@ -260,3 +260,158 @@ pub fn apply_log_op<'py>(
     let out = arr.mapv(|val| val.ln());
     Ok(out.into_pyarray(py).to_dyn())
 }
+
+/// Normalize the norm or value range of an array.
+#[pyfunction]
+#[pyo3(signature = (src, alpha = 0.0, beta = 255.0, norm_type = 32))]
+pub fn apply_normalize<'py>(
+    py: Python<'py>,
+    src: &pyo3::PyAny,
+    alpha: f64,
+    beta: f64,
+    norm_type: i32,
+) -> PyResult<&'py PyArrayDyn<f64>> {
+    let arr = extract_f64_array(src)?;
+    let mut out = numpy::ndarray::ArrayD::<f64>::zeros(arr.shape());
+    
+    if norm_type == 32 {
+        let mut min_val = f64::MAX;
+        let mut max_val = f64::MIN;
+        arr.for_each(|&v| {
+            if v < min_val { min_val = v; }
+            if v > max_val { max_val = v; }
+        });
+        
+        let range = max_val - min_val;
+        let target_min = alpha.min(beta);
+        let target_max = alpha.max(beta);
+        let target_range = target_max - target_min;
+        
+        Zip::from(&mut out).and(&arr).for_each(|res, &val| {
+            if range.abs() > 1e-9 {
+                *res = target_min + ((val - min_val) / range) * target_range;
+            } else {
+                *res = target_min;
+            }
+        });
+    } else {
+        let mut norm = 0.0;
+        if norm_type == 4 {
+            let mut sum_sq = 0.0;
+            arr.for_each(|&v| sum_sq += v * v);
+            norm = sum_sq.sqrt();
+        } else {
+            arr.for_each(|&v| norm += v.abs());
+        }
+        
+        Zip::from(&mut out).and(&arr).for_each(|res, &val| {
+            if norm.abs() > 1e-9 {
+                *res = val * alpha / norm;
+            } else {
+                *res = 0.0;
+            }
+        });
+    }
+    
+    Ok(out.into_pyarray(py).to_dyn())
+}
+
+/// Scale, compute absolute value, and convert to 8-bit.
+#[pyfunction]
+#[pyo3(signature = (src, alpha = 1.0, beta = 0.0))]
+pub fn convert_scale_abs<'py>(
+    py: Python<'py>,
+    src: &pyo3::PyAny,
+    alpha: f64,
+    beta: f64,
+) -> PyResult<&'py PyArrayDyn<u8>> {
+    let arr = extract_f64_array(src)?;
+    let mut out = numpy::ndarray::ArrayD::<u8>::zeros(arr.shape());
+    
+    Zip::from(&mut out).and(&arr).for_each(|res, &val| {
+        let computed = (val * alpha + beta).abs();
+        *res = computed.round().clamp(0.0, 255.0) as u8;
+    });
+    
+    Ok(out.into_pyarray(py).to_dyn())
+}
+
+/// Check if array elements lie between lowerb and upperb.
+#[pyfunction]
+pub fn in_range<'py>(
+    py: Python<'py>,
+    src: PyReadonlyArrayDyn<'py, u8>,
+    lowerb: Vec<f64>,
+    upperb: Vec<f64>,
+) -> PyResult<&'py PyArrayDyn<u8>> {
+    let arr = src.as_array();
+    let ndim = arr.ndim();
+    
+    if ndim == 3 {
+        let img_3d = arr.into_dimensionality::<numpy::ndarray::Ix3>()
+            .map_err(|_| pyo3::exceptions::PyValueError::new_err("Failed to cast to 3D"))?;
+        let (h, w, c) = (img_3d.shape()[0], img_3d.shape()[1], img_3d.shape()[2]);
+        
+        if lowerb.len() < c || upperb.len() < c {
+            return Err(pyo3::exceptions::PyValueError::new_err("Bounds length must match number of channels"));
+        }
+        
+        let mut out = numpy::ndarray::Array2::<u8>::zeros((h, w));
+        for y in 0..h {
+            for x in 0..w {
+                let mut in_bounds = true;
+                for ch in 0..c {
+                    let val = img_3d[[y, x, ch]] as f64;
+                    if val < lowerb[ch] || val > upperb[ch] {
+                        in_bounds = false;
+                        break;
+                    }
+                }
+                out[[y, x]] = if in_bounds { 255 } else { 0 };
+            }
+        }
+        Ok(out.into_pyarray(py).to_dyn())
+    } else if ndim == 2 {
+        let img_2d = arr.into_dimensionality::<numpy::ndarray::Ix2>()
+            .map_err(|_| pyo3::exceptions::PyValueError::new_err("Failed to cast to 2D"))?;
+        let (h, w) = (img_2d.shape()[0], img_2d.shape()[1]);
+        
+        if lowerb.is_empty() || upperb.is_empty() {
+            return Err(pyo3::exceptions::PyValueError::new_err("Bounds cannot be empty"));
+        }
+        
+        let mut out = numpy::ndarray::Array2::<u8>::zeros((h, w));
+        for y in 0..h {
+            for x in 0..w {
+                let val = img_2d[[y, x]] as f64;
+                let in_bounds = val >= lowerb[0] && val <= upperb[0];
+                out[[y, x]] = if in_bounds { 255 } else { 0 };
+            }
+        }
+        Ok(out.into_pyarray(py).to_dyn())
+    } else {
+        Err(pyo3::exceptions::PyValueError::new_err("Image must be 2D or 3D"))
+    }
+}
+
+/// Apply a lookup table to an image.
+#[pyfunction]
+pub fn apply_lut<'py>(
+    py: Python<'py>,
+    src: PyReadonlyArrayDyn<'py, u8>,
+    lut: PyReadonlyArrayDyn<'py, u8>,
+) -> PyResult<Py<PyArrayDyn<u8>>> {
+    let arr = src.as_array();
+    let lut_arr = lut.as_array();
+    
+    if lut_arr.len() < 256 {
+        return Err(pyo3::exceptions::PyValueError::new_err("Lookup table (lut) must contain at least 256 elements"));
+    }
+    
+    let mut out = numpy::ndarray::ArrayD::<u8>::zeros(arr.shape());
+    Zip::from(&mut out).and(&arr).for_each(|res, &val| {
+        *res = lut_arr[[val as usize]];
+    });
+    
+    Ok(out.into_pyarray_bound(py).into())
+}

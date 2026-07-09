@@ -103,6 +103,10 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(arithematic::apply_sqrt, m)?)?;
     m.add_function(wrap_pyfunction!(arithematic::apply_exp, m)?)?;
     m.add_function(wrap_pyfunction!(arithematic::apply_log_op, m)?)?;
+    m.add_function(wrap_pyfunction!(arithematic::apply_normalize, m)?)?;
+    m.add_function(wrap_pyfunction!(arithematic::convert_scale_abs, m)?)?;
+    m.add_function(wrap_pyfunction!(arithematic::in_range, m)?)?;
+    m.add_function(wrap_pyfunction!(arithematic::apply_lut, m)?)?;
 
     // --- Geometric Transforms ---
     m.add_function(wrap_pyfunction!(geometric::apply_resize, m)?)?;
