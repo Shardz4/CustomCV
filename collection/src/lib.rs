@@ -100,6 +100,10 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(geometric::apply_translate, m)?)?;
     m.add_function(wrap_pyfunction!(geometric::apply_rotate, m)?)?;
     m.add_function(wrap_pyfunction!(geometric::apply_warp, m)?)?;
+    m.add_function(wrap_pyfunction!(geometric::apply_warp_affine, m)?)?;
+    m.add_function(wrap_pyfunction!(geometric::get_rotation_matrix_2d, m)?)?;
+    m.add_function(wrap_pyfunction!(geometric::get_affine_transform, m)?)?;
+    m.add_function(wrap_pyfunction!(geometric::get_perspective_transform, m)?)?;
 
     // --- Smoothing Filters ---
     m.add_function(wrap_pyfunction!(smoothing::apply_blur, m)?)?;

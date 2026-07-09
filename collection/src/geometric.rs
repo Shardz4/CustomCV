@@ -468,3 +468,319 @@ pub fn apply_warp<'py>(
         Err(pyo3::exceptions::PyValueError::new_err("Image must be 2D or 3D"))
     }
 }
+
+/// Apply an affine transformation to an image.
+///
+/// Returns a new warped image.
+/// - `M`: 2x3 transformation matrix.
+/// - `out_w`: width of the output image.
+/// - `out_h`: height of the output image.
+/// - `flags`: combination of interpolation and map flags (e.g. 16 for WARP_INVERSE_MAP).
+#[pyfunction]
+#[allow(non_snake_case)]
+#[pyo3(signature = (image, M, out_w, out_h, flags = 0))]
+pub fn apply_warp_affine<'py>(
+    py: Python<'py>,
+    image: PyReadonlyArrayDyn<'py, u8>,
+    M: PyReadonlyArrayDyn<'py, f64>,
+    out_w: usize,
+    out_h: usize,
+    flags: i32,
+) -> PyResult<&'py PyArrayDyn<u8>> {
+    let arr = image.as_array();
+    let m = M.as_array();
+    let ndim = arr.ndim();
+    
+    let m_2d = m.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Affine matrix must be 2D (2x3)"))?;
+        
+    if m_2d.shape() != [2, 3] {
+        return Err(pyo3::exceptions::PyValueError::new_err("Affine matrix must be of shape 2x3"));
+    }
+    
+    // Check if WARP_INVERSE_MAP is set (OpenCV value is 16)
+    let is_inverse = (flags & 16) != 0;
+    
+    let inv_m = if is_inverse {
+        [[m_2d[[0, 0]], m_2d[[0, 1]], m_2d[[0, 2]]],
+         [m_2d[[1, 0]], m_2d[[1, 1]], m_2d[[1, 2]]]]
+    } else {
+        let a = m_2d[[0, 0]];
+        let b = m_2d[[0, 1]];
+        let tx = m_2d[[0, 2]];
+        let c = m_2d[[1, 0]];
+        let d = m_2d[[1, 1]];
+        let ty = m_2d[[1, 2]];
+        
+        let det = a * d - b * c;
+        if det.abs() < 1e-9 {
+            return Err(pyo3::exceptions::PyValueError::new_err("Affine matrix is singular and cannot be inverted"));
+        }
+        
+        [[d / det, -b / det, (b * ty - d * tx) / det],
+         [-c / det, a / det, (c * tx - a * ty) / det]]
+    };
+    
+    if ndim == 3 {
+        let img_3d = arr.into_dimensionality::<numpy::ndarray::Ix3>()
+            .map_err(|_| pyo3::exceptions::PyValueError::new_err("Failed to cast to 3D"))?;
+        let (h, w, c) = (img_3d.shape()[0], img_3d.shape()[1], img_3d.shape()[2]);
+        let mut out = numpy::ndarray::Array3::<u8>::zeros((out_h, out_w, c));
+        
+        for y in 0..out_h {
+            for x in 0..out_w {
+                let x_f = x as f64;
+                let y_f = y as f64;
+                
+                let src_x = inv_m[0][0] * x_f + inv_m[0][1] * y_f + inv_m[0][2];
+                let src_y = inv_m[1][0] * x_f + inv_m[1][1] * y_f + inv_m[1][2];
+                
+                let px = src_x.round() as isize;
+                let py = src_y.round() as isize;
+                
+                if px >= 0 && px < w as isize && py >= 0 && py < h as isize {
+                    for ch in 0..c {
+                        out[[y, x, ch]] = img_3d[[py as usize, px as usize, ch]];
+                    }
+                }
+            }
+        }
+        Ok(out.into_pyarray(py).to_dyn())
+    } else if ndim == 2 {
+        let img_2d = arr.into_dimensionality::<numpy::ndarray::Ix2>()
+            .map_err(|_| pyo3::exceptions::PyValueError::new_err("Failed to cast to 2D"))?;
+        let (h, w) = (img_2d.shape()[0], img_2d.shape()[1]);
+        let mut out = numpy::ndarray::Array2::<u8>::zeros((out_h, out_w));
+        
+        for y in 0..out_h {
+            for x in 0..out_w {
+                let x_f = x as f64;
+                let y_f = y as f64;
+                
+                let src_x = inv_m[0][0] * x_f + inv_m[0][1] * y_f + inv_m[0][2];
+                let src_y = inv_m[1][0] * x_f + inv_m[1][1] * y_f + inv_m[1][2];
+                
+                let px = src_x.round() as isize;
+                let py = src_y.round() as isize;
+                
+                if px >= 0 && px < w as isize && py >= 0 && py < h as isize {
+                    out[[y, x]] = img_2d[[py as usize, px as usize]];
+                }
+            }
+        }
+        Ok(out.into_pyarray(py).to_dyn())
+    } else {
+        Err(pyo3::exceptions::PyValueError::new_err("Image must be 2D or 3D"))
+    }
+}
+
+/// Calculate a 2D rotation matrix center by angle scale.
+///
+/// Returns a 2x3 affine matrix.
+#[pyfunction]
+pub fn get_rotation_matrix_2d<'py>(
+    py: Python<'py>,
+    center: (f64, f64),
+    angle: f64,
+    scale: f64,
+) -> PyResult<&'py PyArrayDyn<f64>> {
+    let (cx, cy) = center;
+    let theta = angle.to_radians();
+    let alpha = scale * theta.cos();
+    let beta = scale * theta.sin();
+    
+    let mut m = numpy::ndarray::Array2::<f64>::zeros((2, 3));
+    m[[0, 0]] = alpha;
+    m[[0, 1]] = beta;
+    m[[0, 2]] = (1.0 - alpha) * cx - beta * cy;
+    m[[1, 0]] = -beta;
+    m[[1, 1]] = alpha;
+    m[[1, 2]] = beta * cx + (1.0 - alpha) * cy;
+    
+    Ok(m.into_pyarray(py).to_dyn())
+}
+
+/// Calculate an affine transform from three pairs of corresponding points.
+///
+/// Returns a 2x3 affine matrix.
+#[pyfunction]
+pub fn get_affine_transform<'py>(
+    py: Python<'py>,
+    src: PyReadonlyArrayDyn<'py, f32>,
+    dst: PyReadonlyArrayDyn<'py, f32>,
+) -> PyResult<&'py PyArrayDyn<f64>> {
+    let s = src.as_array();
+    let d_arr = dst.as_array();
+    
+    let s_2d = s.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("src points must be a 2D array of shape 3x2"))?;
+    let d_2d = d_arr.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("dst points must be a 2D array of shape 3x2"))?;
+        
+    if s_2d.shape() != [3, 2] || d_2d.shape() != [3, 2] {
+        return Err(pyo3::exceptions::PyValueError::new_err("Points must be of shape 3x2"));
+    }
+    
+    let x0 = s_2d[[0, 0]] as f64;
+    let y0 = s_2d[[0, 1]] as f64;
+    let x1 = s_2d[[1, 0]] as f64;
+    let y1 = s_2d[[1, 1]] as f64;
+    let x2 = s_2d[[2, 0]] as f64;
+    let y2 = s_2d[[2, 1]] as f64;
+    
+    let u0 = d_2d[[0, 0]] as f64;
+    let v0 = d_2d[[0, 1]] as f64;
+    let u1 = d_2d[[1, 0]] as f64;
+    let v1 = d_2d[[1, 1]] as f64;
+    let u2 = d_2d[[2, 0]] as f64;
+    let v2 = d_2d[[2, 1]] as f64;
+    
+    let det = x0 * (y1 - y2) + x1 * (y2 - y0) + x2 * (y0 - y1);
+    if det.abs() < 1e-9 {
+        return Err(pyo3::exceptions::PyValueError::new_err("src points are collinear; cannot compute affine transform"));
+    }
+    
+    let inv_det = 1.0 / det;
+    
+    let a00 = (y1 - y2) * inv_det;
+    let a01 = (y2 - y0) * inv_det;
+    let a02 = (y0 - y1) * inv_det;
+    
+    let a10 = (x2 - x1) * inv_det;
+    let a11 = (x0 - x2) * inv_det;
+    let a12 = (x1 - x0) * inv_det;
+    
+    let a20 = (x1 * y2 - x2 * y1) * inv_det;
+    let a21 = (x2 * y0 - x0 * y2) * inv_det;
+    let a22 = (x0 * y1 - x1 * y0) * inv_det;
+    
+    let a = a00 * u0 + a01 * u1 + a02 * u2;
+    let b = a10 * u0 + a11 * u1 + a12 * u2;
+    let tx = a20 * u0 + a21 * u1 + a22 * u2;
+    
+    let c = a00 * v0 + a01 * v1 + a02 * v2;
+    let d = a10 * v0 + a11 * v1 + a12 * v2;
+    let ty = a20 * v0 + a21 * v1 + a22 * v2;
+    
+    let mut m = numpy::ndarray::Array2::<f64>::zeros((2, 3));
+    m[[0, 0]] = a;
+    m[[0, 1]] = b;
+    m[[0, 2]] = tx;
+    m[[1, 0]] = c;
+    m[[1, 1]] = d;
+    m[[1, 2]] = ty;
+    
+    Ok(m.into_pyarray(py).to_dyn())
+}
+
+// 8x8 Linear system solver using Gaussian Elimination with partial pivoting.
+fn solve_linear_system(mut a: [[f64; 8]; 8], mut b: [f64; 8]) -> Option<[f64; 8]> {
+    let n = 8;
+    for i in 0..n {
+        let mut max_row = i;
+        for r in (i + 1)..n {
+            if a[r][i].abs() > a[max_row][i].abs() {
+                max_row = r;
+            }
+        }
+        
+        if max_row != i {
+            a.swap(i, max_row);
+            b.swap(i, max_row);
+        }
+        
+        if a[i][i].abs() < 1e-9 {
+            return None;
+        }
+        
+        for r in (i + 1)..n {
+            let factor = a[r][i] / a[i][i];
+            for c in i..n {
+                a[r][c] -= factor * a[i][c];
+            }
+            b[r] -= factor * b[i];
+        }
+    }
+    
+    let mut x = [0.0; 8];
+    for i in (0..n).rev() {
+        let mut sum = b[i];
+        for c in (i + 1)..n {
+            sum -= a[i][c] * x[c];
+        }
+        x[i] = sum / a[i][i];
+    }
+    
+    Some(x)
+}
+
+/// Calculate a perspective transform from four pairs of corresponding points.
+///
+/// Returns a 3x3 perspective matrix.
+#[pyfunction]
+pub fn get_perspective_transform<'py>(
+    py: Python<'py>,
+    src: PyReadonlyArrayDyn<'py, f32>,
+    dst: PyReadonlyArrayDyn<'py, f32>,
+) -> PyResult<&'py PyArrayDyn<f64>> {
+    let s = src.as_array();
+    let d_arr = dst.as_array();
+    
+    let s_2d = s.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("src points must be a 2D array of shape 4x2"))?;
+    let d_2d = d_arr.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("dst points must be a 2D array of shape 4x2"))?;
+        
+    if s_2d.shape() != [4, 2] || d_2d.shape() != [4, 2] {
+        return Err(pyo3::exceptions::PyValueError::new_err("Points must be of shape 4x2"));
+    }
+    
+    let mut a = [[0.0f64; 8]; 8];
+    let mut b = [0.0f64; 8];
+    
+    for i in 0..4 {
+        let sx = s_2d[[i, 0]] as f64;
+        let sy = s_2d[[i, 1]] as f64;
+        let dx = d_2d[[i, 0]] as f64;
+        let dy = d_2d[[i, 1]] as f64;
+        
+        let r1 = i * 2;
+        let r2 = i * 2 + 1;
+        
+        a[r1][0] = sx;
+        a[r1][1] = sy;
+        a[r1][2] = 1.0;
+        a[r1][3] = 0.0;
+        a[r1][4] = 0.0;
+        a[r1][5] = 0.0;
+        a[r1][6] = -sx * dx;
+        a[r1][7] = -sy * dx;
+        b[r1] = dx;
+        
+        a[r2][0] = 0.0;
+        a[r2][1] = 0.0;
+        a[r2][2] = 0.0;
+        a[r2][3] = sx;
+        a[r2][4] = sy;
+        a[r2][5] = 1.0;
+        a[r2][6] = -sx * dy;
+        a[r2][7] = -sy * dy;
+        b[r2] = dy;
+    }
+    
+    let sol = solve_linear_system(a, b)
+        .ok_or_else(|| pyo3::exceptions::PyValueError::new_err("Four points are collinear or coplanar; cannot compute perspective transform"))?;
+        
+    let mut m = numpy::ndarray::Array2::<f64>::zeros((3, 3));
+    m[[0, 0]] = sol[0];
+    m[[0, 1]] = sol[1];
+    m[[0, 2]] = sol[2];
+    m[[1, 0]] = sol[3];
+    m[[1, 1]] = sol[4];
+    m[[1, 2]] = sol[5];
+    m[[2, 0]] = sol[6];
+    m[[2, 1]] = sol[7];
+    m[[2, 2]] = 1.0;
+    
+    Ok(m.into_pyarray(py).to_dyn())
+}
