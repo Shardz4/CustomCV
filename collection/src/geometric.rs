@@ -784,3 +784,184 @@ pub fn get_perspective_transform<'py>(
     
     Ok(m.into_pyarray(py).to_dyn())
 }
+
+/// Flip an image horizontally, vertically, or both.
+///
+/// `flip_code`: 0 for vertical flip (x-axis), >0 for horizontal flip (y-axis), <0 for both.
+#[pyfunction]
+pub fn apply_flip<'py>(
+    py: Python<'py>,
+    image: PyReadonlyArrayDyn<'py, u8>,
+    flip_code: i32,
+) -> PyResult<&'py PyArrayDyn<u8>> {
+    let arr = image.as_array();
+    let ndim = arr.ndim();
+    
+    if ndim == 3 {
+        let img_3d = arr.into_dimensionality::<numpy::ndarray::Ix3>()
+            .map_err(|_| pyo3::exceptions::PyValueError::new_err("Failed to cast to 3D"))?;
+        let (h, w, c) = (img_3d.shape()[0], img_3d.shape()[1], img_3d.shape()[2]);
+        let mut out = numpy::ndarray::Array3::<u8>::zeros((h, w, c));
+        
+        for y in 0..h {
+            for x in 0..w {
+                let target_y = if flip_code == 0 || flip_code < 0 { h - 1 - y } else { y };
+                let target_x = if flip_code > 0 || flip_code < 0 { w - 1 - x } else { x };
+                for ch in 0..c {
+                    out[[target_y, target_x, ch]] = img_3d[[y, x, ch]];
+                }
+            }
+        }
+        Ok(out.into_pyarray(py).to_dyn())
+    } else if ndim == 2 {
+        let img_2d = arr.into_dimensionality::<numpy::ndarray::Ix2>()
+            .map_err(|_| pyo3::exceptions::PyValueError::new_err("Failed to cast to 2D"))?;
+        let (h, w) = (img_2d.shape()[0], img_2d.shape()[1]);
+        let mut out = numpy::ndarray::Array2::<u8>::zeros((h, w));
+        
+        for y in 0..h {
+            for x in 0..w {
+                let target_y = if flip_code == 0 || flip_code < 0 { h - 1 - y } else { y };
+                let target_x = if flip_code > 0 || flip_code < 0 { w - 1 - x } else { x };
+                out[[target_y, target_x]] = img_2d[[y, x]];
+            }
+        }
+        Ok(out.into_pyarray(py).to_dyn())
+    } else {
+        Err(pyo3::exceptions::PyValueError::new_err("Image must be 2D or 3D"))
+    }
+}
+
+/// Transpose an image (swap rows and columns).
+#[pyfunction]
+pub fn apply_transpose<'py>(
+    py: Python<'py>,
+    image: PyReadonlyArrayDyn<'py, u8>,
+) -> PyResult<&'py PyArrayDyn<u8>> {
+    let arr = image.as_array();
+    let ndim = arr.ndim();
+    
+    if ndim == 3 {
+        let img_3d = arr.into_dimensionality::<numpy::ndarray::Ix3>()
+            .map_err(|_| pyo3::exceptions::PyValueError::new_err("Failed to cast to 3D"))?;
+        let (h, w, c) = (img_3d.shape()[0], img_3d.shape()[1], img_3d.shape()[2]);
+        let mut out = numpy::ndarray::Array3::<u8>::zeros((w, h, c));
+        
+        for y in 0..h {
+            for x in 0..w {
+                for ch in 0..c {
+                    out[[x, y, ch]] = img_3d[[y, x, ch]];
+                }
+            }
+        }
+        Ok(out.into_pyarray(py).to_dyn())
+    } else if ndim == 2 {
+        let img_2d = arr.into_dimensionality::<numpy::ndarray::Ix2>()
+            .map_err(|_| pyo3::exceptions::PyValueError::new_err("Failed to cast to 2D"))?;
+        let (h, w) = (img_2d.shape()[0], img_2d.shape()[1]);
+        let mut out = numpy::ndarray::Array2::<u8>::zeros((w, h));
+        
+        for y in 0..h {
+            for x in 0..w {
+                out[[x, y]] = img_2d[[y, x]];
+            }
+        }
+        Ok(out.into_pyarray(py).to_dyn())
+    } else {
+        Err(pyo3::exceptions::PyValueError::new_err("Image must be 2D or 3D"))
+    }
+}
+
+/// Apply a generic geometrical transformation to an image.
+///
+/// - `map1`: 2D array of source x coordinates (f32).
+/// - `map2`: 2D array of source y coordinates (f32).
+/// - `interpolation`: interpolation method (0 = nearest, 1 = bilinear, 2 = bicubic, 4 = Lanczos4).
+#[pyfunction]
+#[pyo3(signature = (image, map1, map2, interpolation = 1))]
+pub fn apply_remap<'py>(
+    py: Python<'py>,
+    image: PyReadonlyArrayDyn<'py, u8>,
+    map1: PyReadonlyArrayDyn<'py, f32>,
+    map2: PyReadonlyArrayDyn<'py, f32>,
+    interpolation: i32,
+) -> PyResult<&'py PyArrayDyn<u8>> {
+    let arr = image.as_array();
+    let m1 = map1.as_array();
+    let m2 = map2.as_array();
+    let ndim = arr.ndim();
+    
+    let m1_2d = m1.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("map1 must be 2D"))?;
+    let m2_2d = m2.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("map2 must be 2D"))?;
+        
+    let out_h = m1_2d.shape()[0];
+    let out_w = m1_2d.shape()[1];
+    
+    if m2_2d.shape() != [out_h, out_w] {
+        return Err(pyo3::exceptions::PyValueError::new_err("map1 and map2 must have the same shape"));
+    }
+    
+    if ndim == 3 {
+        let img_3d = arr.into_dimensionality::<numpy::ndarray::Ix3>()
+            .map_err(|_| pyo3::exceptions::PyValueError::new_err("Failed to cast to 3D"))?;
+        let (h, w, c) = (img_3d.shape()[0], img_3d.shape()[1], img_3d.shape()[2]);
+        let mut out = numpy::ndarray::Array3::<u8>::zeros((out_h, out_w, c));
+        
+        for y in 0..out_h {
+            for x in 0..out_w {
+                let src_x = m1_2d[[y, x]] as f64;
+                let src_y = m2_2d[[y, x]] as f64;
+                
+                if src_x >= 0.0 && src_x < w as f64 && src_y >= 0.0 && src_y < h as f64 {
+                    for ch in 0..c {
+                        let val = match interpolation {
+                            0 => {
+                                let px = src_x.round() as isize;
+                                let py = src_y.round() as isize;
+                                img_3d[[py.clamp(0, h as isize - 1) as usize, px.clamp(0, w as isize - 1) as usize, ch]]
+                            }
+                            1 => bilinear_interpolate_3d(&img_3d.view(), src_x, src_y, ch),
+                            2 => bicubic_interpolate_3d(&img_3d.view(), src_x, src_y, ch),
+                            4 => lanczos_interpolate_3d(&img_3d.view(), src_x, src_y, ch),
+                            _ => return Err(pyo3::exceptions::PyValueError::new_err("Unsupported interpolation mode")),
+                        };
+                        out[[y, x, ch]] = val;
+                    }
+                }
+            }
+        }
+        Ok(out.into_pyarray(py).to_dyn())
+    } else if ndim == 2 {
+        let img_2d = arr.into_dimensionality::<numpy::ndarray::Ix2>()
+            .map_err(|_| pyo3::exceptions::PyValueError::new_err("Failed to cast to 2D"))?;
+        let (h, w) = (img_2d.shape()[0], img_2d.shape()[1]);
+        let mut out = numpy::ndarray::Array2::<u8>::zeros((out_h, out_w));
+        
+        for y in 0..out_h {
+            for x in 0..out_w {
+                let src_x = m1_2d[[y, x]] as f64;
+                let src_y = m2_2d[[y, x]] as f64;
+                
+                if src_x >= 0.0 && src_x < w as f64 && src_y >= 0.0 && src_y < h as f64 {
+                    let val = match interpolation {
+                        0 => {
+                            let px = src_x.round() as isize;
+                            let py = src_y.round() as isize;
+                            img_2d[[py.clamp(0, h as isize - 1) as usize, px.clamp(0, w as isize - 1) as usize]]
+                        }
+                        1 => bilinear_interpolate_2d(&img_2d.view(), src_x, src_y),
+                        2 => bicubic_interpolate_2d(&img_2d.view(), src_x, src_y),
+                        4 => lanczos_interpolate_2d(&img_2d.view(), src_x, src_y),
+                        _ => return Err(pyo3::exceptions::PyValueError::new_err("Unsupported interpolation mode")),
+                    };
+                    out[[y, x]] = val;
+                }
+            }
+        }
+        Ok(out.into_pyarray(py).to_dyn())
+    } else {
+        Err(pyo3::exceptions::PyValueError::new_err("Image must be 2D or 3D"))
+    }
+}
