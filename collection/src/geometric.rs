@@ -965,3 +965,227 @@ pub fn apply_remap<'py>(
         Err(pyo3::exceptions::PyValueError::new_err("Image must be 2D or 3D"))
     }
 }
+
+/// Invert an affine transform matrix (2x3).
+#[pyfunction]
+#[allow(non_snake_case)]
+pub fn invert_affine_transform<'py>(
+    py: Python<'py>,
+    M: PyReadonlyArrayDyn<'py, f64>,
+) -> PyResult<&'py PyArrayDyn<f64>> {
+    let m = M.as_array();
+    let m_2d = m.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Affine matrix must be 2D (2x3)"))?;
+        
+    if m_2d.shape() != [2, 3] {
+        return Err(pyo3::exceptions::PyValueError::new_err("Affine matrix must be of shape 2x3"));
+    }
+    
+    let a = m_2d[[0, 0]];
+    let b = m_2d[[0, 1]];
+    let tx = m_2d[[0, 2]];
+    let c = m_2d[[1, 0]];
+    let d = m_2d[[1, 1]];
+    let ty = m_2d[[1, 2]];
+    
+    let det = a * d - b * c;
+    if det.abs() < 1e-9 {
+        return Err(pyo3::exceptions::PyValueError::new_err("Affine matrix is singular and cannot be inverted"));
+    }
+    
+    let mut out = numpy::ndarray::Array2::<f64>::zeros((2, 3));
+    out[[0, 0]] = d / det;
+    out[[0, 1]] = -b / det;
+    out[[0, 2]] = (b * ty - d * tx) / det;
+    out[[1, 0]] = -c / det;
+    out[[1, 1]] = a / det;
+    out[[1, 2]] = (c * tx - a * ty) / det;
+    
+    Ok(out.into_pyarray(py).to_dyn())
+}
+
+/// Remap an image to linear polar coordinates.
+///
+/// - `center`: coordinates of the transformation center (cx, cy).
+/// - `max_radius`: the bounding circle radius.
+/// - `out_w`: optional output width.
+/// - `out_h`: optional output height.
+/// - `interpolation`: interpolation method (0 = nearest, 1 = bilinear, 2 = bicubic, 4 = Lanczos4).
+#[pyfunction]
+#[pyo3(signature = (image, center, max_radius, out_w = None, out_h = None, interpolation = 1))]
+pub fn apply_linear_polar<'py>(
+    py: Python<'py>,
+    image: PyReadonlyArrayDyn<'py, u8>,
+    center: (f64, f64),
+    max_radius: f64,
+    out_w: Option<usize>,
+    out_h: Option<usize>,
+    interpolation: i32,
+) -> PyResult<&'py PyArrayDyn<u8>> {
+    let arr = image.as_array();
+    let ndim = arr.ndim();
+    
+    let (h, w) = (arr.shape()[0], arr.shape()[1]);
+    let dest_w = out_w.unwrap_or(w);
+    let dest_h = out_h.unwrap_or(h);
+    
+    let (cx, cy) = center;
+    
+    if ndim == 3 {
+        let img_3d = arr.into_dimensionality::<numpy::ndarray::Ix3>()
+            .map_err(|_| pyo3::exceptions::PyValueError::new_err("Failed to cast to 3D"))?;
+        let c = img_3d.shape()[2];
+        let mut out = numpy::ndarray::Array3::<u8>::zeros((dest_h, dest_w, c));
+        
+        for y in 0..dest_h {
+            let r = (y as f64) * max_radius / (dest_h as f64);
+            for x in 0..dest_w {
+                let theta = (x as f64) * 2.0 * std::f64::consts::PI / (dest_w as f64);
+                let src_x = cx + r * theta.cos();
+                let src_y = cy + r * theta.sin();
+                
+                if src_x >= 0.0 && src_x < w as f64 && src_y >= 0.0 && src_y < h as f64 {
+                    for ch in 0..c {
+                        let val = match interpolation {
+                            0 => {
+                                let px = src_x.round() as isize;
+                                let py = src_y.round() as isize;
+                                img_3d[[py.clamp(0, h as isize - 1) as usize, px.clamp(0, w as isize - 1) as usize, ch]]
+                            }
+                            1 => bilinear_interpolate_3d(&img_3d.view(), src_x, src_y, ch),
+                            2 => bicubic_interpolate_3d(&img_3d.view(), src_x, src_y, ch),
+                            4 => lanczos_interpolate_3d(&img_3d.view(), src_x, src_y, ch),
+                            _ => return Err(pyo3::exceptions::PyValueError::new_err("Unsupported interpolation mode")),
+                        };
+                        out[[y, x, ch]] = val;
+                    }
+                }
+            }
+        }
+        Ok(out.into_pyarray(py).to_dyn())
+    } else if ndim == 2 {
+        let img_2d = arr.into_dimensionality::<numpy::ndarray::Ix2>()
+            .map_err(|_| pyo3::exceptions::PyValueError::new_err("Failed to cast to 2D"))?;
+        let mut out = numpy::ndarray::Array2::<u8>::zeros((dest_h, dest_w));
+        
+        for y in 0..dest_h {
+            let r = (y as f64) * max_radius / (dest_h as f64);
+            for x in 0..dest_w {
+                let theta = (x as f64) * 2.0 * std::f64::consts::PI / (dest_w as f64);
+                let src_x = cx + r * theta.cos();
+                let src_y = cy + r * theta.sin();
+                
+                if src_x >= 0.0 && src_x < w as f64 && src_y >= 0.0 && src_y < h as f64 {
+                    let val = match interpolation {
+                        0 => {
+                            let px = src_x.round() as isize;
+                            let py = src_y.round() as isize;
+                            img_2d[[py.clamp(0, h as isize - 1) as usize, px.clamp(0, w as isize - 1) as usize]]
+                        }
+                        1 => bilinear_interpolate_2d(&img_2d.view(), src_x, src_y),
+                        2 => bicubic_interpolate_2d(&img_2d.view(), src_x, src_y),
+                        4 => lanczos_interpolate_2d(&img_2d.view(), src_x, src_y),
+                        _ => return Err(pyo3::exceptions::PyValueError::new_err("Unsupported interpolation mode")),
+                    };
+                    out[[y, x]] = val;
+                }
+            }
+        }
+        Ok(out.into_pyarray(py).to_dyn())
+    } else {
+        Err(pyo3::exceptions::PyValueError::new_err("Image must be 2D or 3D"))
+    }
+}
+
+/// Remap an image to log-polar coordinates.
+///
+/// - `center`: coordinates of the transformation center (cx, cy).
+/// - `scale`: magnitude scale factor.
+/// - `out_w`: optional output width.
+/// - `out_h`: optional output height.
+/// - `interpolation`: interpolation method (0 = nearest, 1 = bilinear, 2 = bicubic, 4 = Lanczos4).
+#[pyfunction]
+#[pyo3(signature = (image, center, scale, out_w = None, out_h = None, interpolation = 1))]
+pub fn apply_log_polar<'py>(
+    py: Python<'py>,
+    image: PyReadonlyArrayDyn<'py, u8>,
+    center: (f64, f64),
+    scale: f64,
+    out_w: Option<usize>,
+    out_h: Option<usize>,
+    interpolation: i32,
+) -> PyResult<&'py PyArrayDyn<u8>> {
+    let arr = image.as_array();
+    let ndim = arr.ndim();
+    
+    let (h, w) = (arr.shape()[0], arr.shape()[1]);
+    let dest_w = out_w.unwrap_or(w);
+    let dest_h = out_h.unwrap_or(h);
+    
+    let (cx, cy) = center;
+    
+    if ndim == 3 {
+        let img_3d = arr.into_dimensionality::<numpy::ndarray::Ix3>()
+            .map_err(|_| pyo3::exceptions::PyValueError::new_err("Failed to cast to 3D"))?;
+        let c = img_3d.shape()[2];
+        let mut out = numpy::ndarray::Array3::<u8>::zeros((dest_h, dest_w, c));
+        
+        for y in 0..dest_h {
+            let r = ((y as f64) / scale).exp();
+            for x in 0..dest_w {
+                let theta = (x as f64) * 2.0 * std::f64::consts::PI / (dest_w as f64);
+                let src_x = cx + r * theta.cos();
+                let src_y = cy + r * theta.sin();
+                
+                if src_x >= 0.0 && src_x < w as f64 && src_y >= 0.0 && src_y < h as f64 {
+                    for ch in 0..c {
+                        let val = match interpolation {
+                            0 => {
+                                let px = src_x.round() as isize;
+                                let py = src_y.round() as isize;
+                                img_3d[[py.clamp(0, h as isize - 1) as usize, px.clamp(0, w as isize - 1) as usize, ch]]
+                            }
+                            1 => bilinear_interpolate_3d(&img_3d.view(), src_x, src_y, ch),
+                            2 => bicubic_interpolate_3d(&img_3d.view(), src_x, src_y, ch),
+                            4 => lanczos_interpolate_3d(&img_3d.view(), src_x, src_y, ch),
+                            _ => return Err(pyo3::exceptions::PyValueError::new_err("Unsupported interpolation mode")),
+                        };
+                        out[[y, x, ch]] = val;
+                      }
+                  }
+              }
+          }
+          Ok(out.into_pyarray(py).to_dyn())
+      } else if ndim == 2 {
+          let img_2d = arr.into_dimensionality::<numpy::ndarray::Ix2>()
+              .map_err(|_| pyo3::exceptions::PyValueError::new_err("Failed to cast to 2D"))?;
+          let mut out = numpy::ndarray::Array2::<u8>::zeros((dest_h, dest_w));
+          
+          for y in 0..dest_h {
+              let r = ((y as f64) / scale).exp();
+              for x in 0..dest_w {
+                  let theta = (x as f64) * 2.0 * std::f64::consts::PI / (dest_w as f64);
+                  let src_x = cx + r * theta.cos();
+                  let src_y = cy + r * theta.sin();
+                  
+                  if src_x >= 0.0 && src_x < w as f64 && src_y >= 0.0 && src_y < h as f64 {
+                      let val = match interpolation {
+                          0 => {
+                              let px = src_x.round() as isize;
+                              let py = src_y.round() as isize;
+                              img_2d[[py.clamp(0, h as isize - 1) as usize, px.clamp(0, w as isize - 1) as usize]]
+                          }
+                          1 => bilinear_interpolate_2d(&img_2d.view(), src_x, src_y),
+                          2 => bicubic_interpolate_2d(&img_2d.view(), src_x, src_y),
+                          4 => lanczos_interpolate_2d(&img_2d.view(), src_x, src_y),
+                          _ => return Err(pyo3::exceptions::PyValueError::new_err("Unsupported interpolation mode")),
+                      };
+                      out[[y, x]] = val;
+                  }
+              }
+          }
+          Ok(out.into_pyarray(py).to_dyn())
+      } else {
+          Err(pyo3::exceptions::PyValueError::new_err("Image must be 2D or 3D"))
+      }
+}

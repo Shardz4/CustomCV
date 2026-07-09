@@ -107,6 +107,9 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(geometric::apply_flip, m)?)?;
     m.add_function(wrap_pyfunction!(geometric::apply_transpose, m)?)?;
     m.add_function(wrap_pyfunction!(geometric::apply_remap, m)?)?;
+    m.add_function(wrap_pyfunction!(geometric::invert_affine_transform, m)?)?;
+    m.add_function(wrap_pyfunction!(geometric::apply_linear_polar, m)?)?;
+    m.add_function(wrap_pyfunction!(geometric::apply_log_polar, m)?)?;
 
     // --- Smoothing Filters ---
     m.add_function(wrap_pyfunction!(smoothing::apply_blur, m)?)?;
