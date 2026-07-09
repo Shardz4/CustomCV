@@ -94,6 +94,15 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(arithematic::bitwise_or, m)?)?;
     m.add_function(wrap_pyfunction!(arithematic::bitwise_not, m)?)?;
     m.add_function(wrap_pyfunction!(arithematic::bitwise_xor, m)?)?;
+    m.add_function(wrap_pyfunction!(arithematic::apply_multiply, m)?)?;
+    m.add_function(wrap_pyfunction!(arithematic::apply_divide, m)?)?;
+    m.add_function(wrap_pyfunction!(arithematic::absdiff, m)?)?;
+    m.add_function(wrap_pyfunction!(arithematic::apply_min, m)?)?;
+    m.add_function(wrap_pyfunction!(arithematic::apply_max, m)?)?;
+    m.add_function(wrap_pyfunction!(arithematic::apply_pow, m)?)?;
+    m.add_function(wrap_pyfunction!(arithematic::apply_sqrt, m)?)?;
+    m.add_function(wrap_pyfunction!(arithematic::apply_exp, m)?)?;
+    m.add_function(wrap_pyfunction!(arithematic::apply_log_op, m)?)?;
 
     // --- Geometric Transforms ---
     m.add_function(wrap_pyfunction!(geometric::apply_resize, m)?)?;
