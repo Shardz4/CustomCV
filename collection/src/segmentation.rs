@@ -695,3 +695,19 @@ pub fn grab_cut<'py>(
     Ok((mask_arr.into_pyarray(py).to_dyn(), bgd_model, fgd_model))
 }
 
+/// Alias for grab_cut matching OpenCV name.
+#[pyfunction(name = "grabCut")]
+#[pyo3(signature = (img, mask, rect, bgd_model, fgd_model, iter_count = 5, mode = 1))]
+pub fn grab_cut_cv<'py>(
+    py: Python<'py>,
+    img: PyReadonlyArrayDyn<'py, u8>,
+    mask: PyReadonlyArrayDyn<'py, u8>,
+    rect: (i32, i32, i32, i32),
+    bgd_model: PyObject,
+    fgd_model: PyObject,
+    iter_count: i32,
+    mode: i32,
+) -> PyResult<(&'py PyArrayDyn<u8>, PyObject, PyObject)> {
+    grab_cut(py, img, mask, rect, bgd_model, fgd_model, iter_count, mode)
+}
+

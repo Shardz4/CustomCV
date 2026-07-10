@@ -183,6 +183,7 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(segmentation::flood_fill, m)?)?;
     m.add_function(wrap_pyfunction!(segmentation::watershed, m)?)?;
     m.add_function(wrap_pyfunction!(segmentation::grab_cut, m)?)?;
+    m.add_function(wrap_pyfunction!(segmentation::grab_cut_cv, m)?)?;
 
     // --- Drawing & Annotation ---
     m.add_function(wrap_pyfunction!(drawing::line, m)?)?;
