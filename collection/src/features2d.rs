@@ -1165,3 +1165,308 @@ pub fn mser_detect<'py>(
     
     Ok(stable_regions)
 }
+
+/// Helper to compute the convex hull area of a set of 2D points.
+fn convex_hull_area(points: &[(usize, usize)]) -> f64 {
+    if points.len() < 3 {
+        return points.len() as f64;
+    }
+    let mut pts = points.iter().map(|&(x, y)| (x as f64, y as f64)).collect::<Vec<_>>();
+    pts.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal)
+        .then(a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)));
+        
+    let cross = |o: &(f64, f64), a: &(f64, f64), b: &(f64, f64)| -> f64 {
+        (a.0 - o.0) * (b.1 - o.1) - (a.1 - o.1) * (b.0 - o.0)
+    };
+    
+    let mut lower = Vec::new();
+    for p in &pts {
+        while lower.len() >= 2 && cross(&lower[lower.len()-2], &lower[lower.len()-1], p) <= 0.0 {
+            lower.pop();
+        }
+        lower.push(*p);
+    }
+    
+    let mut upper = Vec::new();
+    for p in pts.iter().rev() {
+        while upper.len() >= 2 && cross(&upper[upper.len()-2], &upper[upper.len()-1], p) <= 0.0 {
+            upper.pop();
+        }
+        upper.push(*p);
+    }
+    
+    lower.pop();
+    upper.pop();
+    lower.extend(upper);
+    
+    let mut area = 0.0;
+    let n = lower.len();
+    if n < 3 { return points.len() as f64; }
+    for i in 0..n {
+        let j = (i + 1) % n;
+        area += lower[i].0 * lower[j].1 - lower[j].0 * lower[i].1;
+    }
+    (area.abs() / 2.0)
+}
+
+/// Simple Blob Detector to find blobs (connected components) filtering by size, shape, convexity, and color.
+#[pyfunction]
+#[pyo3(signature = (
+    image,
+    min_threshold = 50.0,
+    max_threshold = 220.0,
+    threshold_step = 10.0,
+    min_dist_between_blobs = 10.0,
+    min_repeatability = 2,
+    filter_by_color = true,
+    blob_color = 0,
+    filter_by_area = true,
+    min_area = 25.0,
+    max_area = 5000.0,
+    filter_by_circularity = false,
+    min_circularity = 0.8,
+    max_circularity = 3.4e38,
+    filter_by_inertia = false,
+    min_inertia_ratio = 0.1,
+    max_inertia_ratio = 3.4e38,
+    filter_by_convexity = false,
+    min_convexity = 0.95,
+    max_convexity = 3.4e38,
+))]
+pub fn simple_blob_detect<'py>(
+    _py: Python<'py>,
+    image: PyReadonlyArrayDyn<'py, u8>,
+    min_threshold: f64,
+    max_threshold: f64,
+    threshold_step: f64,
+    min_dist_between_blobs: f64,
+    min_repeatability: usize,
+    filter_by_color: bool,
+    blob_color: u8,
+    filter_by_area: bool,
+    min_area: f64,
+    max_area: f64,
+    filter_by_circularity: bool,
+    min_circularity: f64,
+    max_circularity: f64,
+    filter_by_inertia: bool,
+    min_inertia_ratio: f64,
+    max_inertia_ratio: f64,
+    filter_by_convexity: bool,
+    min_convexity: f64,
+    max_convexity: f64,
+) -> PyResult<Vec<KeyPoint>> {
+    let arr = image.as_array();
+    let img_2d = arr.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Image must be 2D Grayscale"))?;
+    let (h, w) = (img_2d.shape()[0], img_2d.shape()[1]);
+    
+    let mut thresholds = Vec::new();
+    let mut t = min_threshold;
+    while t <= max_threshold {
+        thresholds.push(t as u8);
+        t += threshold_step;
+    }
+    
+    let mut candidates = Vec::new();
+    
+    for &thresh in &thresholds {
+        let mut binary = numpy::ndarray::Array2::<u8>::zeros((h, w));
+        for y in 0..h {
+            for x in 0..w {
+                if img_2d[[y, x]] <= thresh {
+                    binary[[y, x]] = 255;
+                }
+            }
+        }
+        
+        let mut labeled = numpy::ndarray::Array2::<i32>::zeros((h, w));
+        let mut next_label = 1;
+        
+        for y in 0..h {
+            for x in 0..w {
+                if binary[[y, x]] == 255 && labeled[[y, x]] == 0 {
+                    let label = next_label;
+                    next_label += 1;
+                    
+                    let mut pixels = Vec::new();
+                    let mut queue = std::collections::VecDeque::new();
+                    queue.push_back((y, x));
+                    labeled[[y, x]] = label;
+                    
+                    while let Some((cy, cx)) = queue.pop_front() {
+                        pixels.push((cx, cy));
+                        let neighbors = [
+                            (cy as isize - 1, cx as isize),
+                            (cy as isize + 1, cx as isize),
+                            (cy as isize, cx as isize - 1),
+                            (cy as isize, cx as isize + 1),
+                        ];
+                        for &(ny, nx) in &neighbors {
+                            if ny >= 0 && ny < h as isize && nx >= 0 && nx < w as isize {
+                                let (ny_u, nx_u) = (ny as usize, nx as usize);
+                                if binary[[ny_u, nx_u]] == 255 && labeled[[ny_u, nx_u]] == 0 {
+                                    labeled[[ny_u, nx_u]] = label;
+                                    queue.push_back((ny_u, nx_u));
+                                }
+                            }
+                        }
+                    }
+                    
+                    let area = pixels.len() as f64;
+                    if filter_by_area && (area < min_area || area > max_area) {
+                        continue;
+                    }
+                    
+                    let mut sum_x = 0.0;
+                    let mut sum_y = 0.0;
+                    for &(cx, cy) in &pixels {
+                        sum_x += cx as f64;
+                        sum_y += cy as f64;
+                    }
+                    let cx_val = sum_x / area;
+                    let cy_val = sum_y / area;
+                    
+                    if filter_by_color {
+                        let center_val = img_2d[[cy_val.round() as usize, cx_val.round() as usize]];
+                        if (blob_color == 0 && center_val > 128) || (blob_color == 255 && center_val <= 128) {
+                            continue;
+                        }
+                    }
+                    
+                    if filter_by_circularity {
+                        let mut perimeter = 0.0;
+                        for &(px, py) in &pixels {
+                            let mut is_boundary = false;
+                            let neighbors = [
+                                (py as isize - 1, px as isize),
+                                (py as isize + 1, px as isize),
+                                (py as isize, px as isize - 1),
+                                (py as isize, px as isize + 1),
+                            ];
+                            for &(ny, nx) in &neighbors {
+                                if ny < 0 || ny >= h as isize || nx < 0 || nx >= w as isize {
+                                    is_boundary = true;
+                                    break;
+                                } else if binary[[ny as usize, nx as usize]] == 0 {
+                                    is_boundary = true;
+                                    break;
+                                }
+                            }
+                            if is_boundary {
+                                perimeter += 1.0;
+                            }
+                        }
+                        let circularity = if perimeter > 0.0 {
+                            4.0 * std::f64::consts::PI * area / (perimeter * perimeter)
+                        } else {
+                            0.0
+                        };
+                        if circularity < min_circularity || circularity > max_circularity {
+                            continue;
+                        }
+                    }
+                    
+                    if filter_by_inertia {
+                        let mut mu20 = 0.0;
+                        let mut mu02 = 0.0;
+                        let mut mu11 = 0.0;
+                        for &(px, py) in &pixels {
+                            let dx = px as f64 - cx_val;
+                            let dy = py as f64 - cy_val;
+                            mu20 += dx * dx;
+                            mu02 += dy * dy;
+                            mu11 += dx * dy;
+                        }
+                        let d = ((mu20 - mu02) * (mu20 - mu02) + 4.0 * mu11 * mu11).sqrt();
+                        let l1 = (mu20 + mu02 + d) / 2.0;
+                        let l2 = (mu20 + mu02 - d) / 2.0;
+                        let inertia_ratio = if l1 > 1e-6 {
+                            (l2 / l1).sqrt()
+                        } else {
+                            0.0
+                        };
+                        if inertia_ratio < min_inertia_ratio || inertia_ratio > max_inertia_ratio {
+                            continue;
+                        }
+                    }
+                    
+                    if filter_by_convexity {
+                        let hull_area = convex_hull_area(&pixels);
+                        let convexity = if hull_area > 0.0 {
+                            area / hull_area
+                        } else {
+                            0.0
+                        };
+                        if convexity < min_convexity || convexity > max_convexity {
+                            continue;
+                        }
+                    }
+                    
+                    candidates.push(KeyPoint {
+                        pt: (cx_val, cy_val),
+                        size: 2.0 * (area / std::f64::consts::PI).sqrt() as f32,
+                        angle: -1.0,
+                        response: area as f32,
+                        octave: 0,
+                        class_id: -1,
+                    });
+                }
+            }
+        }
+    }
+    
+    // Group candidates that are closer than min_dist_between_blobs
+    let mut groups: Vec<Vec<KeyPoint>> = Vec::new();
+    for cand in candidates {
+        let mut found_group = false;
+        for gp in &mut groups {
+            let mut close = false;
+            for member in gp.iter() {
+                let dx = member.pt.0 - cand.pt.0;
+                let dy = member.pt.1 - cand.pt.1;
+                let dist = (dx * dx + dy * dy).sqrt();
+                if dist < min_dist_between_blobs {
+                    close = true;
+                    break;
+                }
+            }
+            if close {
+                gp.push(cand.clone());
+                found_group = true;
+                break;
+            }
+        }
+        if !found_group {
+            groups.push(vec![cand]);
+        }
+    }
+    
+    let mut final_kps = Vec::new();
+    for gp in groups {
+        if gp.len() >= min_repeatability {
+            let mut sum_x = 0.0;
+            let mut sum_y = 0.0;
+            let mut sum_size = 0.0;
+            let mut sum_resp = 0.0;
+            for member in &gp {
+                sum_x += member.pt.0;
+                sum_y += member.pt.1;
+                sum_size += member.size;
+                sum_resp += member.response;
+            }
+            let n = gp.len() as f64;
+            let n_f32 = gp.len() as f32;
+            final_kps.push(KeyPoint {
+                pt: (sum_x / n, sum_y / n),
+                size: sum_size / n_f32,
+                angle: -1.0,
+                response: sum_resp / n_f32,
+                octave: 0,
+                class_id: -1,
+            });
+        }
+    }
+    
+    Ok(final_kps)
+}

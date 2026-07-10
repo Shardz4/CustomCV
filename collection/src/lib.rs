@@ -192,5 +192,6 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(features2d::brisk_detect_and_compute, m)?)?;
     m.add_function(wrap_pyfunction!(features2d::akaze_detect_and_compute, m)?)?;
     m.add_function(wrap_pyfunction!(features2d::mser_detect, m)?)?;
+    m.add_function(wrap_pyfunction!(features2d::simple_blob_detect, m)?)?;
     Ok(())
 }
