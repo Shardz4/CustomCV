@@ -815,3 +815,137 @@ pub fn polar_to_cart<'py>(
     
     Ok((x.into_pyarray(py).to_dyn(), y.into_pyarray(py).to_dyn()))
 }
+
+/// Alias for apply_multiply matching OpenCV name.
+#[pyfunction(name = "multiply")]
+#[pyo3(signature = (src1, src2, scale = 1.0))]
+pub fn multiply<'py>(
+    py: Python<'py>,
+    src1: &pyo3::PyAny,
+    src2: &pyo3::PyAny,
+    scale: f64,
+) -> PyResult<&'py PyArrayDyn<f64>> {
+    apply_multiply(py, src1, src2, scale)
+}
+
+/// Alias for apply_divide matching OpenCV name.
+#[pyfunction(name = "divide")]
+#[pyo3(signature = (src1, src2, scale = 1.0))]
+pub fn divide<'py>(
+    py: Python<'py>,
+    src1: &pyo3::PyAny,
+    src2: &pyo3::PyAny,
+    scale: f64,
+) -> PyResult<&'py PyArrayDyn<f64>> {
+    apply_divide(py, src1, src2, scale)
+}
+
+/// Alias for apply_min matching OpenCV name.
+#[pyfunction(name = "min")]
+pub fn min<'py>(
+    py: Python<'py>,
+    src1: &pyo3::PyAny,
+    src2: &pyo3::PyAny,
+) -> PyResult<&'py PyArrayDyn<f64>> {
+    apply_min(py, src1, src2)
+}
+
+/// Alias for apply_max matching OpenCV name.
+#[pyfunction(name = "max")]
+pub fn max<'py>(
+    py: Python<'py>,
+    src1: &pyo3::PyAny,
+    src2: &pyo3::PyAny,
+) -> PyResult<&'py PyArrayDyn<f64>> {
+    apply_max(py, src1, src2)
+}
+
+/// Alias for apply_normalize matching OpenCV name.
+#[pyfunction(name = "normalize")]
+#[pyo3(signature = (src, alpha = 0.0, beta = 255.0, norm_type = 32))]
+pub fn normalize<'py>(
+    py: Python<'py>,
+    src: &pyo3::PyAny,
+    alpha: f64,
+    beta: f64,
+    norm_type: i32,
+) -> PyResult<&'py PyArrayDyn<f64>> {
+    apply_normalize(py, src, alpha, beta, norm_type)
+}
+
+/// Alias for split_channels matching OpenCV name.
+#[pyfunction(name = "split")]
+pub fn split<'py>(
+    py: Python<'py>,
+    image: PyReadonlyArrayDyn<'py, u8>,
+) -> PyResult<Vec<&'py PyArrayDyn<u8>>> {
+    split_channels(py, image)
+}
+
+/// Alias for merge_channels matching OpenCV name.
+#[pyfunction(name = "merge")]
+pub fn merge<'py>(
+    py: Python<'py>,
+    channels: Vec<PyReadonlyArrayDyn<'py, u8>>,
+) -> PyResult<&'py PyArrayDyn<u8>> {
+    merge_channels(py, channels)
+}
+
+/// Alias for mix_channels matching OpenCV name.
+#[pyfunction(name = "mixChannels")]
+pub fn mix_channels_cv<'py>(
+    py: Python<'py>,
+    src: Vec<PyReadonlyArrayDyn<'py, u8>>,
+    dst: Vec<PyReadonlyArrayDyn<'py, u8>>,
+    from_to: Vec<usize>,
+) -> PyResult<Vec<&'py PyArrayDyn<u8>>> {
+    mix_channels(py, src, dst, from_to)
+}
+
+/// Alias for in_range matching OpenCV name.
+#[pyfunction(name = "inRange")]
+pub fn in_range_cv<'py>(
+    py: Python<'py>,
+    src: PyReadonlyArrayDyn<'py, u8>,
+    lowerb: Vec<f64>,
+    upperb: Vec<f64>,
+) -> PyResult<&'py PyArrayDyn<u8>> {
+    in_range(py, src, lowerb, upperb)
+}
+
+/// Alias for apply_lut matching OpenCV name.
+#[pyfunction(name = "LUT")]
+pub fn lut_cv<'py>(
+    py: Python<'py>,
+    src: PyReadonlyArrayDyn<'py, u8>,
+    lut: PyReadonlyArrayDyn<'py, u8>,
+) -> PyResult<Py<PyArrayDyn<u8>>> {
+    apply_lut(py, src, lut)
+}
+
+/// Alias for count_non_zero matching OpenCV name.
+#[pyfunction(name = "countNonZero")]
+pub fn count_non_zero_cv<'py>(
+    py: Python<'py>,
+    src: &pyo3::PyAny,
+) -> PyResult<usize> {
+    count_non_zero(py, src)
+}
+
+/// Alias for mean_std_dev matching OpenCV name.
+#[pyfunction(name = "meanStdDev")]
+pub fn mean_std_dev_cv<'py>(
+    py: Python<'py>,
+    src: PyReadonlyArrayDyn<'py, u8>,
+) -> PyResult<(Vec<f64>, Vec<f64>)> {
+    mean_std_dev(py, src)
+}
+
+/// Alias for min_max_loc matching OpenCV name.
+#[pyfunction(name = "minMaxLoc")]
+pub fn min_max_loc_cv<'py>(
+    py: Python<'py>,
+    src: PyReadonlyArrayDyn<'py, u8>,
+) -> PyResult<(f64, f64, (usize, usize), (usize, usize))> {
+    min_max_loc(py, src)
+}
