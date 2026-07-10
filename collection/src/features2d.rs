@@ -397,3 +397,183 @@ pub fn orb_detect_and_compute<'py>(
     
     Ok((valid_kps, desc_arr.into_pyarray(py).to_dyn()))
 }
+
+/// SIFT keypoint detector and descriptor extractor.
+#[pyfunction]
+#[pyo3(signature = (image, max_features = 500))]
+pub fn sift_detect_and_compute<'py>(
+    py: Python<'py>,
+    image: PyReadonlyArrayDyn<'py, u8>,
+    max_features: usize,
+) -> PyResult<(Vec<KeyPoint>, &'py PyArrayDyn<f32>)> {
+    let arr = image.as_array();
+    let img_2d = arr.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Image must be 2D Grayscale"))?;
+    let (h, w) = (img_2d.shape()[0], img_2d.shape()[1]);
+    
+    let mut all_kps = Vec::new();
+    
+    let kps0 = good_features_to_track(py, image.clone(), max_features, 0.01, 10.0, 3, false, 0.04)?;
+    for mut kp in kps0 {
+        kp.octave = 0;
+        kp.size = 1.6;
+        all_kps.push((kp, 1.0));
+    }
+    
+    if h > 30 && w > 30 {
+        let mut img1 = numpy::ndarray::Array2::<u8>::zeros((h / 2, w / 2));
+        for y in 0..h/2 {
+            for x in 0..w/2 {
+                img1[[y, x]] = img_2d[[y * 2, x * 2]];
+            }
+        }
+        let py_img1 = img1.into_pyarray(py).to_dyn();
+        let kps1 = good_features_to_track(py, py_img1.readonly(), max_features, 0.01, 10.0, 3, false, 0.04)?;
+        for mut kp in kps1 {
+            kp.octave = 1;
+            kp.size = 3.2;
+            let (kx, ky) = kp.pt;
+            kp.pt = (kx * 2.0, ky * 2.0);
+            all_kps.push((kp, 0.5));
+        }
+    }
+    
+    if h > 60 && w > 60 {
+        let mut img2 = numpy::ndarray::Array2::<u8>::zeros((h / 4, w / 4));
+        for y in 0..h/4 {
+            for x in 0..w/4 {
+                img2[[y, x]] = img_2d[[y * 4, x * 4]];
+            }
+        }
+        let py_img2 = img2.into_pyarray(py).to_dyn();
+        let kps2 = good_features_to_track(py, py_img2.readonly(), max_features, 0.01, 10.0, 3, false, 0.04)?;
+        for mut kp in kps2 {
+            kp.octave = 2;
+            kp.size = 6.4;
+            let (kx, ky) = kp.pt;
+            kp.pt = (kx * 4.0, ky * 4.0);
+            all_kps.push((kp, 0.25));
+        }
+    }
+    
+    all_kps.sort_by(|a, b| b.0.response.partial_cmp(&a.0.response).unwrap_or(std::cmp::Ordering::Equal));
+    
+    let mut valid_kps = Vec::new();
+    let mut descriptors_vec = Vec::new();
+    
+    let border = 16;
+    for (mut kp, scale) in all_kps {
+        let (orig_x, orig_y) = kp.pt;
+        let kx = (orig_x * scale).round() as isize;
+        let ky = (orig_y * scale).round() as isize;
+        
+        let local_h = (h as f64 * scale) as isize;
+        let local_w = (w as f64 * scale) as isize;
+        
+        if kx < border || kx >= (local_w - border) || ky < border || ky >= (local_h - border) {
+            continue;
+        }
+        
+        let mut orient_hist = [0.0f64; 36];
+        for dy in -8..=8 {
+            for dx in -8..=8 {
+                let step = (1.0 / scale) as isize;
+                let ox = (orig_x as isize + dx * step) as usize;
+                let oy = (orig_y as isize + dy * step) as usize;
+                
+                if ox > 0 && ox < w - 1 && oy > 0 && oy < h - 1 {
+                    let dx_val = img_2d[[oy, ox + 1]] as f64 - img_2d[[oy, ox - 1]] as f64;
+                    let dy_val = img_2d[[oy + 1, ox]] as f64 - img_2d[[oy - 1, ox]] as f64;
+                    let mag = (dx_val * dx_val + dy_val * dy_val).sqrt();
+                    let mut theta = dy_val.atan2(dx_val);
+                    if theta < 0.0 {
+                        theta += 2.0 * std::f64::consts::PI;
+                    }
+                    let bin = ((theta.to_degrees() / 10.0).round() as usize) % 36;
+                    let weight = (-(dx * dx + dy * dy) as f64 / 32.0).exp();
+                    orient_hist[bin] += mag * weight;
+                }
+            }
+        }
+        
+        let mut max_val = 0.0;
+        let mut dom_bin = 0;
+        for i in 0..36 {
+            if orient_hist[i] > max_val {
+                max_val = orient_hist[i];
+                dom_bin = i;
+            }
+        }
+        let dom_angle = (dom_bin as f64 * 10.0).to_radians();
+        kp.angle = dom_angle.to_degrees() as f32;
+        
+        let mut desc = vec![0.0f32; 128];
+        let cos_a = dom_angle.cos();
+        let sin_a = dom_angle.sin();
+        
+        for dy in -8..8 {
+            for dx in -8..8 {
+                let rx = dx as f64 * cos_a - dy as f64 * sin_a;
+                let ry = dx as f64 * sin_a + dy as f64 * cos_a;
+                
+                let ox = (orig_x + rx / scale).round() as usize;
+                let oy = (orig_y + ry / scale).round() as usize;
+                
+                if ox > 0 && ox < w - 1 && oy > 0 && oy < h - 1 {
+                    let dx_val = img_2d[[oy, ox + 1]] as f64 - img_2d[[oy, ox - 1]] as f64;
+                    let dy_val = img_2d[[oy + 1, ox]] as f64 - img_2d[[oy - 1, ox]] as f64;
+                    let mag = (dx_val * dx_val + dy_val * dy_val).sqrt();
+                    let mut theta = dy_val.atan2(dx_val) - dom_angle;
+                    if theta < 0.0 {
+                        theta += 2.0 * std::f64::consts::PI;
+                    }
+                    let theta_deg = theta.to_degrees();
+                    let bin = ((theta_deg / 45.0).round() as usize) % 8;
+                    
+                    let sub_x = ((rx + 8.0) / 4.0).floor() as isize;
+                    let sub_y = ((ry + 8.0) / 4.0).floor() as isize;
+                    
+                    if sub_x >= 0 && sub_x < 4 && sub_y >= 0 && sub_y < 4 {
+                        let sub_idx = (sub_y * 4 + sub_x) as usize;
+                        let weight = (-(dx * dx + dy * dy) as f64 / 128.0).exp();
+                        desc[sub_idx * 8 + bin] += (mag * weight) as f32;
+                    }
+                }
+            }
+        }
+        
+        let mut sum_sq = 0.0f32;
+        for &v in &desc { sum_sq += v * v; }
+        let norm = sum_sq.sqrt();
+        if norm > 1e-6 {
+            for v in &mut desc {
+                *v = (*v / norm).min(0.2f32);
+            }
+            let mut sum_sq2 = 0.0f32;
+            for &v in &desc { sum_sq2 += v * v; }
+            let norm2 = sum_sq2.sqrt();
+            if norm2 > 1e-6 {
+                for v in &mut desc {
+                    *v /= norm2;
+                }
+            }
+        }
+        
+        valid_kps.push(kp);
+        descriptors_vec.push(desc);
+        
+        if valid_kps.len() >= max_features {
+            break;
+        }
+    }
+    
+    let num_kps = valid_kps.len();
+    let mut desc_arr = numpy::ndarray::Array2::<f32>::zeros((num_kps, 128));
+    for i in 0..num_kps {
+        for j in 0..128 {
+            desc_arr[[i, j]] = descriptors_vec[i][j];
+        }
+    }
+    
+    Ok((valid_kps, desc_arr.into_pyarray(py).to_dyn()))
+}
