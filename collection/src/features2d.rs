@@ -1694,3 +1694,117 @@ pub fn bf_match<'py>(
         Err(pyo3::exceptions::PyTypeError::new_err("Descriptors must be either np.uint8 or np.float32"))
     }
 }
+
+/// K-Nearest Neighbor descriptor matcher.
+#[pyfunction]
+#[pyo3(signature = (query_descriptors, train_descriptors, k, norm_type = "L2"))]
+pub fn knn_match<'py>(
+    _py: Python<'py>,
+    query_descriptors: &pyo3::PyAny,
+    train_descriptors: &pyo3::PyAny,
+    k: usize,
+    norm_type: &str,
+) -> PyResult<Vec<Vec<DMatch>>> {
+    if let Ok(q_u8) = query_descriptors.extract::<PyReadonlyArrayDyn<u8>>() {
+        let t_u8 = train_descriptors.extract::<PyReadonlyArrayDyn<u8>>()?;
+        let q_arr = q_u8.as_array();
+        let t_arr = t_u8.as_array();
+        let q_2d = q_arr.into_dimensionality::<numpy::ndarray::Ix2>()
+            .map_err(|_| pyo3::exceptions::PyValueError::new_err("Descriptors must be 2D"))?;
+        let t_2d = t_arr.into_dimensionality::<numpy::ndarray::Ix2>()
+            .map_err(|_| pyo3::exceptions::PyValueError::new_err("Descriptors must be 2D"))?;
+        
+        let q_rows = q_2d.shape()[0];
+        let t_rows = t_2d.shape()[0];
+        let cols = q_2d.shape()[1];
+        
+        let mut all_matches = Vec::with_capacity(q_rows);
+        
+        for i in 0..q_rows {
+            let q_row = q_2d.row(i);
+            let mut best_matches = Vec::with_capacity(k);
+            
+            for j in 0..t_rows {
+                let t_row = t_2d.row(j);
+                let mut dist = 0;
+                for idx in 0..cols {
+                    dist += (q_row[idx] ^ t_row[idx]).count_ones();
+                }
+                
+                let d_match = DMatch {
+                    query_idx: i as i32,
+                    train_idx: j as i32,
+                    img_idx: 0,
+                    distance: dist as f32,
+                };
+                
+                let pos = best_matches.binary_search_by(|m: &DMatch| m.distance.partial_cmp(&d_match.distance).unwrap_or(std::cmp::Ordering::Equal))
+                    .unwrap_or_else(|x| x);
+                if pos < k {
+                    best_matches.insert(pos, d_match);
+                    if best_matches.len() > k {
+                        best_matches.pop();
+                    }
+                }
+            }
+            all_matches.push(best_matches);
+        }
+        Ok(all_matches)
+    } else if let Ok(q_f32) = query_descriptors.extract::<PyReadonlyArrayDyn<f32>>() {
+        let t_f32 = train_descriptors.extract::<PyReadonlyArrayDyn<f32>>()?;
+        let q_arr = q_f32.as_array();
+        let t_arr = t_f32.as_array();
+        let q_2d = q_arr.into_dimensionality::<numpy::ndarray::Ix2>()
+            .map_err(|_| pyo3::exceptions::PyValueError::new_err("Descriptors must be 2D"))?;
+        let t_2d = t_arr.into_dimensionality::<numpy::ndarray::Ix2>()
+            .map_err(|_| pyo3::exceptions::PyValueError::new_err("Descriptors must be 2D"))?;
+        
+        let q_rows = q_2d.shape()[0];
+        let t_rows = t_2d.shape()[0];
+        let cols = q_2d.shape()[1];
+        
+        let is_l1 = norm_type == "L1";
+        let mut all_matches = Vec::with_capacity(q_rows);
+        
+        for i in 0..q_rows {
+            let q_row = q_2d.row(i);
+            let mut best_matches = Vec::with_capacity(k);
+            
+            for j in 0..t_rows {
+                let t_row = t_2d.row(j);
+                let mut dist = 0.0;
+                for idx in 0..cols {
+                    let diff = q_row[idx] - t_row[idx];
+                    if is_l1 {
+                        dist += diff.abs();
+                    } else {
+                        dist += diff * diff;
+                    }
+                }
+                if !is_l1 {
+                    dist = dist.sqrt();
+                }
+                
+                let d_match = DMatch {
+                    query_idx: i as i32,
+                    train_idx: j as i32,
+                    img_idx: 0,
+                    distance: dist,
+                };
+                
+                let pos = best_matches.binary_search_by(|m: &DMatch| m.distance.partial_cmp(&d_match.distance).unwrap_or(std::cmp::Ordering::Equal))
+                    .unwrap_or_else(|x| x);
+                if pos < k {
+                    best_matches.insert(pos, d_match);
+                    if best_matches.len() > k {
+                        best_matches.pop();
+                    }
+                }
+            }
+            all_matches.push(best_matches);
+        }
+        Ok(all_matches)
+    } else {
+        Err(pyo3::exceptions::PyTypeError::new_err("Descriptors must be either np.uint8 or np.float32"))
+    }
+}
