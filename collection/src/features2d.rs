@@ -1039,3 +1039,129 @@ pub fn akaze_detect_and_compute<'py>(
     
     Ok((valid_kps, desc_arr.into_pyarray(py).to_dyn()))
 }
+
+/// MSER (Maximally Stable Extremal Regions) blob detector.
+#[pyfunction]
+#[pyo3(signature = (image, delta = 5, min_area = 60, max_area = 14400, max_variation = 0.25))]
+pub fn mser_detect<'py>(
+    _py: Python<'py>,
+    image: PyReadonlyArrayDyn<'py, u8>,
+    delta: usize,
+    min_area: usize,
+    max_area: usize,
+    max_variation: f64,
+) -> PyResult<Vec<Vec<(usize, usize)>>> {
+    let arr = image.as_array();
+    let img_2d = arr.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Image must be 2D Grayscale"))?;
+    let (h, w) = (img_2d.shape()[0], img_2d.shape()[1]);
+    
+    let steps: Vec<usize> = (delta..=255-delta).step_by(delta).collect();
+    let mut all_labeled = Vec::new();
+    let mut all_pixels = Vec::new();
+    
+    for &t in &steps {
+        let mut binary = numpy::ndarray::Array2::<u8>::zeros((h, w));
+        for y in 0..h {
+            for x in 0..w {
+                if img_2d[[y, x]] as usize <= t {
+                    binary[[y, x]] = 255;
+                }
+            }
+        }
+        
+        let mut labeled = numpy::ndarray::Array2::<i32>::zeros((h, w));
+        let mut next_label = 1;
+        let mut component_pixels = Vec::new();
+        component_pixels.push(Vec::new());
+        
+        for y in 0..h {
+            for x in 0..w {
+                if binary[[y, x]] == 255 && labeled[[y, x]] == 0 {
+                    let label = next_label;
+                    next_label += 1;
+                    let mut pixels = Vec::new();
+                    
+                    let mut queue = std::collections::VecDeque::new();
+                    queue.push_back((y, x));
+                    labeled[[y, x]] = label;
+                    
+                    while let Some((cy, cx)) = queue.pop_front() {
+                        pixels.push((cx, cy));
+                        
+                        let neighbors = [
+                            (cy as isize - 1, cx as isize),
+                            (cy as isize + 1, cx as isize),
+                            (cy as isize, cx as isize - 1),
+                            (cy as isize, cx as isize + 1),
+                        ];
+                        for &(ny, nx) in &neighbors {
+                            if ny >= 0 && ny < h as isize && nx >= 0 && nx < w as isize {
+                                let (ny_u, nx_u) = (ny as usize, nx as usize);
+                                if binary[[ny_u, nx_u]] == 255 && labeled[[ny_u, nx_u]] == 0 {
+                                    labeled[[ny_u, nx_u]] = label;
+                                    queue.push_back((ny_u, nx_u));
+                                }
+                            }
+                        }
+                    }
+                    component_pixels.push(pixels);
+                }
+            }
+        }
+        all_labeled.push(labeled);
+        all_pixels.push(component_pixels);
+    }
+    
+    let mut stable_regions = Vec::new();
+    
+    for idx in 1..steps.len() - 1 {
+        let comps_t = &all_pixels[idx];
+        let labeled_prev = &all_labeled[idx - 1];
+        let comps_prev = &all_pixels[idx - 1];
+        let labeled_next = &all_labeled[idx + 1];
+        let comps_next = &all_pixels[idx + 1];
+        
+        for (label_t, comp) in comps_t.iter().enumerate() {
+            if label_t == 0 { continue; }
+            let area = comp.len();
+            if area < min_area || area > max_area {
+                continue;
+            }
+            
+            let mut prev_counts = std::collections::HashMap::new();
+            for &(cx, cy) in comp {
+                let lbl = labeled_prev[[cy, cx]];
+                if lbl > 0 {
+                    *prev_counts.entry(lbl).or_insert(0) += 1;
+                }
+            }
+            let best_prev_label = prev_counts.into_iter()
+                .max_by_key(|&(_, count)| count)
+                .map(|(lbl, _)| lbl);
+            
+            let mut next_counts = std::collections::HashMap::new();
+            for &(cx, cy) in comp {
+                let lbl = labeled_next[[cy, cx]];
+                if lbl > 0 {
+                    *next_counts.entry(lbl).or_insert(0) += 1;
+                }
+            }
+            let best_next_label = next_counts.into_iter()
+                .max_by_key(|&(_, count)| count)
+                .map(|(lbl, _)| lbl);
+                
+            if let (Some(l_prev), Some(l_next)) = (best_prev_label, best_next_label) {
+                let area_prev = comps_prev[l_prev as usize].len();
+                let area_next = comps_next[l_next as usize].len();
+                
+                let variation = (area_next as f64 - area_prev as f64) / area as f64;
+                if variation <= max_variation {
+                    stable_regions.push(comp.clone());
+                }
+            }
+        }
+    }
+    
+    Ok(stable_regions)
+}
