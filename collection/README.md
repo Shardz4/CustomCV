@@ -238,6 +238,37 @@ All contour functions accept and return NumPy arrays representing points of shap
 
 ---
 
+### 13. Feature Detection & Matching — `features2d.rs`
+
+Provides feature keypoint detection and descriptor matching algorithms. Keypoints are returned as `KeyPoint` objects containing:
+- `pt`: `(float, float)` coordinates.
+- `size`: `float` diameter of the meaningful keypoint neighborhood.
+- `angle`: `float` computed orientation of the keypoint (-1 if not applicable).
+- `response`: `float` detector response strength.
+- `octave`: `int` pyramid octave from which keypoint was extracted.
+- `class_id`: `int` object class.
+
+Matches are returned as `DMatch` objects containing:
+- `query_idx`: `int` query descriptor index.
+- `train_idx`: `int` train descriptor index.
+- `img_idx`: `int` train image index.
+- `distance`: `float` descriptor distance metric.
+
+| Function | Signature | Description |
+|---|---|---|
+| `fast_detect` | `(image: ndarray[u8], threshold: int = 10, nonmax_suppression: bool = True) → list[KeyPoint]` | Detects corners using the FAST algorithm. |
+| `good_features_to_track` | `(image: ndarray[u8], max_corners: int = 1000, quality_level: float = 0.01, min_distance: float = 10.0, block_size: int = 3, use_harris_detector: bool = False, k: float = 0.04) → list[KeyPoint]` | Shi-Tomasi / Harris corner detection with non-maximum suppression. |
+| `orb_detect_and_compute` | `(image: ndarray[u8], max_features: int = 500, threshold: int = 20) → (list[KeyPoint], ndarray[u8])` | Detects keypoints and computes binary BRIEF descriptors using ORB. |
+| `sift_detect_and_compute` | `(image: ndarray[u8], max_features: int = 500) → (list[KeyPoint], ndarray[f32])` | Detects keypoints and computes float descriptors using scale-space SIFT. |
+| `brisk_detect_and_compute` | `(image: ndarray[u8], max_features: int = 500, threshold: int = 20) → (list[KeyPoint], ndarray[u8])` | Detects keypoints and computes BRISK binary descriptors. |
+| `akaze_detect_and_compute` | `(image: ndarray[u8], max_features: int = 500) → (list[KeyPoint], ndarray[u8])` | Detects keypoints and computes AKAZE binary descriptors using non-linear scale space. |
+| `mser_detect` | `(image: ndarray[u8], delta: int = 5, min_area: int = 60, max_area: int = 14400, max_variation: float = 0.25) → list[list[(int, int)]]` | Maximally Stable Extremal Regions region detector. Returns list of region coordinate lists. |
+| `simple_blob_detect` | `(image: ndarray[u8], ...) → list[KeyPoint]` | Detects blobs filtering by size, color, circularity, inertia, and convexity. |
+| `bf_match` | `(query_descriptors: ndarray, train_descriptors: ndarray, cross_check: bool = False, norm_type: str = "L2") → list[DMatch]` | Brute-force descriptor matcher. Supports Hamming norm (for binary) and L2/L1 norms (for float). |
+| `knn_match` | `(query_descriptors: ndarray, train_descriptors: ndarray, k: int, norm_type: str = "L2") → list[list[DMatch]]` | K-Nearest Neighbor descriptor matcher. Returns top $k$ matches for each query descriptor. |
+
+---
+
 ### 11. Image Segmentation — `segmentation.rs`
 
 These functions segment images into foreground/background or distinct labeled regions.
