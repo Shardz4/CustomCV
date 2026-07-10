@@ -50,6 +50,35 @@ impl KeyPoint {
     }
 }
 
+#[pyclass]
+#[derive(Clone, Debug)]
+pub struct DMatch {
+    #[pyo3(get, set)]
+    pub query_idx: i32,
+    #[pyo3(get, set)]
+    pub train_idx: i32,
+    #[pyo3(get, set)]
+    pub img_idx: i32,
+    #[pyo3(get, set)]
+    pub distance: f32,
+}
+
+#[pymethods]
+impl DMatch {
+    #[new]
+    #[pyo3(signature = (query_idx, train_idx, distance, img_idx = 0))]
+    pub fn new(query_idx: i32, train_idx: i32, distance: f32, img_idx: i32) -> Self {
+        Self { query_idx, train_idx, img_idx, distance }
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "DMatch(queryIdx={}, trainIdx={}, distance={}, imgIdx={})",
+            self.query_idx, self.train_idx, self.distance, self.img_idx
+        )
+    }
+}
+
 /// FAST corner detection.
 #[pyfunction]
 #[pyo3(signature = (image, threshold = 10, nonmax_suppression = true))]
@@ -1469,4 +1498,199 @@ pub fn simple_blob_detect<'py>(
     }
     
     Ok(final_kps)
+}
+
+/// Brute-force descriptor matcher.
+#[pyfunction]
+#[pyo3(signature = (query_descriptors, train_descriptors, cross_check = false, norm_type = "L2"))]
+pub fn bf_match<'py>(
+    _py: Python<'py>,
+    query_descriptors: &pyo3::PyAny,
+    train_descriptors: &pyo3::PyAny,
+    cross_check: bool,
+    norm_type: &str,
+) -> PyResult<Vec<DMatch>> {
+    if let Ok(q_u8) = query_descriptors.extract::<PyReadonlyArrayDyn<u8>>() {
+        let t_u8 = train_descriptors.extract::<PyReadonlyArrayDyn<u8>>()?;
+        let q_arr = q_u8.as_array();
+        let t_arr = t_u8.as_array();
+        let q_2d = q_arr.into_dimensionality::<numpy::ndarray::Ix2>()
+            .map_err(|_| pyo3::exceptions::PyValueError::new_err("Descriptors must be 2D"))?;
+        let t_2d = t_arr.into_dimensionality::<numpy::ndarray::Ix2>()
+            .map_err(|_| pyo3::exceptions::PyValueError::new_err("Descriptors must be 2D"))?;
+        
+        let q_rows = q_2d.shape()[0];
+        let t_rows = t_2d.shape()[0];
+        let cols = q_2d.shape()[1];
+        
+        let mut q_to_t = vec![( -1, f32::MAX ); q_rows];
+        for i in 0..q_rows {
+            let mut best_dist = u32::MAX;
+            let mut best_idx = -1;
+            let q_row = q_2d.row(i);
+            for j in 0..t_rows {
+                let t_row = t_2d.row(j);
+                let mut dist = 0;
+                for k in 0..cols {
+                    dist += (q_row[k] ^ t_row[k]).count_ones();
+                }
+                if dist < best_dist {
+                    best_dist = dist;
+                    best_idx = j as i32;
+                }
+            }
+            q_to_t[i] = (best_idx, best_dist as f32);
+        }
+        
+        let mut matches = Vec::new();
+        if cross_check {
+            let mut t_to_q = vec![( -1, f32::MAX ); t_rows];
+            for j in 0..t_rows {
+                let mut best_dist = u32::MAX;
+                let mut best_idx = -1;
+                let t_row = t_2d.row(j);
+                for i in 0..q_rows {
+                    let q_row = q_2d.row(i);
+                    let mut dist = 0;
+                    for k in 0..cols {
+                        dist += (q_row[k] ^ t_row[k]).count_ones();
+                    }
+                    if dist < best_dist {
+                        best_dist = dist;
+                        best_idx = i as i32;
+                    }
+                }
+                t_to_q[j] = (best_idx, best_dist as f32);
+            }
+            
+            for i in 0..q_rows {
+                let (best_t, dist) = q_to_t[i];
+                if best_t != -1 {
+                    let (best_q, _) = t_to_q[best_t as usize];
+                    if best_q == i as i32 {
+                        matches.push(DMatch {
+                            query_idx: i as i32,
+                            train_idx: best_t,
+                            img_idx: 0,
+                            distance: dist,
+                        });
+                    }
+                }
+            }
+        } else {
+            for i in 0..q_rows {
+                let (best_t, dist) = q_to_t[i];
+                if best_t != -1 {
+                    matches.push(DMatch {
+                        query_idx: i as i32,
+                        train_idx: best_t,
+                        img_idx: 0,
+                        distance: dist,
+                    });
+                }
+            }
+        }
+        Ok(matches)
+    } else if let Ok(q_f32) = query_descriptors.extract::<PyReadonlyArrayDyn<f32>>() {
+        let t_f32 = train_descriptors.extract::<PyReadonlyArrayDyn<f32>>()?;
+        let q_arr = q_f32.as_array();
+        let t_arr = t_f32.as_array();
+        let q_2d = q_arr.into_dimensionality::<numpy::ndarray::Ix2>()
+            .map_err(|_| pyo3::exceptions::PyValueError::new_err("Descriptors must be 2D"))?;
+        let t_2d = t_arr.into_dimensionality::<numpy::ndarray::Ix2>()
+            .map_err(|_| pyo3::exceptions::PyValueError::new_err("Descriptors must be 2D"))?;
+        
+        let q_rows = q_2d.shape()[0];
+        let t_rows = t_2d.shape()[0];
+        let cols = q_2d.shape()[1];
+        
+        let is_l1 = norm_type == "L1";
+        
+        let mut q_to_t = vec![( -1, f32::MAX ); q_rows];
+        for i in 0..q_rows {
+            let mut best_dist = f32::MAX;
+            let mut best_idx = -1;
+            let q_row = q_2d.row(i);
+            for j in 0..t_rows {
+                let t_row = t_2d.row(j);
+                let mut dist = 0.0;
+                for k in 0..cols {
+                    let diff = q_row[k] - t_row[k];
+                    if is_l1 {
+                        dist += diff.abs();
+                    } else {
+                        dist += diff * diff;
+                    }
+                }
+                if !is_l1 {
+                    dist = dist.sqrt();
+                }
+                if dist < best_dist {
+                    best_dist = dist;
+                    best_idx = j as i32;
+                }
+            }
+            q_to_t[i] = (best_idx, best_dist);
+        }
+        
+        let mut matches = Vec::new();
+        if cross_check {
+            let mut t_to_q = vec![( -1, f32::MAX ); t_rows];
+            for j in 0..t_rows {
+                let mut best_dist = f32::MAX;
+                let mut best_idx = -1;
+                let t_row = t_2d.row(j);
+                for i in 0..q_rows {
+                    let q_row = q_2d.row(i);
+                    let mut dist = 0.0;
+                    for k in 0..cols {
+                        let diff = q_row[k] - t_row[k];
+                        if is_l1 {
+                            dist += diff.abs();
+                        } else {
+                            dist += diff * diff;
+                        }
+                    }
+                    if !is_l1 {
+                        dist = dist.sqrt();
+                    }
+                    if dist < best_dist {
+                        best_dist = dist;
+                        best_idx = i as i32;
+                    }
+                }
+                t_to_q[j] = (best_idx, best_dist);
+            }
+            
+            for i in 0..q_rows {
+                let (best_t, dist) = q_to_t[i];
+                if best_t != -1 {
+                    let (best_q, _) = t_to_q[best_t as usize];
+                    if best_q == i as i32 {
+                        matches.push(DMatch {
+                            query_idx: i as i32,
+                            train_idx: best_t,
+                            img_idx: 0,
+                            distance: dist,
+                        });
+                    }
+                }
+            }
+        } else {
+            for i in 0..q_rows {
+                let (best_t, dist) = q_to_t[i];
+                if best_t != -1 {
+                    matches.push(DMatch {
+                        query_idx: i as i32,
+                        train_idx: best_t,
+                        img_idx: 0,
+                        distance: dist,
+                    });
+                }
+            }
+        }
+        Ok(matches)
+    } else {
+        Err(pyo3::exceptions::PyTypeError::new_err("Descriptors must be either np.uint8 or np.float32"))
+    }
 }

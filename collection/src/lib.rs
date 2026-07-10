@@ -185,6 +185,7 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // --- Feature Detection & Matching ---
     m.add_class::<features2d::KeyPoint>()?;
+    m.add_class::<features2d::DMatch>()?;
     m.add_function(wrap_pyfunction!(features2d::fast_detect, m)?)?;
     m.add_function(wrap_pyfunction!(features2d::good_features_to_track, m)?)?;
     m.add_function(wrap_pyfunction!(features2d::orb_detect_and_compute, m)?)?;
@@ -193,5 +194,6 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(features2d::akaze_detect_and_compute, m)?)?;
     m.add_function(wrap_pyfunction!(features2d::mser_detect, m)?)?;
     m.add_function(wrap_pyfunction!(features2d::simple_blob_detect, m)?)?;
+    m.add_function(wrap_pyfunction!(features2d::bf_match, m)?)?;
     Ok(())
 }
