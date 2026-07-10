@@ -807,3 +807,235 @@ pub fn brisk_detect_and_compute<'py>(
     
     Ok((valid_kps, desc_arr.into_pyarray(py).to_dyn()))
 }
+
+/// Helper function to perform a fast grayscale bilateral filter.
+fn bilateral_filter_gray(img: &numpy::ndarray::Array2<u8>, sigma_s: f64, sigma_r: f64) -> numpy::ndarray::Array2<u8> {
+    let (h, w) = (img.shape()[0], img.shape()[1]);
+    let mut out = numpy::ndarray::Array2::<u8>::zeros((h, w));
+    let r = (sigma_s * 3.0).ceil() as isize;
+    
+    let mut spatial_weights = vec![vec![0.0f64; (2 * r + 1) as usize]; (2 * r + 1) as usize];
+    for dy in -r..=r {
+        for dx in -r..=r {
+            spatial_weights[(dy + r) as usize][(dx + r) as usize] = (-((dx * dx + dy * dy) as f64) / (2.0 * sigma_s * sigma_s)).exp();
+        }
+    }
+    
+    for y in 0..h {
+        for x in 0..w {
+            let mut sum_val = 0.0;
+            let mut sum_w = 0.0;
+            let center_val = img[[y, x]] as f64;
+            
+            for dy in -r..=r {
+                for dx in -r..=r {
+                    let ny = y as isize + dy;
+                    let nx = x as isize + dx;
+                    if ny >= 0 && ny < h as isize && nx >= 0 && nx < w as isize {
+                        let val = img[[ny as usize, nx as usize]] as f64;
+                        let range_w = (-((val - center_val) * (val - center_val)) / (2.0 * sigma_r * sigma_r)).exp();
+                        let w_val = spatial_weights[(dy + r) as usize][(dx + r) as usize] * range_w;
+                        sum_val += val * w_val;
+                        sum_w += w_val;
+                    }
+                }
+            }
+            out[[y, x]] = if sum_w > 1e-6 { (sum_val / sum_w).round().clamp(0.0, 255.0) as u8 } else { img[[y, x]] };
+        }
+    }
+    out
+}
+
+/// AKAZE keypoint detector and descriptor extractor.
+#[pyfunction]
+#[pyo3(signature = (image, max_features = 500))]
+pub fn akaze_detect_and_compute<'py>(
+    py: Python<'py>,
+    image: PyReadonlyArrayDyn<'py, u8>,
+    max_features: usize,
+) -> PyResult<(Vec<KeyPoint>, &'py PyArrayDyn<u8>)> {
+    let arr = image.as_array();
+    let img_2d = arr.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Image must be 2D Grayscale"))?;
+    let (h, w) = (img_2d.shape()[0], img_2d.shape()[1]);
+    
+    let level0 = img_2d.to_owned();
+    let level1 = bilateral_filter_gray(&level0, 1.5, 20.0);
+    let level2 = bilateral_filter_gray(&level1, 3.0, 40.0);
+    
+    let mut all_kps = Vec::new();
+    
+    let py_l0 = level0.clone().into_pyarray(py).to_dyn();
+    let kps0 = good_features_to_track(py, py_l0.readonly(), max_features, 0.01, 10.0, 3, false, 0.04)?;
+    for mut kp in kps0 {
+        kp.octave = 0;
+        kp.size = 1.0;
+        all_kps.push(kp);
+    }
+    
+    let py_l1 = level1.clone().into_pyarray(py).to_dyn();
+    let kps1 = good_features_to_track(py, py_l1.readonly(), max_features, 0.01, 10.0, 3, false, 0.04)?;
+    for mut kp in kps1 {
+        kp.octave = 1;
+        kp.size = 2.0;
+        all_kps.push(kp);
+    }
+    
+    let py_l2 = level2.clone().into_pyarray(py).to_dyn();
+    let kps2 = good_features_to_track(py, py_l2.readonly(), max_features, 0.01, 10.0, 3, false, 0.04)?;
+    for mut kp in kps2 {
+        kp.octave = 2;
+        kp.size = 4.0;
+        all_kps.push(kp);
+    }
+    
+    all_kps.sort_by(|a, b| b.response.partial_cmp(&a.response).unwrap_or(std::cmp::Ordering::Equal));
+    
+    let mut valid_kps = Vec::new();
+    let mut descriptors_vec = Vec::new();
+    
+    let border = 16;
+    for mut kp in all_kps {
+        let (kx, ky) = (kp.pt.0 as isize, kp.pt.1 as isize);
+        if kx < border || kx >= (w as isize - border) || ky < border || ky >= (h as isize - border) {
+            continue;
+        }
+        
+        let src_img = match kp.octave {
+            1 => &level1,
+            2 => &level2,
+            _ => &level0,
+        };
+        
+        let mut m10 = 0.0;
+        let mut m01 = 0.0;
+        for dy in -15..=15 {
+            for dx in -15..=15 {
+                if dx * dx + dy * dy <= 225 {
+                    let val = src_img[[(ky + dy) as usize, (kx + dx) as usize]] as f64;
+                    m10 += dx as f64 * val;
+                    m01 += dy as f64 * val;
+                }
+            }
+        }
+        let angle = m01.atan2(m10);
+        kp.angle = angle.to_degrees() as f32;
+        
+        let cos_a = angle.cos();
+        let sin_a = angle.sin();
+        
+        let mut patch = numpy::ndarray::Array2::<f64>::zeros((16, 16));
+        let mut patch_dx = numpy::ndarray::Array2::<f64>::zeros((16, 16));
+        let mut patch_dy = numpy::ndarray::Array2::<f64>::zeros((16, 16));
+        
+        for y_idx in 0..16 {
+            for x_idx in 0..16 {
+                let dx = x_idx as f64 - 8.0;
+                let dy = y_idx as f64 - 8.0;
+                
+                let rx = dx * cos_a - dy * sin_a;
+                let ry = dx * sin_a + dy * cos_a;
+                
+                let px = (kp.pt.0 + rx).round() as usize;
+                let py_val = (kp.pt.1 + ry).round() as usize;
+                
+                if px > 0 && px < w - 1 && py_val > 0 && py_val < h - 1 {
+                    patch[[y_idx, x_idx]] = src_img[[py_val, px]] as f64;
+                    patch_dx[[y_idx, x_idx]] = src_img[[py_val, px + 1]] as f64 - src_img[[py_val, px - 1]] as f64;
+                    patch_dy[[y_idx, x_idx]] = src_img[[py_val + 1, px]] as f64 - src_img[[py_val - 1, px]] as f64;
+                }
+            }
+        }
+        
+        let mut cells_2x2_i = vec![0.0; 4];
+        let mut cells_2x2_dx = vec![0.0; 4];
+        let mut cells_2x2_dy = vec![0.0; 4];
+        for cy in 0..2 {
+            for cx in 0..2 {
+                let mut sum_i = 0.0;
+                let mut sum_dx = 0.0;
+                let mut sum_dy = 0.0;
+                for dy in 0..8 {
+                    for dx in 0..8 {
+                        sum_i += patch[[cy * 8 + dy, cx * 8 + dx]];
+                        sum_dx += patch_dx[[cy * 8 + dy, cx * 8 + dx]];
+                        sum_dy += patch_dy[[cy * 8 + dy, cx * 8 + dx]];
+                    }
+                }
+                let idx = cy * 2 + cx;
+                cells_2x2_i[idx] = sum_i / 64.0;
+                cells_2x2_dx[idx] = sum_dx / 64.0;
+                cells_2x2_dy[idx] = sum_dy / 64.0;
+            }
+        }
+        
+        let mut cells_3x3_i = vec![0.0; 9];
+        let mut cells_3x3_dx = vec![0.0; 9];
+        let mut cells_3x3_dy = vec![0.0; 9];
+        for cy in 0..3 {
+            for cx in 0..3 {
+                let mut sum_i = 0.0;
+                let mut sum_dx = 0.0;
+                let mut sum_dy = 0.0;
+                let y_start = cy * 5;
+                let y_end = (cy * 5 + 6).min(16);
+                let x_start = cx * 5;
+                let x_end = (cx * 5 + 6).min(16);
+                let count = ((y_end - y_start) * (x_end - x_start)) as f64;
+                for dy in y_start..y_end {
+                    for dx in x_start..x_end {
+                        sum_i += patch[[dy, dx]];
+                        sum_dx += patch_dx[[dy, dx]];
+                        sum_dy += patch_dy[[dy, dx]];
+                    }
+                }
+                let idx = cy * 3 + cx;
+                cells_3x3_i[idx] = sum_i / count;
+                cells_3x3_dx[idx] = sum_dx / count;
+                cells_3x3_dy[idx] = sum_dy / count;
+            }
+        }
+        
+        let mut desc = [0u8; 16];
+        let mut bit_idx = 0;
+        
+        for i in 0..4 {
+            for j in (i + 1)..4 {
+                if cells_2x2_i[i] < cells_2x2_i[j] { desc[bit_idx / 8] |= 1 << (bit_idx % 8); }
+                bit_idx += 1;
+                if cells_2x2_dx[i] < cells_2x2_dx[j] { desc[bit_idx / 8] |= 1 << (bit_idx % 8); }
+                bit_idx += 1;
+                if cells_2x2_dy[i] < cells_2x2_dy[j] { desc[bit_idx / 8] |= 1 << (bit_idx % 8); }
+                bit_idx += 1;
+            }
+        }
+        
+        for i in 0..9 {
+            for j in (i + 1)..9 {
+                if cells_3x3_i[i] < cells_3x3_i[j] { desc[bit_idx / 8] |= 1 << (bit_idx % 8); }
+                bit_idx += 1;
+                if cells_3x3_dx[i] < cells_3x3_dx[j] { desc[bit_idx / 8] |= 1 << (bit_idx % 8); }
+                bit_idx += 1;
+                if cells_3x3_dy[i] < cells_3x3_dy[j] { desc[bit_idx / 8] |= 1 << (bit_idx % 8); }
+                bit_idx += 1;
+            }
+        }
+        
+        valid_kps.push(kp);
+        descriptors_vec.extend_from_slice(&desc);
+        
+        if valid_kps.len() >= max_features {
+            break;
+        }
+    }
+    
+    let num_desc = valid_kps.len();
+    let mut desc_arr = numpy::ndarray::Array2::<u8>::zeros((num_desc, 16));
+    for i in 0..num_desc {
+        for j in 0..16 {
+            desc_arr[[i, j]] = descriptors_vec[i * 16 + j];
+        }
+    }
+    
+    Ok((valid_kps, desc_arr.into_pyarray(py).to_dyn()))
+}
