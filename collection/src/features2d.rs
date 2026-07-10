@@ -198,3 +198,100 @@ pub fn fast_detect<'py>(
     
     Ok(keypoints)
 }
+
+/// Good Features to Track (Shi-Tomasi or Harris wrapper with NMS and distance sorting).
+#[pyfunction]
+#[pyo3(signature = (image, max_corners = 1000, quality_level = 0.01, min_distance = 10.0, block_size = 3, use_harris_detector = false, k = 0.04))]
+pub fn good_features_to_track<'py>(
+    _py: Python<'py>,
+    image: PyReadonlyArrayDyn<'py, u8>,
+    max_corners: usize,
+    quality_level: f64,
+    min_distance: f64,
+    block_size: usize,
+    use_harris_detector: bool,
+    k: f64,
+) -> PyResult<Vec<KeyPoint>> {
+    let arr = image.as_array();
+    let img_2d = arr.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Image must be 2D Grayscale"))?;
+    let (h, w) = (img_2d.shape()[0], img_2d.shape()[1]);
+    
+    let (sxx, syy, sxy) = crate::helpers::compute_structure_tensor(&img_2d, block_size);
+    let mut response = numpy::ndarray::Array2::<f32>::zeros((h, w));
+    let mut max_resp = 0.0f32;
+    
+    for y in 0..h {
+        for x in 0..w {
+            let a = sxx[[y, x]];
+            let b = sxy[[y, x]];
+            let c = syy[[y, x]];
+            
+            let val = if use_harris_detector {
+                let det = (a * c) - (b * b);
+                let trace = a + c;
+                det - (k as f32) * (trace * trace)
+            } else {
+                let trace = a + c;
+                let det = (a * c) - (b * b);
+                let gap = ((trace * trace) / 4.0 - det).max(0.0).sqrt();
+                (trace / 2.0) - gap
+            };
+            
+            response[[y, x]] = val;
+            if val > max_resp {
+                max_resp = val;
+            }
+        }
+    }
+    
+    let threshold = quality_level as f32 * max_resp;
+    let mut candidates = Vec::new();
+    
+    for y in 1..h.saturating_sub(1) {
+        for x in 1..w.saturating_sub(1) {
+            let val = response[[y, x]];
+            if val > threshold {
+                let mut is_local_max = true;
+                'check: for dy in -1..=1 {
+                    for dx in -1..=1 {
+                        if dy == 0 && dx == 0 { continue; }
+                        if response[[(y as isize + dy) as usize, (x as isize + dx) as usize]] > val {
+                            is_local_max = false;
+                            break 'check;
+                        }
+                    }
+                }
+                if is_local_max {
+                    candidates.push(KeyPoint::new(x as f64, y as f64, block_size as f32, -1.0, val, 0, -1));
+                }
+            }
+        }
+    }
+    
+    candidates.sort_by(|a, b| b.response.partial_cmp(&a.response).unwrap_or(std::cmp::Ordering::Equal));
+    
+    let mut accepted: Vec<KeyPoint> = Vec::new();
+    let min_dist_sq = min_distance * min_distance;
+    
+    for kp in candidates {
+        let (cx, cy) = kp.pt;
+        let mut too_close = false;
+        for acc in &accepted {
+            let (ax, ay) = acc.pt;
+            let dist_sq = (cx - ax) * (cx - ax) + (cy - ay) * (cy - ay);
+            if dist_sq < min_dist_sq {
+                too_close = true;
+                break;
+            }
+        }
+        if !too_close {
+            accepted.push(kp);
+            if accepted.len() >= max_corners {
+                break;
+            }
+        }
+    }
+    
+    Ok(accepted)
+}

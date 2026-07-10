@@ -186,5 +186,6 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     // --- Feature Detection & Matching ---
     m.add_class::<features2d::KeyPoint>()?;
     m.add_function(wrap_pyfunction!(features2d::fast_detect, m)?)?;
+    m.add_function(wrap_pyfunction!(features2d::good_features_to_track, m)?)?;
     Ok(())
 }
