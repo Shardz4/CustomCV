@@ -295,3 +295,105 @@ pub fn good_features_to_track<'py>(
     
     Ok(accepted)
 }
+
+/// Helper function to generate BRIEF pixel pairs deterministically.
+fn get_brief_pairs() -> Vec<((i32, i32), (i32, i32))> {
+    let mut pairs = Vec::with_capacity(256);
+    let mut seed: u32 = 0x12345678;
+    let mut rand_coord = |seed: &mut u32| -> i32 {
+        *seed = seed.wrapping_mul(1103515245).wrapping_add(12345);
+        ((*seed / 65536) % 31) as i32 - 15
+    };
+    for _ in 0..256 {
+        let x1 = rand_coord(&mut seed);
+        let y1 = rand_coord(&mut seed);
+        let x2 = rand_coord(&mut seed);
+        let y2 = rand_coord(&mut seed);
+        pairs.push(((x1, y1), (x2, y2)));
+    }
+    pairs
+}
+
+/// ORB keypoint detector and descriptor extractor.
+#[pyfunction]
+#[pyo3(signature = (image, max_features = 500, threshold = 20))]
+pub fn orb_detect_and_compute<'py>(
+    py: Python<'py>,
+    image: PyReadonlyArrayDyn<'py, u8>,
+    max_features: usize,
+    threshold: i32,
+) -> PyResult<(Vec<KeyPoint>, &'py PyArrayDyn<u8>)> {
+    let arr = image.as_array();
+    let img_2d = arr.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Image must be 2D Grayscale"))?;
+    let (h, w) = (img_2d.shape()[0], img_2d.shape()[1]);
+    
+    let raw_kps = fast_detect(py, image.clone(), threshold, true)?;
+    
+    let mut kps = raw_kps;
+    kps.sort_by(|a, b| b.response.partial_cmp(&a.response).unwrap_or(std::cmp::Ordering::Equal));
+    
+    let brief_pairs = get_brief_pairs();
+    
+    let mut valid_kps = Vec::new();
+    let mut descriptors_vec = Vec::new();
+    
+    let border = 16;
+    for mut kp in kps {
+        let (kx, ky) = (kp.pt.0 as isize, kp.pt.1 as isize);
+        if kx < border || kx >= (w as isize - border) || ky < border || ky >= (h as isize - border) {
+            continue;
+        }
+        
+        let mut m10 = 0.0f64;
+        let mut m01 = 0.0f64;
+        for dy in -15..=15 {
+            for dx in -15..=15 {
+                if dx * dx + dy * dy <= 225 {
+                    let val = img_2d[[(ky + dy) as usize, (kx + dx) as usize]] as f64;
+                    m10 += dx as f64 * val;
+                    m01 += dy as f64 * val;
+                }
+            }
+        }
+        let angle = m01.atan2(m10);
+        kp.angle = angle.to_degrees() as f32;
+        
+        let cos_a = angle.cos();
+        let sin_a = angle.sin();
+        let mut desc = [0u8; 32];
+        
+        for i in 0..256 {
+            let ((dx1, dy1), (dx2, dy2)) = brief_pairs[i];
+            
+            let rx1 = (dx1 as f64 * cos_a - dy1 as f64 * sin_a).round() as isize;
+            let ry1 = (dx1 as f64 * sin_a + dy1 as f64 * cos_a).round() as isize;
+            let rx2 = (dx2 as f64 * cos_a - dy2 as f64 * sin_a).round() as isize;
+            let ry2 = (dx2 as f64 * sin_a + dy2 as f64 * cos_a).round() as isize;
+            
+            let val1 = img_2d[[(ky + ry1) as usize, (kx + rx1) as usize]];
+            let val2 = img_2d[[(ky + ry2) as usize, (kx + rx2) as usize]];
+            
+            if val1 < val2 {
+                desc[i / 8] |= 1 << (i % 8);
+            }
+        }
+        
+        valid_kps.push(kp);
+        descriptors_vec.extend_from_slice(&desc);
+        
+        if valid_kps.len() >= max_features {
+            break;
+        }
+    }
+    
+    let num_desc = valid_kps.len();
+    let mut desc_arr = numpy::ndarray::Array2::<u8>::zeros((num_desc, 32));
+    for i in 0..num_desc {
+        for j in 0..32 {
+            desc_arr[[i, j]] = descriptors_vec[i * 32 + j];
+        }
+    }
+    
+    Ok((valid_kps, desc_arr.into_pyarray(py).to_dyn()))
+}
