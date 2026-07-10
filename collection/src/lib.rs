@@ -15,6 +15,7 @@ mod gradient;
 mod contours;
 mod segmentation;
 mod drawing;
+mod features2d;
 
 #[pymodule]
 fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -181,5 +182,9 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(drawing::fill_poly, m)?)?;
     m.add_function(wrap_pyfunction!(drawing::arrowed_line, m)?)?;
     m.add_function(wrap_pyfunction!(drawing::put_text, m)?)?;
+
+    // --- Feature Detection & Matching ---
+    m.add_class::<features2d::KeyPoint>()?;
+    m.add_function(wrap_pyfunction!(features2d::fast_detect, m)?)?;
     Ok(())
 }
