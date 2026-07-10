@@ -121,19 +121,30 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // --- Geometric Transforms ---
     m.add_function(wrap_pyfunction!(geometric::apply_resize, m)?)?;
+    m.add_function(wrap_pyfunction!(geometric::resize, m)?)?;
     m.add_function(wrap_pyfunction!(geometric::apply_translate, m)?)?;
     m.add_function(wrap_pyfunction!(geometric::apply_rotate, m)?)?;
     m.add_function(wrap_pyfunction!(geometric::apply_warp, m)?)?;
     m.add_function(wrap_pyfunction!(geometric::apply_warp_affine, m)?)?;
+    m.add_function(wrap_pyfunction!(geometric::warp_affine, m)?)?;
     m.add_function(wrap_pyfunction!(geometric::get_rotation_matrix_2d, m)?)?;
+    m.add_function(wrap_pyfunction!(geometric::get_rotation_matrix_2d_cv, m)?)?;
     m.add_function(wrap_pyfunction!(geometric::get_affine_transform, m)?)?;
+    m.add_function(wrap_pyfunction!(geometric::get_affine_transform_cv, m)?)?;
     m.add_function(wrap_pyfunction!(geometric::get_perspective_transform, m)?)?;
+    m.add_function(wrap_pyfunction!(geometric::get_perspective_transform_cv, m)?)?;
     m.add_function(wrap_pyfunction!(geometric::apply_flip, m)?)?;
+    m.add_function(wrap_pyfunction!(geometric::flip, m)?)?;
     m.add_function(wrap_pyfunction!(geometric::apply_transpose, m)?)?;
+    m.add_function(wrap_pyfunction!(geometric::transpose, m)?)?;
     m.add_function(wrap_pyfunction!(geometric::apply_remap, m)?)?;
+    m.add_function(wrap_pyfunction!(geometric::remap, m)?)?;
     m.add_function(wrap_pyfunction!(geometric::invert_affine_transform, m)?)?;
+    m.add_function(wrap_pyfunction!(geometric::invert_affine_transform_cv, m)?)?;
     m.add_function(wrap_pyfunction!(geometric::apply_linear_polar, m)?)?;
+    m.add_function(wrap_pyfunction!(geometric::linear_polar, m)?)?;
     m.add_function(wrap_pyfunction!(geometric::apply_log_polar, m)?)?;
+    m.add_function(wrap_pyfunction!(geometric::log_polar, m)?)?;
 
     // --- Smoothing Filters ---
     m.add_function(wrap_pyfunction!(smoothing::apply_blur, m)?)?;

@@ -1189,3 +1189,133 @@ pub fn apply_log_polar<'py>(
           Err(pyo3::exceptions::PyValueError::new_err("Image must be 2D or 3D"))
       }
 }
+
+/// Alias for apply_resize matching OpenCV name.
+#[pyfunction(name = "resize")]
+#[pyo3(signature = (image, new_w, new_h, interpolation = 1))]
+pub fn resize<'py>(
+    py: Python<'py>,
+    image: PyReadonlyArrayDyn<'py, u8>,
+    new_w: usize,
+    new_h: usize,
+    interpolation: i32,
+) -> PyResult<&'py PyArrayDyn<u8>> {
+    apply_resize(py, image, new_w, new_h, interpolation)
+}
+
+/// Alias for apply_warp_affine matching OpenCV name.
+#[pyfunction(name = "warpAffine")]
+#[pyo3(signature = (image, M, out_w, out_h, flags = 0))]
+pub fn warp_affine<'py>(
+    py: Python<'py>,
+    image: PyReadonlyArrayDyn<'py, u8>,
+    M: PyReadonlyArrayDyn<'py, f64>,
+    out_w: usize,
+    out_h: usize,
+    flags: i32,
+) -> PyResult<&'py PyArrayDyn<u8>> {
+    apply_warp_affine(py, image, M, out_w, out_h, flags)
+}
+
+/// Alias for get_rotation_matrix_2d matching OpenCV name.
+#[pyfunction(name = "getRotationMatrix2D")]
+pub fn get_rotation_matrix_2d_cv<'py>(
+    py: Python<'py>,
+    center: (f64, f64),
+    angle: f64,
+    scale: f64,
+) -> PyResult<&'py PyArrayDyn<f64>> {
+    get_rotation_matrix_2d(py, center, angle, scale)
+}
+
+/// Alias for get_affine_transform matching OpenCV name.
+#[pyfunction(name = "getAffineTransform")]
+pub fn get_affine_transform_cv<'py>(
+    py: Python<'py>,
+    src: PyReadonlyArrayDyn<'py, f32>,
+    dst: PyReadonlyArrayDyn<'py, f32>,
+) -> PyResult<&'py PyArrayDyn<f64>> {
+    get_affine_transform(py, src, dst)
+}
+
+/// Alias for get_perspective_transform matching OpenCV name.
+#[pyfunction(name = "getPerspectiveTransform")]
+pub fn get_perspective_transform_cv<'py>(
+    py: Python<'py>,
+    src: PyReadonlyArrayDyn<'py, f32>,
+    dst: PyReadonlyArrayDyn<'py, f32>,
+) -> PyResult<&'py PyArrayDyn<f64>> {
+    get_perspective_transform(py, src, dst)
+}
+
+/// Alias for apply_remap matching OpenCV name.
+#[pyfunction(name = "remap")]
+#[pyo3(signature = (image, map_x, map_y, interpolation = 1))]
+pub fn remap<'py>(
+    py: Python<'py>,
+    image: PyReadonlyArrayDyn<'py, u8>,
+    map_x: PyReadonlyArrayDyn<'py, f32>,
+    map_y: PyReadonlyArrayDyn<'py, f32>,
+    interpolation: i32,
+) -> PyResult<&'py PyArrayDyn<u8>> {
+    apply_remap(py, image, map_x, map_y, interpolation)
+}
+
+/// Alias for apply_flip matching OpenCV name.
+#[pyfunction(name = "flip")]
+pub fn flip<'py>(
+    py: Python<'py>,
+    image: PyReadonlyArrayDyn<'py, u8>,
+    flip_code: i32,
+) -> PyResult<&'py PyArrayDyn<u8>> {
+    apply_flip(py, image, flip_code)
+}
+
+/// Alias for apply_transpose matching OpenCV name.
+#[pyfunction(name = "transpose")]
+pub fn transpose<'py>(
+    py: Python<'py>,
+    image: PyReadonlyArrayDyn<'py, u8>,
+) -> PyResult<&'py PyArrayDyn<u8>> {
+    apply_transpose(py, image)
+}
+
+/// Alias for invert_affine_transform matching OpenCV name.
+#[pyfunction(name = "invertAffineTransform")]
+#[allow(non_snake_case)]
+pub fn invert_affine_transform_cv<'py>(
+    py: Python<'py>,
+    M: PyReadonlyArrayDyn<'py, f64>,
+) -> PyResult<&'py PyArrayDyn<f64>> {
+    invert_affine_transform(py, M)
+}
+
+/// Alias for apply_linear_polar matching OpenCV name.
+#[pyfunction(name = "linearPolar")]
+#[pyo3(signature = (image, center, max_radius, out_w = None, out_h = None, interpolation = 1))]
+pub fn linear_polar<'py>(
+    py: Python<'py>,
+    image: PyReadonlyArrayDyn<'py, u8>,
+    center: (f64, f64),
+    max_radius: f64,
+    out_w: Option<usize>,
+    out_h: Option<usize>,
+    interpolation: i32,
+) -> PyResult<&'py PyArrayDyn<u8>> {
+    apply_linear_polar(py, image, center, max_radius, out_w, out_h, interpolation)
+}
+
+/// Alias for apply_log_polar matching OpenCV name.
+#[pyfunction(name = "logPolar")]
+#[pyo3(signature = (image, center, scale = 1.0, out_w = None, out_h = None, interpolation = 1))]
+pub fn log_polar<'py>(
+    py: Python<'py>,
+    image: PyReadonlyArrayDyn<'py, u8>,
+    center: (f64, f64),
+    scale: f64,
+    out_w: Option<usize>,
+    out_h: Option<usize>,
+    interpolation: i32,
+) -> PyResult<&'py PyArrayDyn<u8>> {
+    apply_log_polar(py, image, center, scale, out_w, out_h, interpolation)
+}
