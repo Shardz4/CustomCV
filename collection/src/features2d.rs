@@ -577,3 +577,233 @@ pub fn sift_detect_and_compute<'py>(
     
     Ok((valid_kps, desc_arr.into_pyarray(py).to_dyn()))
 }
+
+/// Helper to get BRISK sampling pattern coordinates (60 points)
+fn get_brisk_sampling_pattern() -> Vec<(f64, f64)> {
+    let mut pattern = Vec::with_capacity(60);
+    pattern.push((0.0, 0.0));
+    
+    for i in 0..4 {
+        let angle = (i as f64) * 2.0 * std::f64::consts::PI / 4.0;
+        pattern.push((1.5 * angle.cos(), 1.5 * angle.sin()));
+    }
+    for i in 0..10 {
+        let angle = (i as f64) * 2.0 * std::f64::consts::PI / 10.0;
+        pattern.push((3.5 * angle.cos(), 3.5 * angle.sin()));
+    }
+    for i in 0..18 {
+        let angle = (i as f64) * 2.0 * std::f64::consts::PI / 18.0;
+        pattern.push((6.5 * angle.cos(), 6.5 * angle.sin()));
+    }
+    for i in 0..28 {
+        let angle = (i as f64) * 2.0 * std::f64::consts::PI / 28.0;
+        pattern.push((10.5 * angle.cos(), 10.5 * angle.sin()));
+    }
+    pattern
+}
+
+/// Helper to get BRISK short pairs (512 pairs) and long pairs deterministically
+fn get_brisk_pairs(pattern: &[(f64, f64)]) -> (Vec<(usize, usize)>, Vec<(usize, usize)>) {
+    let mut short_pairs = Vec::new();
+    let mut long_pairs = Vec::new();
+    
+    let n = pattern.len();
+    for i in 0..n {
+        for j in (i + 1)..n {
+            let dx = pattern[i].0 - pattern[j].0;
+            let dy = pattern[i].1 - pattern[j].1;
+            let dist = (dx * dx + dy * dy).sqrt();
+            if dist < 3.5 {
+                short_pairs.push((i, j));
+            } else if dist > 6.0 {
+                long_pairs.push((i, j));
+            }
+        }
+    }
+    
+    short_pairs.truncate(512);
+    let mut seed: u32 = 0x87654321;
+    while short_pairs.len() < 512 {
+        seed = seed.wrapping_mul(1103515245).wrapping_add(12345);
+        let i = (seed as usize) % n;
+        seed = seed.wrapping_mul(1103515245).wrapping_add(12345);
+        let j = (seed as usize) % n;
+        if i != j {
+            short_pairs.push((i, j));
+        }
+    }
+    (short_pairs, long_pairs)
+}
+
+/// BRISK keypoint detector and descriptor extractor.
+#[pyfunction]
+#[pyo3(signature = (image, max_features = 500, threshold = 20))]
+pub fn brisk_detect_and_compute<'py>(
+    py: Python<'py>,
+    image: PyReadonlyArrayDyn<'py, u8>,
+    max_features: usize,
+    threshold: i32,
+) -> PyResult<(Vec<KeyPoint>, &'py PyArrayDyn<u8>)> {
+    let arr = image.as_array();
+    let img_2d = arr.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Image must be 2D Grayscale"))?;
+    let (h, w) = (img_2d.shape()[0], img_2d.shape()[1]);
+    
+    let mut all_kps = Vec::new();
+    
+    let kps0 = fast_detect(py, image.clone(), threshold, true)?;
+    for mut kp in kps0 {
+        kp.octave = 0;
+        kp.size = 1.0;
+        all_kps.push((kp, 1.0));
+    }
+    
+    if h > 30 && w > 30 {
+        let mut img1 = numpy::ndarray::Array2::<u8>::zeros((h / 2, w / 2));
+        for y in 0..h/2 {
+            for x in 0..w/2 {
+                img1[[y, x]] = img_2d[[y * 2, x * 2]];
+            }
+        }
+        let py_img1 = img1.into_pyarray(py).to_dyn();
+        let kps1 = fast_detect(py, py_img1.readonly(), threshold, true)?;
+        for mut kp in kps1 {
+            kp.octave = 1;
+            kp.size = 2.0;
+            let (kx, ky) = kp.pt;
+            kp.pt = (kx * 2.0, ky * 2.0);
+            all_kps.push((kp, 0.5));
+        }
+    }
+    
+    if h > 60 && w > 60 {
+        let mut img2 = numpy::ndarray::Array2::<u8>::zeros((h / 4, w / 4));
+        for y in 0..h/4 {
+            for x in 0..w/4 {
+                img2[[y, x]] = img_2d[[y * 4, x * 4]];
+            }
+        }
+        let py_img2 = img2.into_pyarray(py).to_dyn();
+        let kps2 = fast_detect(py, py_img2.readonly(), threshold, true)?;
+        for mut kp in kps2 {
+            kp.octave = 2;
+            kp.size = 4.0;
+            let (kx, ky) = kp.pt;
+            kp.pt = (kx * 4.0, ky * 4.0);
+            all_kps.push((kp, 0.25));
+        }
+    }
+    
+    all_kps.sort_by(|a, b| b.0.response.partial_cmp(&a.0.response).unwrap_or(std::cmp::Ordering::Equal));
+    
+    let pattern = get_brisk_sampling_pattern();
+    let (short_pairs, long_pairs) = get_brisk_pairs(&pattern);
+    
+    let mut valid_kps = Vec::new();
+    let mut descriptors_vec = Vec::new();
+    
+    let border = 16;
+    for (mut kp, scale) in all_kps {
+        let (orig_x, orig_y) = kp.pt;
+        let kx = (orig_x * scale).round() as isize;
+        let ky = (orig_y * scale).round() as isize;
+        
+        let local_h = (h as f64 * scale) as isize;
+        let local_w = (w as f64 * scale) as isize;
+        
+        if kx < border || kx >= (local_w - border) || ky < border || ky >= (local_h - border) {
+            continue;
+        }
+        
+        let mut intensities = vec![0.0f64; pattern.len()];
+        for i in 0..pattern.len() {
+            let px = orig_x + pattern[i].0 / scale;
+            let py_val = orig_y + pattern[i].1 / scale;
+            
+            let x0 = px.floor() as usize;
+            let x1 = (x0 + 1).min(w - 1);
+            let y0 = py_val.floor() as usize;
+            let y1 = (y0 + 1).min(h - 1);
+            let dx = px - x0 as f64;
+            let dy = py_val - y0 as f64;
+            
+            let val00 = img_2d[[y0, x0]] as f64;
+            let val01 = img_2d[[y0, x1]] as f64;
+            let val10 = img_2d[[y1, x0]] as f64;
+            let val11 = img_2d[[y1, x1]] as f64;
+            
+            intensities[i] = (1.0 - dx) * (1.0 - dy) * val00
+                + dx * (1.0 - dy) * val01
+                + (1.0 - dx) * dy * val10
+                + dx * dy * val11;
+        }
+        
+        let mut rx = 0.0;
+        let mut ry = 0.0;
+        for &(i, j) in &long_pairs {
+            let diff = intensities[j] - intensities[i];
+            let dx = pattern[j].0 - pattern[i].0;
+            let dy = pattern[j].1 - pattern[i].1;
+            let len = (dx * dx + dy * dy).sqrt();
+            if len > 1e-6 {
+                rx += (dx / len) * diff;
+                ry += (dy / len) * diff;
+            }
+        }
+        let angle = ry.atan2(rx);
+        kp.angle = angle.to_degrees() as f32;
+        
+        let cos_a = angle.cos();
+        let sin_a = angle.sin();
+        
+        let mut rot_intensities = vec![0.0f64; pattern.len()];
+        for i in 0..pattern.len() {
+            let rx = pattern[i].0 * cos_a - pattern[i].1 * sin_a;
+            let ry = pattern[i].0 * sin_a + pattern[i].1 * cos_a;
+            let px = orig_x + rx / scale;
+            let py_val = orig_y + ry / scale;
+            
+            let x0 = px.floor() as usize;
+            let x1 = (x0 + 1).min(w - 1);
+            let y0 = py_val.floor() as usize;
+            let y1 = (y0 + 1).min(h - 1);
+            let dx = px - x0 as f64;
+            let dy = py_val - y0 as f64;
+            
+            let val00 = img_2d[[y0, x0]] as f64;
+            let val01 = img_2d[[y0, x1]] as f64;
+            let val10 = img_2d[[y1, x0]] as f64;
+            let val11 = img_2d[[y1, x1]] as f64;
+            
+            rot_intensities[i] = (1.0 - dx) * (1.0 - dy) * val00
+                + dx * (1.0 - dy) * val01
+                + (1.0 - dx) * dy * val10
+                + dx * dy * val11;
+        }
+        
+        let mut desc = [0u8; 64];
+        for b in 0..512 {
+            let (i, j) = short_pairs[b];
+            if rot_intensities[i] < rot_intensities[j] {
+                desc[b / 8] |= 1 << (b % 8);
+            }
+        }
+        
+        valid_kps.push(kp);
+        descriptors_vec.extend_from_slice(&desc);
+        
+        if valid_kps.len() >= max_features {
+            break;
+        }
+    }
+    
+    let num_desc = valid_kps.len();
+    let mut desc_arr = numpy::ndarray::Array2::<u8>::zeros((num_desc, 64));
+    for i in 0..num_desc {
+        for j in 0..64 {
+            desc_arr[[i, j]] = descriptors_vec[i * 64 + j];
+        }
+    }
+    
+    Ok((valid_kps, desc_arr.into_pyarray(py).to_dyn()))
+}

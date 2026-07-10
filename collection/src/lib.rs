@@ -189,5 +189,6 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(features2d::good_features_to_track, m)?)?;
     m.add_function(wrap_pyfunction!(features2d::orb_detect_and_compute, m)?)?;
     m.add_function(wrap_pyfunction!(features2d::sift_detect_and_compute, m)?)?;
+    m.add_function(wrap_pyfunction!(features2d::brisk_detect_and_compute, m)?)?;
     Ok(())
 }
