@@ -439,6 +439,43 @@ pub fn sparse_pyr_lk_optical_flow_create<'py>(
     Ok(res.into())
 }
 
+/// Pre-builds image pyramid for optical flow.
+#[pyfunction(name = "buildOpticalFlowPyramid")]
+#[pyo3(signature = (img, win_size, max_level, with_derivatives = true, pyr_border = None, deriv_border = None, try_reuse_input_image = true))]
+pub fn build_optical_flow_pyramid<'py>(
+    py: Python<'py>,
+    img: &pyo3::PyAny,
+    win_size: (i32, i32),
+    max_level: i32,
+    with_derivatives: bool,
+    pyr_border: Option<i32>,
+    deriv_border: Option<i32>,
+    try_reuse_input_image: bool,
+) -> PyResult<(PyObject, PyObject)> {
+    let cv2 = py.import_bound("cv2")?;
+    let default_pyr_border = cv2.getattr("BORDER_REFLECT_101")?.extract::<i32>()?;
+    let default_deriv_border = cv2.getattr("BORDER_CONSTANT")?.extract::<i32>()?;
+    
+    let actual_pyr_border = pyr_border.unwrap_or(default_pyr_border);
+    let actual_deriv_border = deriv_border.unwrap_or(default_deriv_border);
+    
+    let args = (
+        img,
+        win_size,
+        max_level,
+    );
+    let kwargs = pyo3::types::PyDict::new_bound(py);
+    kwargs.set_item("withDerivatives", with_derivatives)?;
+    kwargs.set_item("pyrBorder", actual_pyr_border)?;
+    kwargs.set_item("derivBorder", actual_deriv_border)?;
+    kwargs.set_item("tryReuseInputImage", try_reuse_input_image)?;
+    
+    let res = cv2.call_method("buildOpticalFlowPyramid", args, Some(&kwargs))?;
+    let (retval, pyramid): (PyObject, PyObject) = res.extract()?;
+    Ok((retval, pyramid))
+}
+
+
 
 
 

@@ -178,6 +178,7 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(vid::kalman_filter_constructor, m)?)?;
     m.add_function(wrap_pyfunction!(vid::dis_optical_flow_create, m)?)?;
     m.add_function(wrap_pyfunction!(vid::sparse_pyr_lk_optical_flow_create, m)?)?;
+    m.add_function(wrap_pyfunction!(vid::build_optical_flow_pyramid, m)?)?;
 
     // --- Contour & Shape Analysis ---
     m.add_function(wrap_pyfunction!(contours::find_contours, m)?)?;
