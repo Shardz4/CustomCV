@@ -174,6 +174,7 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(vid::calc_optical_flow_farneback, m)?)?;
     m.add_function(wrap_pyfunction!(vid::create_background_subtractor_knn, m)?)?;
     m.add_function(wrap_pyfunction!(vid::mean_shift, m)?)?;
+    m.add_function(wrap_pyfunction!(vid::cam_shift, m)?)?;
 
     // --- Contour & Shape Analysis ---
     m.add_function(wrap_pyfunction!(contours::find_contours, m)?)?;
