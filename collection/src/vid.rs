@@ -406,6 +406,40 @@ pub fn dis_optical_flow_create<'py>(
     Ok(res.into())
 }
 
+/// Creates a SparsePyrLKOpticalFlow solver.
+#[pyfunction(name = "SparsePyrLKOpticalFlow_create")]
+#[pyo3(signature = (win_size = (21, 21), max_level = 3, criteria = None, flags = 0, min_eig_threshold = 1e-4))]
+pub fn sparse_pyr_lk_optical_flow_create<'py>(
+    py: Python<'py>,
+    win_size: (i32, i32),
+    max_level: i32,
+    criteria: Option<(i32, i32, f64)>,
+    flags: i32,
+    min_eig_threshold: f64,
+) -> PyResult<PyObject> {
+    let cv2 = py.import_bound("cv2")?;
+    let py_criteria: PyObject = match criteria {
+        Some((t, c, e)) => (t, c, e).into_py(py),
+        None => {
+            let term_crit_eps = cv2.getattr("TERM_CRITERIA_EPS")?.extract::<i32>()?;
+            let term_crit_count = cv2.getattr("TERM_CRITERIA_COUNT")?.extract::<i32>()?;
+            (term_crit_eps | term_crit_count, 30, 0.01).into_py(py)
+        }
+    };
+    
+    let args = ();
+    let kwargs = pyo3::types::PyDict::new_bound(py);
+    kwargs.set_item("winSize", win_size)?;
+    kwargs.set_item("maxLevel", max_level)?;
+    kwargs.set_item("crit", py_criteria)?;
+    kwargs.set_item("flags", flags)?;
+    kwargs.set_item("minEigThreshold", min_eig_threshold)?;
+    
+    let res = cv2.call_method("SparsePyrLKOpticalFlow_create", args, Some(&kwargs))?;
+    Ok(res.into())
+}
+
+
 
 
 
