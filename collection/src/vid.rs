@@ -394,6 +394,19 @@ pub fn kalman_filter_constructor<'py>(
     Ok(res.into())
 }
 
+/// Creates a DISOpticalFlow dense optical flow solver.
+#[pyfunction(name = "DISOpticalFlow_create")]
+#[pyo3(signature = (preset = 1))]
+pub fn dis_optical_flow_create<'py>(
+    py: Python<'py>,
+    preset: i32,
+) -> PyResult<PyObject> {
+    let cv2 = py.import_bound("cv2")?;
+    let res = cv2.call_method1("DISOpticalFlow_create", (preset,))?;
+    Ok(res.into())
+}
+
+
 
 
 
