@@ -314,5 +314,20 @@ pub fn calc_optical_flow_farneback<'py>(
     Ok(res.into())
 }
 
+/// Creates a KNN background subtractor.
+#[pyfunction(name = "createBackgroundSubtractorKNN")]
+#[pyo3(signature = (history = 500, dist2_threshold = 400.0, detect_shadows = true))]
+pub fn create_background_subtractor_knn<'py>(
+    py: Python<'py>,
+    history: i32,
+    dist2_threshold: f64,
+    detect_shadows: bool,
+) -> PyResult<PyObject> {
+    let cv2 = py.import_bound("cv2")?;
+    let res = cv2.call_method1("createBackgroundSubtractorKNN", (history, dist2_threshold, detect_shadows))?;
+    Ok(res.into())
+}
+
+
 
 
