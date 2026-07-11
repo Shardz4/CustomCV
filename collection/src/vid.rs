@@ -328,6 +328,31 @@ pub fn create_background_subtractor_knn<'py>(
     Ok(res.into())
 }
 
+/// Performs MeanShift object tracking.
+#[pyfunction(name = "meanShift")]
+#[pyo3(signature = (prob_image, window, criteria = None))]
+pub fn mean_shift<'py>(
+    py: Python<'py>,
+    prob_image: &pyo3::PyAny,
+    window: (i32, i32, i32, i32),
+    criteria: Option<(i32, i32, f64)>,
+) -> PyResult<(i32, (i32, i32, i32, i32))> {
+    let cv2 = py.import_bound("cv2")?;
+    let py_criteria: PyObject = match criteria {
+        Some((t, c, e)) => (t, c, e).into_py(py),
+        None => {
+            let term_crit_eps = cv2.getattr("TERM_CRITERIA_EPS")?.extract::<i32>()?;
+            let term_crit_count = cv2.getattr("TERM_CRITERIA_COUNT")?.extract::<i32>()?;
+            (term_crit_eps | term_crit_count, 10, 1.0).into_py(py)
+        }
+    };
+    
+    let res = cv2.call_method1("meanShift", (prob_image, window, py_criteria))?;
+    let (retval, window_out): (i32, (i32, i32, i32, i32)) = res.extract()?;
+    Ok((retval, window_out))
+}
+
+
 
 
 
