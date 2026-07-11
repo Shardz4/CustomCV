@@ -237,3 +237,49 @@ pub fn background_subtract_mog2<'py>(
     Ok(())
 }
 
+/// Computes sparse optical flow using the Lucas-Kanade method with pyramids.
+#[pyfunction]
+#[pyo3(signature = (prev_img, next_img, prev_pts, next_pts = None, win_size = (21, 21), max_level = 3, criteria = None, flags = 0, min_eig_threshold = 1e-4))]
+pub fn calc_optical_flow_pyr_lk<'py>(
+    py: Python<'py>,
+    prev_img: &pyo3::PyAny,
+    next_img: &pyo3::PyAny,
+    prev_pts: &pyo3::PyAny,
+    next_pts: Option<&pyo3::PyAny>,
+    win_size: (i32, i32),
+    max_level: i32,
+    criteria: Option<(i32, i32, f64)>,
+    flags: i32,
+    min_eig_threshold: f64,
+) -> PyResult<(PyObject, PyObject, PyObject)> {
+    let cv2 = py.import_bound("cv2")?;
+    
+    // Convert criteria to python tuple if provided, or use default
+    let py_criteria: PyObject = match criteria {
+        Some((t, c, e)) => (t, c, e).into_py(py),
+        None => {
+            let term_crit_eps = cv2.getattr("TERM_CRITERIA_EPS")?.extract::<i32>()?;
+            let term_crit_count = cv2.getattr("TERM_CRITERIA_COUNT")?.extract::<i32>()?;
+            (term_crit_eps | term_crit_count, 30, 0.01).into_py(py)
+        }
+    };
+    
+    let args = (
+        prev_img,
+        next_img,
+        prev_pts,
+        next_pts,
+    );
+    let kwargs = pyo3::types::PyDict::new_bound(py);
+    kwargs.set_item("winSize", win_size)?;
+    kwargs.set_item("maxLevel", max_level)?;
+    kwargs.set_item("criteria", py_criteria)?;
+    kwargs.set_item("flags", flags)?;
+    kwargs.set_item("minEigThreshold", min_eig_threshold)?;
+    
+    let res = cv2.call_method("calcOpticalFlowPyrLK", args, Some(&kwargs))?;
+    let (next_pts_res, status, err): (PyObject, PyObject, PyObject) = res.extract()?;
+    Ok((next_pts_res, status, err))
+}
+
+
