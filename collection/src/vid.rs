@@ -376,6 +376,25 @@ pub fn cam_shift<'py>(
     Ok((retval, window_out))
 }
 
+/// Creates a KalmanFilter object.
+#[pyfunction(name = "KalmanFilter")]
+#[pyo3(signature = (dynam_params, measure_params, control_params = 0, kf_type = None))]
+pub fn kalman_filter_constructor<'py>(
+    py: Python<'py>,
+    dynam_params: i32,
+    measure_params: i32,
+    control_params: i32,
+    kf_type: Option<i32>,
+) -> PyResult<PyObject> {
+    let cv2 = py.import_bound("cv2")?;
+    let default_type = cv2.getattr("CV_32F")?.extract::<i32>()?;
+    let actual_type = kf_type.unwrap_or(default_type);
+    
+    let res = cv2.call_method1("KalmanFilter", (dynam_params, measure_params, control_params, actual_type))?;
+    Ok(res.into())
+}
+
+
 
 
 
