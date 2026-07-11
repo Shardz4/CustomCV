@@ -282,4 +282,37 @@ pub fn calc_optical_flow_pyr_lk<'py>(
     Ok((next_pts_res, status, err))
 }
 
+/// Computes dense optical flow using the Farneback method.
+#[pyfunction]
+#[pyo3(signature = (prev, next, flow, pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags))]
+pub fn calc_optical_flow_farneback<'py>(
+    py: Python<'py>,
+    prev: &pyo3::PyAny,
+    next: &pyo3::PyAny,
+    flow: Option<&pyo3::PyAny>,
+    pyr_scale: f64,
+    levels: i32,
+    winsize: i32,
+    iterations: i32,
+    poly_n: i32,
+    poly_sigma: f64,
+    flags: i32,
+) -> PyResult<PyObject> {
+    let cv2 = py.import_bound("cv2")?;
+    let res = cv2.call_method1("calcOpticalFlowFarneback", (
+        prev,
+        next,
+        flow,
+        pyr_scale,
+        levels,
+        winsize,
+        iterations,
+        poly_n,
+        poly_sigma,
+        flags,
+    ))?;
+    Ok(res.into())
+}
+
+
 
