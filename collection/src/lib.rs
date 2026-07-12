@@ -16,6 +16,7 @@ mod contours;
 mod segmentation;
 mod drawing;
 mod features2d;
+mod objdetect;
 
 #[pymodule]
 fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -230,5 +231,8 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(features2d::simple_blob_detect, m)?)?;
     m.add_function(wrap_pyfunction!(features2d::bf_match, m)?)?;
     m.add_function(wrap_pyfunction!(features2d::knn_match, m)?)?;
+
+    // --- Object Detection ---
+    m.add_function(wrap_pyfunction!(objdetect::cascade_classifier_constructor, m)?)?;
     Ok(())
 }
