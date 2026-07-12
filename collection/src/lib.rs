@@ -234,5 +234,6 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // --- Object Detection ---
     m.add_function(wrap_pyfunction!(objdetect::cascade_classifier_constructor, m)?)?;
+    m.add_function(wrap_pyfunction!(objdetect::hog_descriptor_constructor, m)?)?;
     Ok(())
 }
