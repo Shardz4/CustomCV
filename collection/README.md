@@ -301,6 +301,19 @@ These functions draw geometric primitives on images. All operations return a new
 
 ---
 
+### 14. Object Detection — `objdetect.rs`
+
+Provides objects and functions for object detection, classifier matching, and rectangle processing.
+
+| Function | Signature | Description |
+|---|---|---|
+| `CascadeClassifier` | `(xml_path: Optional[str] = None) → CascadeClassifier` | Creates a CascadeClassifier object for face/object detection. |
+| `HOGDescriptor` | `(win_size: (int, int) = (64, 128), ...) → HOGDescriptor` | Creates a HOGDescriptor object for pedestrian/object detection. |
+| `QRCodeDetector` | `() → QRCodeDetector` | Creates a QRCodeDetector object for QR code detection/decoding. |
+| `groupRectangles` | `(rect_list: list, group_threshold: int, eps: float = 0.2) → (list, list)` | Groups overlapping detection rectangles. Returns `(grouped_rects, weights)`. |
+
+---
+
 ### Internal Helpers — `helpers.rs`
 
 These are **not** exposed to Python. They are used internally by other modules.
