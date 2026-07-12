@@ -62,4 +62,20 @@ pub fn qr_code_detector_constructor<'py>(
     Ok(res.into())
 }
 
+/// Groups overlapping rectangles.
+#[pyfunction(name = "groupRectangles")]
+#[pyo3(signature = (rect_list, group_threshold, eps = 0.2))]
+pub fn group_rectangles<'py>(
+    py: Python<'py>,
+    rect_list: &pyo3::PyAny,
+    group_threshold: i32,
+    eps: f64,
+) -> PyResult<(PyObject, PyObject)> {
+    let cv2 = py.import_bound("cv2")?;
+    let res = cv2.call_method1("groupRectangles", (rect_list, group_threshold, eps))?;
+    let (rects_out, weights_out): (PyObject, PyObject) = res.extract()?;
+    Ok((rects_out, weights_out))
+}
+
+
 
