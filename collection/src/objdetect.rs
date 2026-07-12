@@ -52,3 +52,14 @@ pub fn hog_descriptor_constructor<'py>(
     Ok(res.into())
 }
 
+/// Creates a QRCodeDetector object.
+#[pyfunction(name = "QRCodeDetector")]
+pub fn qr_code_detector_constructor<'py>(
+    py: Python<'py>,
+) -> PyResult<PyObject> {
+    let cv2 = py.import_bound("cv2")?;
+    let res = cv2.call_method0("QRCodeDetector")?;
+    Ok(res.into())
+}
+
+
