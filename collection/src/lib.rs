@@ -250,5 +250,6 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(photo::decolor, m)?)?;
     m.add_function(wrap_pyfunction!(photo::create_tonemap, m)?)?;
     m.add_function(wrap_pyfunction!(photo::create_merge_mertens, m)?)?;
+    m.add_function(wrap_pyfunction!(photo::create_calibrate_debevec, m)?)?;
     Ok(())
 }

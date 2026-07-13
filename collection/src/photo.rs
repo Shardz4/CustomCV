@@ -172,6 +172,21 @@ pub fn create_merge_mertens<'py>(
     Ok(res.into())
 }
 
+/// Creates a CalibrateDebevec object.
+#[pyfunction(name = "createCalibrateDebevec")]
+#[pyo3(signature = (samples = 70, lambda_val = 10.0, random = false))]
+pub fn create_calibrate_debevec<'py>(
+    py: Python<'py>,
+    samples: i32,
+    lambda_val: f32,
+    random: bool,
+) -> PyResult<PyObject> {
+    let cv2 = py.import_bound("cv2")?;
+    let res = cv2.call_method1("createCalibrateDebevec", (samples, lambda_val, random))?;
+    Ok(res.into())
+}
+
+
 
 
 
