@@ -28,7 +28,8 @@ collection/
 │   ├── gradient.rs           # Gradient & edge operators (Sobel, Scharr, Laplacian)
 │   ├── contours.rs           # Contour & shape analysis (Suzuki85, boundingRect, minAreaRect, minEnclosingCircle, fitEllipse)
 │   ├── segmentation.rs       # Image segmentation (connectedComponents, distanceTransform, floodFill, watershed, grabCut)
-│   └── drawing.rs            # Drawing primitives (line, rectangle, circle, ellipse)
+│   ├── drawing.rs            # Drawing primitives (line, rectangle, circle, ellipse)
+│   └── photo.rs              # Computational photography (inpainting, denoising, HDR, stylization)
 ├── Cargo.toml                # Rust crate config (cdylib for PyO3)
 ├── Cargo.lock
 ├── pyproject.toml            # Maturin / PEP 517 build config
@@ -311,6 +312,31 @@ Provides objects and functions for object detection, classifier matching, and re
 | `HOGDescriptor` | `(win_size: (int, int) = (64, 128), ...) → HOGDescriptor` | Creates a HOGDescriptor object for pedestrian/object detection. |
 | `QRCodeDetector` | `() → QRCodeDetector` | Creates a QRCodeDetector object for QR code detection/decoding. |
 | `groupRectangles` | `(rect_list: list, group_threshold: int, eps: float = 0.2) → (list, list)` | Groups overlapping detection rectangles. Returns `(grouped_rects, weights)`. |
+
+---
+
+### 15. Computational Photography — `photo.rs`
+
+Provides computational photography functions including inpainting, denoising, HDR imaging, and stylization.
+
+| Function | Signature | Description |
+|---|---|---|
+| `inpaint` | `(src: ndarray[u8], inpaint_mask: ndarray[u8], inpaint_radius: float, flags: int) → ndarray[u8]` | Restores a selected region in an image using the neighborhood. |
+| `fastNlMeansDenoising` | `(src: ndarray[u8], h: float = 3.0, template_window_size: int = 7, search_window_size: int = 21) → ndarray[u8]` | Denoises a grayscale image using the Non-Local Means algorithm. |
+| `fastNlMeansDenoisingColored` | `(src: ndarray[u8], h: float = 3.0, h_color: float = 3.0, template_window_size: int = 7, search_window_size: int = 21) → ndarray[u8]` | Denoises a colored image using the Non-Local Means algorithm. |
+| `seamlessClone` | `(src: ndarray[u8], dst: ndarray[u8], mask: ndarray[u8], p: (int, int), flags: int) → ndarray[u8]` | Seamlessly clones a patch into a destination image. |
+| `colorChange` | `(src: ndarray[u8], mask: ndarray[u8], red_mul: float = 1.0, green_mul: float = 1.0, blue_mul: float = 1.0) → ndarray[u8]` | Seamlessly modifies the color of a specified region. |
+| `illuminationChange` | `(src: ndarray[u8], mask: ndarray[u8], alpha: float = 0.2, beta: float = 0.4) → ndarray[u8]` | Seamlessly modifies the illumination of a specified region. |
+| `textureFlattening` | `(src: ndarray[u8], mask: ndarray[u8], low_threshold: float = 30.0, high_threshold: float = 45.0, kernel_size: int = 3) → ndarray[u8]` | Seamlessly flattens the texture of a specified region. |
+| `decolor` | `(src: ndarray[u8]) → (ndarray[u8], ndarray[u8])` | Converts a color image to grayscale with contrast preservation. Returns `(gray, color_boost)`. |
+| `createTonemap` | `(gamma: float = 1.0) → Tonemap` | Creates a Tonemap object for HDR tone mapping. |
+| `createMergeMertens` | `(contrast_weight: float = 1.0, saturation_weight: float = 1.0, exposure_weight: float = 0.0) → MergeMertens` | Creates a MergeMertens object for exposure fusion. |
+| `createCalibrateDebevec` | `(samples: int = 70, lambda_val: float = 10.0, random: bool = False) → CalibrateDebevec` | Creates a CalibrateDebevec object for camera response calibration. |
+| `createMergeDebevec` | `() → MergeDebevec` | Creates a MergeDebevec object for HDR merging. |
+| `edgePreservingFilter` | `(src: ndarray[u8], flags: int = 1, sigma_s: float = 60.0, sigma_r: float = 0.4) → ndarray[u8]` | Applies an edge-preserving smoothing filter to an image. |
+| `detailEnhance` | `(src: ndarray[u8], sigma_s: float = 10.0, sigma_r: float = 0.15) → ndarray[u8]` | Applies a detail enhancement filter to an image. |
+| `pencilSketch` | `(src: ndarray[u8], sigma_s: float = 60.0, sigma_r: float = 0.07, shade_factor: float = 0.02) → (ndarray[u8], ndarray[u8])` | Generates grayscale and color pencil sketch images. |
+| `stylization` | `(src: ndarray[u8], sigma_s: float = 60.0, sigma_r: float = 0.07) → ndarray[u8]` | Applies a non-photorealistic stylization filter to an image. |
 
 ---
 
