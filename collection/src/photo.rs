@@ -73,5 +73,27 @@ pub fn seamless_clone<'py>(
     Ok(res.into())
 }
 
+/// Modifies the color of the specified region seamlessly.
+#[pyfunction(name = "colorChange")]
+#[pyo3(signature = (src, mask, red_mul = 1.0, green_mul = 1.0, blue_mul = 1.0))]
+pub fn color_change<'py>(
+    py: Python<'py>,
+    src: &pyo3::PyAny,
+    mask: &pyo3::PyAny,
+    red_mul: f32,
+    green_mul: f32,
+    blue_mul: f32,
+) -> PyResult<PyObject> {
+    let cv2 = py.import_bound("cv2")?;
+    let args = (src, mask);
+    let kwargs = pyo3::types::PyDict::new_bound(py);
+    kwargs.set_item("red_mul", red_mul)?;
+    kwargs.set_item("green_mul", green_mul)?;
+    kwargs.set_item("blue_mul", blue_mul)?;
+    let res = cv2.call_method("colorChange", args, Some(&kwargs))?;
+    Ok(res.into())
+}
+
+
 
 
