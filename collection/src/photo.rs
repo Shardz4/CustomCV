@@ -158,6 +158,21 @@ pub fn create_tonemap<'py>(
     Ok(res.into())
 }
 
+/// Creates a MergeMertens object.
+#[pyfunction(name = "createMergeMertens")]
+#[pyo3(signature = (contrast_weight = 1.0, saturation_weight = 1.0, exposure_weight = 0.0))]
+pub fn create_merge_mertens<'py>(
+    py: Python<'py>,
+    contrast_weight: f32,
+    saturation_weight: f32,
+    exposure_weight: f32,
+) -> PyResult<PyObject> {
+    let cv2 = py.import_bound("cv2")?;
+    let res = cv2.call_method1("createMergeMertens", (contrast_weight, saturation_weight, exposure_weight))?;
+    Ok(res.into())
+}
+
+
 
 
 
