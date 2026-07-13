@@ -35,3 +35,26 @@ pub fn fast_nl_means_denoising<'py>(
     Ok(res.into())
 }
 
+/// Perform non-local means denoising on colored images.
+#[pyfunction(name = "fastNlMeansDenoisingColored")]
+#[pyo3(signature = (src, h = 3.0, h_color = 3.0, template_window_size = 7, search_window_size = 21))]
+pub fn fast_nl_means_denoising_colored<'py>(
+    py: Python<'py>,
+    src: &pyo3::PyAny,
+    h: f32,
+    h_color: f32,
+    template_window_size: i32,
+    search_window_size: i32,
+) -> PyResult<PyObject> {
+    let cv2 = py.import_bound("cv2")?;
+    let args = (src,);
+    let kwargs = pyo3::types::PyDict::new_bound(py);
+    kwargs.set_item("h", h)?;
+    kwargs.set_item("hColor", h_color)?;
+    kwargs.set_item("templateWindowSize", template_window_size)?;
+    kwargs.set_item("searchWindowSize", search_window_size)?;
+    let res = cv2.call_method("fastNlMeansDenoisingColored", args, Some(&kwargs))?;
+    Ok(res.into())
+}
+
+
