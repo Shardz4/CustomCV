@@ -255,6 +255,25 @@ pub fn pencil_sketch<'py>(
     Ok((dst1, dst2))
 }
 
+/// Applies a non-photorealistic stylization filter to an image.
+#[pyfunction(name = "stylization")]
+#[pyo3(signature = (src, sigma_s = 60.0, sigma_r = 0.07))]
+pub fn stylization<'py>(
+    py: Python<'py>,
+    src: &pyo3::PyAny,
+    sigma_s: f32,
+    sigma_r: f32,
+) -> PyResult<PyObject> {
+    let cv2 = py.import_bound("cv2")?;
+    let args = (src,);
+    let kwargs = pyo3::types::PyDict::new_bound(py);
+    kwargs.set_item("sigma_s", sigma_s)?;
+    kwargs.set_item("sigma_r", sigma_r)?;
+    let res = cv2.call_method("stylization", args, Some(&kwargs))?;
+    Ok(res.into())
+}
+
+
 
 
 

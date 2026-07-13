@@ -255,5 +255,6 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(photo::edge_preserving_filter, m)?)?;
     m.add_function(wrap_pyfunction!(photo::detail_enhance, m)?)?;
     m.add_function(wrap_pyfunction!(photo::pencil_sketch, m)?)?;
+    m.add_function(wrap_pyfunction!(photo::stylization, m)?)?;
     Ok(())
 }
