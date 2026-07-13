@@ -253,5 +253,6 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(photo::create_calibrate_debevec, m)?)?;
     m.add_function(wrap_pyfunction!(photo::create_merge_debevec, m)?)?;
     m.add_function(wrap_pyfunction!(photo::edge_preserving_filter, m)?)?;
+    m.add_function(wrap_pyfunction!(photo::detail_enhance, m)?)?;
     Ok(())
 }

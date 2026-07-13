@@ -216,6 +216,25 @@ pub fn edge_preserving_filter<'py>(
     Ok(res.into())
 }
 
+/// Applies a detail enhancement filter to an image.
+#[pyfunction(name = "detailEnhance")]
+#[pyo3(signature = (src, sigma_s = 10.0, sigma_r = 0.15))]
+pub fn detail_enhance<'py>(
+    py: Python<'py>,
+    src: &pyo3::PyAny,
+    sigma_s: f32,
+    sigma_r: f32,
+) -> PyResult<PyObject> {
+    let cv2 = py.import_bound("cv2")?;
+    let args = (src,);
+    let kwargs = pyo3::types::PyDict::new_bound(py);
+    kwargs.set_item("sigma_s", sigma_s)?;
+    kwargs.set_item("sigma_r", sigma_r)?;
+    let res = cv2.call_method("detailEnhance", args, Some(&kwargs))?;
+    Ok(res.into())
+}
+
+
 
 
 
