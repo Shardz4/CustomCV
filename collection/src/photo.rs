@@ -186,6 +186,17 @@ pub fn create_calibrate_debevec<'py>(
     Ok(res.into())
 }
 
+/// Creates a MergeDebevec object.
+#[pyfunction(name = "createMergeDebevec")]
+pub fn create_merge_debevec<'py>(
+    py: Python<'py>,
+) -> PyResult<PyObject> {
+    let cv2 = py.import_bound("cv2")?;
+    let res = cv2.call_method0("createMergeDebevec")?;
+    Ok(res.into())
+}
+
+
 
 
 
