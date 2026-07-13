@@ -243,5 +243,6 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(photo::inpaint, m)?)?;
     m.add_function(wrap_pyfunction!(photo::fast_nl_means_denoising, m)?)?;
     m.add_function(wrap_pyfunction!(photo::fast_nl_means_denoising_colored, m)?)?;
+    m.add_function(wrap_pyfunction!(photo::seamless_clone, m)?)?;
     Ok(())
 }

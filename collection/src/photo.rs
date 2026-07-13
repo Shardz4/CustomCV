@@ -57,4 +57,21 @@ pub fn fast_nl_means_denoising_colored<'py>(
     Ok(res.into())
 }
 
+/// Seamlessly clone a source image patch into a destination image.
+#[pyfunction(name = "seamlessClone")]
+#[pyo3(signature = (src, dst, mask, p, flags))]
+pub fn seamless_clone<'py>(
+    py: Python<'py>,
+    src: &pyo3::PyAny,
+    dst: &pyo3::PyAny,
+    mask: &pyo3::PyAny,
+    p: (i32, i32),
+    flags: i32,
+) -> PyResult<PyObject> {
+    let cv2 = py.import_bound("cv2")?;
+    let res = cv2.call_method1("seamlessClone", (src, dst, mask, p, flags))?;
+    Ok(res.into())
+}
+
+
 
