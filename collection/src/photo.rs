@@ -146,6 +146,19 @@ pub fn decolor<'py>(
     Ok((gray, boost))
 }
 
+/// Creates a Tonemap object.
+#[pyfunction(name = "createTonemap")]
+#[pyo3(signature = (gamma = 1.0))]
+pub fn create_tonemap<'py>(
+    py: Python<'py>,
+    gamma: f32,
+) -> PyResult<PyObject> {
+    let cv2 = py.import_bound("cv2")?;
+    let res = cv2.call_method1("createTonemap", (gamma,))?;
+    Ok(res.into())
+}
+
+
 
 
 
