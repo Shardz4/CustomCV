@@ -113,6 +113,28 @@ pub fn illumination_change<'py>(
     Ok(res.into())
 }
 
+/// Flattens the texture of the specified region seamlessly.
+#[pyfunction(name = "textureFlattening")]
+#[pyo3(signature = (src, mask, low_threshold = 30.0, high_threshold = 45.0, kernel_size = 3))]
+pub fn texture_flattening<'py>(
+    py: Python<'py>,
+    src: &pyo3::PyAny,
+    mask: &pyo3::PyAny,
+    low_threshold: f32,
+    high_threshold: f32,
+    kernel_size: i32,
+) -> PyResult<PyObject> {
+    let cv2 = py.import_bound("cv2")?;
+    let args = (src, mask);
+    let kwargs = pyo3::types::PyDict::new_bound(py);
+    kwargs.set_item("low_threshold", low_threshold)?;
+    kwargs.set_item("high_threshold", high_threshold)?;
+    kwargs.set_item("kernel_size", kernel_size)?;
+    let res = cv2.call_method("textureFlattening", args, Some(&kwargs))?;
+    Ok(res.into())
+}
+
+
 
 
 
