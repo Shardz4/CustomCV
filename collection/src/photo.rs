@@ -94,6 +94,26 @@ pub fn color_change<'py>(
     Ok(res.into())
 }
 
+/// Modifies the illumination of the specified region seamlessly.
+#[pyfunction(name = "illuminationChange")]
+#[pyo3(signature = (src, mask, alpha = 0.2, beta = 0.4))]
+pub fn illumination_change<'py>(
+    py: Python<'py>,
+    src: &pyo3::PyAny,
+    mask: &pyo3::PyAny,
+    alpha: f32,
+    beta: f32,
+) -> PyResult<PyObject> {
+    let cv2 = py.import_bound("cv2")?;
+    let args = (src, mask);
+    let kwargs = pyo3::types::PyDict::new_bound(py);
+    kwargs.set_item("alpha", alpha)?;
+    kwargs.set_item("beta", beta)?;
+    let res = cv2.call_method("illuminationChange", args, Some(&kwargs))?;
+    Ok(res.into())
+}
+
+
 
 
 
