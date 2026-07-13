@@ -234,6 +234,28 @@ pub fn detail_enhance<'py>(
     Ok(res.into())
 }
 
+/// Generates pencil sketch images from a color image.
+#[pyfunction(name = "pencilSketch")]
+#[pyo3(signature = (src, sigma_s = 60.0, sigma_r = 0.07, shade_factor = 0.02))]
+pub fn pencil_sketch<'py>(
+    py: Python<'py>,
+    src: &pyo3::PyAny,
+    sigma_s: f32,
+    sigma_r: f32,
+    shade_factor: f32,
+) -> PyResult<(PyObject, PyObject)> {
+    let cv2 = py.import_bound("cv2")?;
+    let args = (src,);
+    let kwargs = pyo3::types::PyDict::new_bound(py);
+    kwargs.set_item("sigma_s", sigma_s)?;
+    kwargs.set_item("sigma_r", sigma_r)?;
+    kwargs.set_item("shade_factor", shade_factor)?;
+    let res = cv2.call_method("pencilSketch", args, Some(&kwargs))?;
+    let (dst1, dst2): (PyObject, PyObject) = res.extract()?;
+    Ok((dst1, dst2))
+}
+
+
 
 
 
