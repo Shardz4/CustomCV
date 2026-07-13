@@ -134,6 +134,19 @@ pub fn texture_flattening<'py>(
     Ok(res.into())
 }
 
+/// Converts a color image to grayscale with contrast preservation.
+#[pyfunction]
+pub fn decolor<'py>(
+    py: Python<'py>,
+    src: &pyo3::PyAny,
+) -> PyResult<(PyObject, PyObject)> {
+    let cv2 = py.import_bound("cv2")?;
+    let res = cv2.call_method1("decolor", (src,))?;
+    let (gray, boost): (PyObject, PyObject) = res.extract()?;
+    Ok((gray, boost))
+}
+
+
 
 
 

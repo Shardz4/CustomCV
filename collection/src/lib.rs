@@ -247,5 +247,6 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(photo::color_change, m)?)?;
     m.add_function(wrap_pyfunction!(photo::illumination_change, m)?)?;
     m.add_function(wrap_pyfunction!(photo::texture_flattening, m)?)?;
+    m.add_function(wrap_pyfunction!(photo::decolor, m)?)?;
     Ok(())
 }
