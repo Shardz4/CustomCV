@@ -196,6 +196,27 @@ pub fn create_merge_debevec<'py>(
     Ok(res.into())
 }
 
+/// Applies an edge-preserving smoothing filter to an image.
+#[pyfunction(name = "edgePreservingFilter")]
+#[pyo3(signature = (src, flags = 1, sigma_s = 60.0, sigma_r = 0.4))]
+pub fn edge_preserving_filter<'py>(
+    py: Python<'py>,
+    src: &pyo3::PyAny,
+    flags: i32,
+    sigma_s: f32,
+    sigma_r: f32,
+) -> PyResult<PyObject> {
+    let cv2 = py.import_bound("cv2")?;
+    let args = (src,);
+    let kwargs = pyo3::types::PyDict::new_bound(py);
+    kwargs.set_item("flags", flags)?;
+    kwargs.set_item("sigma_s", sigma_s)?;
+    kwargs.set_item("sigma_r", sigma_r)?;
+    let res = cv2.call_method("edgePreservingFilter", args, Some(&kwargs))?;
+    Ok(res.into())
+}
+
+
 
 
 
