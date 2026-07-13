@@ -17,6 +17,7 @@ mod segmentation;
 mod drawing;
 mod features2d;
 mod objdetect;
+mod photo;
 
 #[pymodule]
 fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -237,5 +238,8 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(objdetect::hog_descriptor_constructor, m)?)?;
     m.add_function(wrap_pyfunction!(objdetect::qr_code_detector_constructor, m)?)?;
     m.add_function(wrap_pyfunction!(objdetect::group_rectangles, m)?)?;
+
+    // --- Computational Photography ---
+    m.add_function(wrap_pyfunction!(photo::inpaint, m)?)?;
     Ok(())
 }
