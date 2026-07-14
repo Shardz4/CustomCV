@@ -142,6 +142,26 @@ pub fn stereo_rectify<'py>(
     Ok((r1, r2, p1, p2, q, roi1, roi2))
 }
 
+/// Reprojects a disparity image to 3D space.
+#[pyfunction(name = "reprojectImageTo3D")]
+#[pyo3(signature = (disparity, q, handle_missing_values = false, ddepth = -1))]
+pub fn reproject_image_to_3d<'py>(
+    py: Python<'py>,
+    disparity: &pyo3::PyAny,
+    q: &pyo3::PyAny,
+    handle_missing_values: bool,
+    ddepth: i32,
+) -> PyResult<PyObject> {
+    let cv2 = py.import_bound("cv2")?;
+    let args = (disparity, q);
+    let kwargs = pyo3::types::PyDict::new_bound(py);
+    kwargs.set_item("handleMissingValues", handle_missing_values)?;
+    kwargs.set_item("ddepth", ddepth)?;
+    let res = cv2.call_method("reprojectImageTo3D", args, Some(&kwargs))?;
+    Ok(res.into())
+}
+
+
 
 
 
