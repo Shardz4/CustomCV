@@ -271,5 +271,6 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(calib3d::undistort, m)?)?;
     m.add_function(wrap_pyfunction!(calib3d::solve_pnp, m)?)?;
     m.add_function(wrap_pyfunction!(calib3d::stereo_calibrate, m)?)?;
+    m.add_function(wrap_pyfunction!(calib3d::stereo_rectify, m)?)?;
     Ok(())
 }

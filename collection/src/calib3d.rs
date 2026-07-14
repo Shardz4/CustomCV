@@ -113,6 +113,36 @@ pub fn stereo_calibrate<'py>(
     Ok((retval, cm1, dc1, cm2, dc2, r, t, e, f))
 }
 
+/// Computes rectification transforms for each head of a calibrated stereo camera.
+#[pyfunction(name = "stereoRectify")]
+#[pyo3(signature = (camera_matrix1, dist_coeffs1, camera_matrix2, dist_coeffs2, image_size, r, t, flags = 1, alpha = -1.0, new_image_size = None))]
+pub fn stereo_rectify<'py>(
+    py: Python<'py>,
+    camera_matrix1: &pyo3::PyAny,
+    dist_coeffs1: &pyo3::PyAny,
+    camera_matrix2: &pyo3::PyAny,
+    dist_coeffs2: &pyo3::PyAny,
+    image_size: (i32, i32),
+    r: &pyo3::PyAny,
+    t: &pyo3::PyAny,
+    flags: i32,
+    alpha: f64,
+    new_image_size: Option<(i32, i32)>,
+) -> PyResult<(PyObject, PyObject, PyObject, PyObject, PyObject, PyObject, PyObject)> {
+    let cv2 = py.import_bound("cv2")?;
+    let args = (camera_matrix1, dist_coeffs1, camera_matrix2, dist_coeffs2, image_size, r, t);
+    let kwargs = pyo3::types::PyDict::new_bound(py);
+    kwargs.set_item("flags", flags)?;
+    kwargs.set_item("alpha", alpha)?;
+    if let Some(new_sz) = new_image_size {
+        kwargs.set_item("newImageSize", new_sz)?;
+    }
+    let res = cv2.call_method("stereoRectify", args, Some(&kwargs))?;
+    let (r1, r2, p1, p2, q, roi1, roi2): (PyObject, PyObject, PyObject, PyObject, PyObject, PyObject, PyObject) = res.extract()?;
+    Ok((r1, r2, p1, p2, q, roi1, roi2))
+}
+
+
 
 
 
