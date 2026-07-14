@@ -267,5 +267,6 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // --- Camera Calibration & 3D ---
     m.add_function(wrap_pyfunction!(calib3d::calibrate_camera, m)?)?;
+    m.add_function(wrap_pyfunction!(calib3d::find_chessboard_corners, m)?)?;
     Ok(())
 }

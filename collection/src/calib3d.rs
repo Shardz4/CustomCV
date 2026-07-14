@@ -24,3 +24,22 @@ pub fn calibrate_camera<'py>(
     let (retval, camera_matrix_out, dist_coeffs_out, rvecs, tvecs): (PyObject, PyObject, PyObject, PyObject, PyObject) = res.extract()?;
     Ok((retval, camera_matrix_out, dist_coeffs_out, rvecs, tvecs))
 }
+
+/// Finds the positions of internal corners of the chessboard.
+#[pyfunction(name = "findChessboardCorners")]
+#[pyo3(signature = (image, pattern_size, flags = 0))]
+pub fn find_chessboard_corners<'py>(
+    py: Python<'py>,
+    image: &pyo3::PyAny,
+    pattern_size: (i32, i32),
+    flags: i32,
+) -> PyResult<(PyObject, PyObject)> {
+    let cv2 = py.import_bound("cv2")?;
+    let args = (image, pattern_size);
+    let kwargs = pyo3::types::PyDict::new_bound(py);
+    kwargs.set_item("flags", flags)?;
+    let res = cv2.call_method("findChessboardCorners", args, Some(&kwargs))?;
+    let (retval, corners): (PyObject, PyObject) = res.extract()?;
+    Ok((retval, corners))
+}
+
