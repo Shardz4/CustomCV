@@ -224,6 +224,21 @@ pub fn decompose_homography_mat<'py>(
     Ok((retval, rotations, translations, normals))
 }
 
+/// Reconstructs 3D points from stereo camera observations.
+#[pyfunction(name = "triangulatePoints")]
+pub fn triangulate_points<'py>(
+    py: Python<'py>,
+    proj_matrix1: &pyo3::PyAny,
+    proj_matrix2: &pyo3::PyAny,
+    proj_points1: &pyo3::PyAny,
+    proj_points2: &pyo3::PyAny,
+) -> PyResult<PyObject> {
+    let cv2 = py.import_bound("cv2")?;
+    let res = cv2.call_method1("triangulatePoints", (proj_matrix1, proj_matrix2, proj_points1, proj_points2))?;
+    Ok(res.into())
+}
+
+
 
 
 
