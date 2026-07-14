@@ -29,7 +29,8 @@ collection/
 │   ├── contours.rs           # Contour & shape analysis (Suzuki85, boundingRect, minAreaRect, minEnclosingCircle, fitEllipse)
 │   ├── segmentation.rs       # Image segmentation (connectedComponents, distanceTransform, floodFill, watershed, grabCut)
 │   ├── drawing.rs            # Drawing primitives (line, rectangle, circle, ellipse)
-│   └── photo.rs              # Computational photography (inpainting, denoising, HDR, stylization)
+│   ├── photo.rs              # Computational photography (inpainting, denoising, HDR, stylization)
+│   └── imgcodecs.rs          # Image codecs (imread, imwrite, imdecode, imencode)
 ├── Cargo.toml                # Rust crate config (cdylib for PyO3)
 ├── Cargo.lock
 ├── pyproject.toml            # Maturin / PEP 517 build config
@@ -337,6 +338,19 @@ Provides computational photography functions including inpainting, denoising, HD
 | `detailEnhance` | `(src: ndarray[u8], sigma_s: float = 10.0, sigma_r: float = 0.15) → ndarray[u8]` | Applies a detail enhancement filter to an image. |
 | `pencilSketch` | `(src: ndarray[u8], sigma_s: float = 60.0, sigma_r: float = 0.07, shade_factor: float = 0.02) → (ndarray[u8], ndarray[u8])` | Generates grayscale and color pencil sketch images. |
 | `stylization` | `(src: ndarray[u8], sigma_s: float = 60.0, sigma_r: float = 0.07) → ndarray[u8]` | Applies a non-photorealistic stylization filter to an image. |
+
+---
+
+### 16. Image I/O — `imgcodecs.rs`
+
+Provides image reading, writing, and encoding/decoding functions.
+
+| Function | Signature | Description |
+|---|---|---|
+| `imread` | `(filename: str, flags: int = 1) → ndarray[u8]` | Reads an image from disk. |
+| `imwrite` | `(filename: str, img: ndarray[u8], params: Optional[list[int]] = None) → bool` | Writes an image to disk. |
+| `imdecode` | `(buf: ndarray[u8], flags: int) → ndarray[u8]` | Decodes an image from a memory buffer. |
+| `imencode` | `(ext: str, img: ndarray[u8], params: Optional[list[int]] = None) → (bool, ndarray[u8])` | Encodes an image into a memory buffer. |
 
 ---
 
