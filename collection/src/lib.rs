@@ -19,6 +19,7 @@ mod features2d;
 mod objdetect;
 mod photo;
 mod imgcodecs;
+mod calib3d;
 
 #[pymodule]
 fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -263,5 +264,8 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(imgcodecs::imwrite, m)?)?;
     m.add_function(wrap_pyfunction!(imgcodecs::imdecode, m)?)?;
     m.add_function(wrap_pyfunction!(imgcodecs::imencode, m)?)?;
+
+    // --- Camera Calibration & 3D ---
+    m.add_function(wrap_pyfunction!(calib3d::calibrate_camera, m)?)?;
     Ok(())
 }
