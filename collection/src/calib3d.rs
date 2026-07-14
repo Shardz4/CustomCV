@@ -63,4 +63,27 @@ pub fn undistort<'py>(
     Ok(res.into())
 }
 
+/// Finds an object pose from 3D-2D correspondences.
+#[pyfunction(name = "solvePnP")]
+#[pyo3(signature = (object_points, image_points, camera_matrix, dist_coeffs, use_extrinsic_guess = false, flags = 0))]
+pub fn solve_pnp<'py>(
+    py: Python<'py>,
+    object_points: &pyo3::PyAny,
+    image_points: &pyo3::PyAny,
+    camera_matrix: &pyo3::PyAny,
+    dist_coeffs: &pyo3::PyAny,
+    use_extrinsic_guess: bool,
+    flags: i32,
+) -> PyResult<(PyObject, PyObject, PyObject)> {
+    let cv2 = py.import_bound("cv2")?;
+    let args = (object_points, image_points, camera_matrix, dist_coeffs);
+    let kwargs = pyo3::types::PyDict::new_bound(py);
+    kwargs.set_item("useExtrinsicGuess", use_extrinsic_guess)?;
+    kwargs.set_item("flags", flags)?;
+    let res = cv2.call_method("solvePnP", args, Some(&kwargs))?;
+    let (retval, rvec, tvec): (PyObject, PyObject, PyObject) = res.extract()?;
+    Ok((retval, rvec, tvec))
+}
+
+
 
