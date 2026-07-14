@@ -211,6 +211,20 @@ pub fn find_fundamental_mat<'py>(
     Ok((f, mask))
 }
 
+/// Decomposes a homography matrix to rotation and translation.
+#[pyfunction(name = "decomposeHomographyMat")]
+pub fn decompose_homography_mat<'py>(
+    py: Python<'py>,
+    h: &pyo3::PyAny,
+    k: &pyo3::PyAny,
+) -> PyResult<(PyObject, PyObject, PyObject, PyObject)> {
+    let cv2 = py.import_bound("cv2")?;
+    let res = cv2.call_method1("decomposeHomographyMat", (h, k))?;
+    let (retval, rotations, translations, normals): (PyObject, PyObject, PyObject, PyObject) = res.extract()?;
+    Ok((retval, rotations, translations, normals))
+}
+
+
 
 
 
