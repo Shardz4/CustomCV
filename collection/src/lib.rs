@@ -260,5 +260,6 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // --- Image I/O ---
     m.add_function(wrap_pyfunction!(imgcodecs::imread, m)?)?;
+    m.add_function(wrap_pyfunction!(imgcodecs::imwrite, m)?)?;
     Ok(())
 }
