@@ -43,3 +43,24 @@ pub fn find_chessboard_corners<'py>(
     Ok((retval, corners))
 }
 
+/// Transforms an image to compensate for lens distortion.
+#[pyfunction(name = "undistort")]
+#[pyo3(signature = (src, camera_matrix, dist_coeffs, new_camera_matrix = None))]
+pub fn undistort<'py>(
+    py: Python<'py>,
+    src: &pyo3::PyAny,
+    camera_matrix: &pyo3::PyAny,
+    dist_coeffs: &pyo3::PyAny,
+    new_camera_matrix: Option<&pyo3::PyAny>,
+) -> PyResult<PyObject> {
+    let cv2 = py.import_bound("cv2")?;
+    let args = (src, camera_matrix, dist_coeffs);
+    let kwargs = pyo3::types::PyDict::new_bound(py);
+    if let Some(new_cam) = new_camera_matrix {
+        kwargs.set_item("newCameraMatrix", new_cam)?;
+    }
+    let res = cv2.call_method("undistort", args, Some(&kwargs))?;
+    Ok(res.into())
+}
+
+
