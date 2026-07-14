@@ -30,3 +30,35 @@ pub fn imwrite<'py>(
     Ok(res.into())
 }
 
+/// Decodes an image from a memory buffer.
+#[pyfunction(name = "imdecode")]
+#[pyo3(signature = (buf, flags))]
+pub fn imdecode<'py>(
+    py: Python<'py>,
+    buf: &pyo3::PyAny,
+    flags: i32,
+) -> PyResult<PyObject> {
+    let cv2 = py.import_bound("cv2")?;
+    let res = cv2.call_method1("imdecode", (buf, flags))?;
+    Ok(res.into())
+}
+
+/// Encodes an image into a memory buffer.
+#[pyfunction(name = "imencode")]
+#[pyo3(signature = (ext, img, params = None))]
+pub fn imencode<'py>(
+    py: Python<'py>,
+    ext: &str,
+    img: &pyo3::PyAny,
+    params: Option<Vec<i32>>,
+) -> PyResult<(PyObject, PyObject)> {
+    let cv2 = py.import_bound("cv2")?;
+    let res = match params {
+        Some(p) => cv2.call_method1("imencode", (ext, img, p))?,
+        None => cv2.call_method1("imencode", (ext, img))?,
+    };
+    let (retval, buf): (PyObject, PyObject) = res.extract()?;
+    Ok((retval, buf))
+}
+
+
