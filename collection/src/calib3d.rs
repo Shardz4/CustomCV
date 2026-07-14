@@ -85,5 +85,34 @@ pub fn solve_pnp<'py>(
     Ok((retval, rvec, tvec))
 }
 
+/// Calibrates a stereo camera setup.
+#[pyfunction(name = "stereoCalibrate")]
+#[pyo3(signature = (object_points, image_points1, image_points2, camera_matrix1, dist_coeffs1, camera_matrix2, dist_coeffs2, image_size, flags = 0, criteria = None))]
+pub fn stereo_calibrate<'py>(
+    py: Python<'py>,
+    object_points: &pyo3::PyAny,
+    image_points1: &pyo3::PyAny,
+    image_points2: &pyo3::PyAny,
+    camera_matrix1: &pyo3::PyAny,
+    dist_coeffs1: &pyo3::PyAny,
+    camera_matrix2: &pyo3::PyAny,
+    dist_coeffs2: &pyo3::PyAny,
+    image_size: (i32, i32),
+    flags: i32,
+    criteria: Option<&pyo3::PyAny>,
+) -> PyResult<(PyObject, PyObject, PyObject, PyObject, PyObject, PyObject, PyObject, PyObject, PyObject)> {
+    let cv2 = py.import_bound("cv2")?;
+    let args = (object_points, image_points1, image_points2, camera_matrix1, dist_coeffs1, camera_matrix2, dist_coeffs2, image_size);
+    let kwargs = pyo3::types::PyDict::new_bound(py);
+    kwargs.set_item("flags", flags)?;
+    if let Some(crit) = criteria {
+        kwargs.set_item("criteria", crit)?;
+    }
+    let res = cv2.call_method("stereoCalibrate", args, Some(&kwargs))?;
+    let (retval, cm1, dc1, cm2, dc2, r, t, e, f): (PyObject, PyObject, PyObject, PyObject, PyObject, PyObject, PyObject, PyObject, PyObject) = res.extract()?;
+    Ok((retval, cm1, dc1, cm2, dc2, r, t, e, f))
+}
+
+
 
 
