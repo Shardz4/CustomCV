@@ -30,7 +30,8 @@ collection/
 │   ├── segmentation.rs       # Image segmentation (connectedComponents, distanceTransform, floodFill, watershed, grabCut)
 │   ├── drawing.rs            # Drawing primitives (line, rectangle, circle, ellipse)
 │   ├── photo.rs              # Computational photography (inpainting, denoising, HDR, stylization)
-│   └── imgcodecs.rs          # Image codecs (imread, imwrite, imdecode, imencode)
+│   ├── imgcodecs.rs          # Image codecs (imread, imwrite, imdecode, imencode)
+│   └── calib3d.rs            # Camera calibration & 3D (calibrateCamera, findChessboardCorners, undistort, etc.)
 ├── Cargo.toml                # Rust crate config (cdylib for PyO3)
 ├── Cargo.lock
 ├── pyproject.toml            # Maturin / PEP 517 build config
@@ -351,6 +352,26 @@ Provides image reading, writing, and encoding/decoding functions.
 | `imwrite` | `(filename: str, img: ndarray[u8], params: Optional[list[int]] = None) → bool` | Writes an image to disk. |
 | `imdecode` | `(buf: ndarray[u8], flags: int) → ndarray[u8]` | Decodes an image from a memory buffer. |
 | `imencode` | `(ext: str, img: ndarray[u8], params: Optional[list[int]] = None) → (bool, ndarray[u8])` | Encodes an image into a memory buffer. |
+
+---
+
+### 17. Camera Calibration & 3D — `calib3d.rs`
+
+Provides functions for camera calibration, distortion removal, and 3D reconstruction.
+
+| Function | Signature | Description |
+|---|---|---|
+| `calibrateCamera` | `(object_points: list[ndarray], image_points: list[ndarray], image_size: tuple[int, int], camera_matrix: Optional[ndarray] = None, dist_coeffs: Optional[ndarray] = None, flags: int = 0, criteria: Optional[tuple] = None) → (float, ndarray, ndarray, list[ndarray], list[ndarray])` | Estimates intrinsic camera parameters and extrinsic parameters. |
+| `findChessboardCorners` | `(image: ndarray, pattern_size: tuple[int, int], flags: int = 0) → (bool, ndarray)` | Finds the positions of internal corners of the chessboard. |
+| `undistort` | `(src: ndarray, camera_matrix: ndarray, dist_coeffs: ndarray, new_camera_matrix: Optional[ndarray] = None) → ndarray` | Transforms an image to compensate for lens distortion. |
+| `solvePnP` | `(object_points: ndarray, image_points: ndarray, camera_matrix: ndarray, dist_coeffs: ndarray, use_extrinsic_guess: bool = False, flags: int = 0) → (bool, ndarray, ndarray)` | Finds an object pose from 3D-2D correspondences. |
+| `stereoCalibrate` | `(object_points: list[ndarray], image_points1: list[ndarray], image_points2: list[ndarray], camera_matrix1: ndarray, dist_coeffs1: ndarray, camera_matrix2: ndarray, dist_coeffs2: ndarray, image_size: tuple[int, int], flags: int = 0, criteria: Optional[tuple] = None) → (float, ndarray, ndarray, ndarray, ndarray, ndarray, ndarray, ndarray, ndarray)` | Calibrates a stereo camera setup. |
+| `stereoRectify` | `(camera_matrix1: ndarray, dist_coeffs1: ndarray, camera_matrix2: ndarray, dist_coeffs2: ndarray, image_size: tuple[int, int], r: ndarray, t: ndarray, flags: int = 1, alpha: float = -1.0, new_image_size: Optional[tuple[int, int]] = None) → (ndarray, ndarray, ndarray, ndarray, ndarray, ndarray, ndarray)` | Computes rectification transforms for each head of a calibrated stereo camera. |
+| `reprojectImageTo3D` | `(disparity: ndarray, q: ndarray, handle_missing_values: bool = False, ddepth: int = -1) → ndarray` | Reprojects a disparity image to 3D space. |
+| `findEssentialMat` | `(points1: ndarray, points2: ndarray, camera_matrix: Optional[ndarray] = None, method: int = 8, prob: float = 0.999, threshold: float = 1.0) → (ndarray, ndarray)` | Calculates an essential matrix from corresponding points in two images. |
+| `findFundamentalMat` | `(points1: ndarray, points2: ndarray, method: int = 8, ransac_reproj_threshold: float = 3.0, confidence: float = 0.99, max_iters: int = 2000) → (ndarray, ndarray)` | Calculates a fundamental matrix from corresponding points in two images. |
+| `decomposeHomographyMat` | `(h: ndarray, k: ndarray) → (int, list[ndarray], list[ndarray], list[ndarray])` | Decomposes a homography matrix to rotation and translation. |
+| `triangulatePoints` | `(proj_matrix1: ndarray, proj_matrix2: ndarray, proj_points1: ndarray, proj_points2: ndarray) → ndarray` | Reconstructs 3D points from stereo camera observations. |
 
 ---
 
