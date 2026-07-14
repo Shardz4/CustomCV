@@ -274,5 +274,6 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(calib3d::stereo_rectify, m)?)?;
     m.add_function(wrap_pyfunction!(calib3d::reproject_image_to_3d, m)?)?;
     m.add_function(wrap_pyfunction!(calib3d::find_essential_mat, m)?)?;
+    m.add_function(wrap_pyfunction!(calib3d::find_fundamental_mat, m)?)?;
     Ok(())
 }

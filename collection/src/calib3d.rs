@@ -187,6 +187,31 @@ pub fn find_essential_mat<'py>(
     Ok((e, mask))
 }
 
+/// Calculates a fundamental matrix from corresponding points in two images.
+#[pyfunction(name = "findFundamentalMat")]
+#[pyo3(signature = (points1, points2, method = 8, ransac_reproj_threshold = 3.0, confidence = 0.99, max_iters = 2000))]
+pub fn find_fundamental_mat<'py>(
+    py: Python<'py>,
+    points1: &pyo3::PyAny,
+    points2: &pyo3::PyAny,
+    method: i32,
+    ransac_reproj_threshold: f64,
+    confidence: f64,
+    max_iters: i32,
+) -> PyResult<(PyObject, PyObject)> {
+    let cv2 = py.import_bound("cv2")?;
+    let args = (points1, points2);
+    let kwargs = pyo3::types::PyDict::new_bound(py);
+    kwargs.set_item("method", method)?;
+    kwargs.set_item("ransacReprojThreshold", ransac_reproj_threshold)?;
+    kwargs.set_item("confidence", confidence)?;
+    kwargs.set_item("maxIters", max_iters)?;
+    let res = cv2.call_method("findFundamentalMat", args, Some(&kwargs))?;
+    let (f, mask): (PyObject, PyObject) = res.extract()?;
+    Ok((f, mask))
+}
+
+
 
 
 
