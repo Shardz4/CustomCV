@@ -161,6 +161,33 @@ pub fn reproject_image_to_3d<'py>(
     Ok(res.into())
 }
 
+/// Calculates an essential matrix from corresponding points in two images.
+#[pyfunction(name = "findEssentialMat")]
+#[pyo3(signature = (points1, points2, camera_matrix = None, method = 8, prob = 0.999, threshold = 1.0))]
+pub fn find_essential_mat<'py>(
+    py: Python<'py>,
+    points1: &pyo3::PyAny,
+    points2: &pyo3::PyAny,
+    camera_matrix: Option<&pyo3::PyAny>,
+    method: i32,
+    prob: f64,
+    threshold: f64,
+) -> PyResult<(PyObject, PyObject)> {
+    let cv2 = py.import_bound("cv2")?;
+    let args = (points1, points2);
+    let kwargs = pyo3::types::PyDict::new_bound(py);
+    if let Some(cam) = camera_matrix {
+        kwargs.set_item("cameraMatrix", cam)?;
+    }
+    kwargs.set_item("method", method)?;
+    kwargs.set_item("prob", prob)?;
+    kwargs.set_item("threshold", threshold)?;
+    let res = cv2.call_method("findEssentialMat", args, Some(&kwargs))?;
+    let (e, mask): (PyObject, PyObject) = res.extract()?;
+    Ok((e, mask))
+}
+
+
 
 
 
