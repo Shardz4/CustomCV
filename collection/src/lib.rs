@@ -18,6 +18,7 @@ mod drawing;
 mod features2d;
 mod objdetect;
 mod photo;
+mod imgcodecs;
 
 #[pymodule]
 fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -256,5 +257,8 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(photo::detail_enhance, m)?)?;
     m.add_function(wrap_pyfunction!(photo::pencil_sketch, m)?)?;
     m.add_function(wrap_pyfunction!(photo::stylization, m)?)?;
+
+    // --- Image I/O ---
+    m.add_function(wrap_pyfunction!(imgcodecs::imread, m)?)?;
     Ok(())
 }
