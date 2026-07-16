@@ -110,3 +110,26 @@ pub fn blob_from_image<'py>(
     Ok(res.into())
 }
 
+/// Performs non-maximum suppression given boxes and scores.
+#[pyfunction(name = "NMSBoxes")]
+#[pyo3(signature = (bboxes, scores, score_threshold, nms_threshold, eta = 1.0, top_k = 0))]
+pub fn nms_boxes<'py>(
+    py: Python<'py>,
+    bboxes: &pyo3::PyAny,
+    scores: &pyo3::PyAny,
+    score_threshold: f32,
+    nms_threshold: f32,
+    eta: f32,
+    top_k: i32,
+) -> PyResult<PyObject> {
+    let cv2 = py.import_bound("cv2")?;
+    let dnn = cv2.getattr("dnn")?;
+    let args = (bboxes, scores, score_threshold, nms_threshold);
+    let kwargs = pyo3::types::PyDict::new_bound(py);
+    kwargs.set_item("eta", eta)?;
+    kwargs.set_item("top_k", top_k)?;
+    let res = dnn.call_method("NMSBoxes", args, Some(&kwargs))?;
+    Ok(res.into())
+}
+
+

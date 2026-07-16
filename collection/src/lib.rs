@@ -285,5 +285,6 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(dnn::read_net_from_onnx, m)?)?;
     m.add_function(wrap_pyfunction!(dnn::read_net_from_tensorflow, m)?)?;
     m.add_function(wrap_pyfunction!(dnn::blob_from_image, m)?)?;
+    m.add_function(wrap_pyfunction!(dnn::nms_boxes, m)?)?;
     Ok(())
 }
