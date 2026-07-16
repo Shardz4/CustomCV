@@ -20,6 +20,7 @@ mod objdetect;
 mod photo;
 mod imgcodecs;
 mod calib3d;
+mod dnn;
 
 #[pymodule]
 fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -277,5 +278,11 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(calib3d::find_fundamental_mat, m)?)?;
     m.add_function(wrap_pyfunction!(calib3d::decompose_homography_mat, m)?)?;
     m.add_function(wrap_pyfunction!(calib3d::triangulate_points, m)?)?;
+
+    // --- DNN Module ---
+    m.add_class::<dnn::Net>()?;
+    m.add_function(wrap_pyfunction!(dnn::read_net, m)?)?;
+    m.add_function(wrap_pyfunction!(dnn::read_net_from_onnx, m)?)?;
+    m.add_function(wrap_pyfunction!(dnn::read_net_from_tensorflow, m)?)?;
     Ok(())
 }
