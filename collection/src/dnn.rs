@@ -82,3 +82,31 @@ pub fn read_net_from_tensorflow<'py>(
     };
     Ok(Net { inner: res.into() })
 }
+
+/// Creates 4-dimensional blob from image.
+#[pyfunction(name = "blobFromImage")]
+#[pyo3(signature = (image, scalefactor = 1.0, size = (0, 0), mean = (0.0, 0.0, 0.0), swap_rb = false, crop = false, ddepth = 5))]
+pub fn blob_from_image<'py>(
+    py: Python<'py>,
+    image: &pyo3::PyAny,
+    scalefactor: f64,
+    size: (i32, i32),
+    mean: (f64, f64, f64),
+    swap_rb: bool,
+    crop: bool,
+    ddepth: i32,
+) -> PyResult<PyObject> {
+    let cv2 = py.import_bound("cv2")?;
+    let dnn = cv2.getattr("dnn")?;
+    let args = (image,);
+    let kwargs = pyo3::types::PyDict::new_bound(py);
+    kwargs.set_item("scalefactor", scalefactor)?;
+    kwargs.set_item("size", size)?;
+    kwargs.set_item("mean", mean)?;
+    kwargs.set_item("swapRB", swap_rb)?;
+    kwargs.set_item("crop", crop)?;
+    kwargs.set_item("ddepth", ddepth)?;
+    let res = dnn.call_method("blobFromImage", args, Some(&kwargs))?;
+    Ok(res.into())
+}
+
