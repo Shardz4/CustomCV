@@ -31,7 +31,8 @@ collection/
 │   ├── drawing.rs            # Drawing primitives (line, rectangle, circle, ellipse)
 │   ├── photo.rs              # Computational photography (inpainting, denoising, HDR, stylization)
 │   ├── imgcodecs.rs          # Image codecs (imread, imwrite, imdecode, imencode)
-│   └── calib3d.rs            # Camera calibration & 3D (calibrateCamera, findChessboardCorners, undistort, etc.)
+│   ├── calib3d.rs            # Camera calibration & 3D (calibrateCamera, findChessboardCorners, undistort, etc.)
+│   └── dnn.rs                # DNN module (readNet, blobFromImage, NMSBoxes, Net class, etc.)
 ├── Cargo.toml                # Rust crate config (cdylib for PyO3)
 ├── Cargo.lock
 ├── pyproject.toml            # Maturin / PEP 517 build config
@@ -372,6 +373,23 @@ Provides functions for camera calibration, distortion removal, and 3D reconstruc
 | `findFundamentalMat` | `(points1: ndarray, points2: ndarray, method: int = 8, ransac_reproj_threshold: float = 3.0, confidence: float = 0.99, max_iters: int = 2000) → (ndarray, ndarray)` | Calculates a fundamental matrix from corresponding points in two images. |
 | `decomposeHomographyMat` | `(h: ndarray, k: ndarray) → (int, list[ndarray], list[ndarray], list[ndarray])` | Decomposes a homography matrix to rotation and translation. |
 | `triangulatePoints` | `(proj_matrix1: ndarray, proj_matrix2: ndarray, proj_points1: ndarray, proj_points2: ndarray) → ndarray` | Reconstructs 3D points from stereo camera observations. |
+
+---
+
+### 18. Deep Neural Networks — `dnn.rs`
+
+Provides interface for loading pre-trained deep learning networks and processing image inputs.
+
+| Function/Class | Signature | Description |
+|---|---|---|
+| `Net` | Class constructor: `Net(inner: PyObject)` | Lightweight wrapper class for OpenCV `dnn_Net` objects. |
+| `Net.setInput` | `(blob: ndarray, name: str = "") → None` | Sets the input value for the network. |
+| `Net.forward` | `(outputName: Optional[str] = None) → PyObject` | Runs forward pass to compute output. |
+| `readNet` | `(model: str, config: Optional[str] = None, framework: Optional[str] = None) → Net` | Read a network model stored in various formats. |
+| `readNetFromONNX` | `(onnxFile: str) → Net` | Loads a network from an ONNX model file. |
+| `readNetFromTensorflow` | `(model: str, config: Optional[str] = None) → Net` | Loads a network from a TensorFlow model file. |
+| `blobFromImage` | `(image: ndarray, scalefactor: float = 1.0, size: tuple[int, int] = (0, 0), mean: tuple[float, float, float] = (0, 0, 0), swapRB: bool = False, crop: bool = False, ddepth: int = 5) → ndarray` | Creates a 4-dimensional blob from an image. |
+| `NMSBoxes` | `(bboxes: list, scores: list, score_threshold: float, nms_threshold: float, eta: float = 1.0, top_k: int = 0) → list/ndarray` | Performs non-maximum suppression on detection boxes. |
 
 ---
 
