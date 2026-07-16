@@ -8,6 +8,11 @@ pub struct Net {
 
 #[pymethods]
 impl Net {
+    #[new]
+    pub fn new(inner: PyObject) -> Self {
+        Net { inner }
+    }
+
     #[pyo3(signature = (blob, name = ""))]
     pub fn setInput<'py>(
         &self,
