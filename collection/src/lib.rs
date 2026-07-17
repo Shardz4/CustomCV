@@ -291,5 +291,6 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     // --- Miscellaneous imgproc ---
     m.add_function(wrap_pyfunction!(misc_imgproc::get_structuring_element, m)?)?;
     m.add_function(wrap_pyfunction!(misc_imgproc::morphology_ex, m)?)?;
+    m.add_function(wrap_pyfunction!(misc_imgproc::canny_l2, m)?)?;
     Ok(())
 }

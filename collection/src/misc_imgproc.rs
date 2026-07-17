@@ -150,3 +150,128 @@ pub fn morphology_ex<'py>(
 
     Ok(result.into_dyn().into_pyarray_bound(py).unbind())
 }
+
+// ==========================================
+// Canny with L2 gradient norm
+// ==========================================
+
+/// Canny edge detection with L2 gradient norm option.
+/// When l2_gradient is true, uses L2 norm (sqrt(gx^2+gy^2)) instead of L1 norm (|gx|+|gy|).
+#[pyfunction]
+#[pyo3(signature = (image, low_thresh, high_thresh, aperture_size = 3, l2_gradient = false))]
+pub fn canny_l2<'py>(
+    py: Python<'py>,
+    image: PyReadonlyArrayDyn<'py, u8>,
+    low_thresh: f64,
+    high_thresh: f64,
+    aperture_size: usize,
+    l2_gradient: bool,
+) -> PyResult<Py<PyArrayDyn<u8>>> {
+    let arr = image.as_array();
+    let img_2d = arr.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Image must be 2D grayscale"))?;
+    let (h, w) = (img_2d.shape()[0], img_2d.shape()[1]);
+
+    // Gaussian smoothing (5x5)
+    let sigma = 1.4;
+    let gk = 2usize;
+    let mut blurred = numpy::ndarray::Array2::<f64>::zeros((h, w));
+    for y in gk..h.saturating_sub(gk) {
+        for x in gk..w.saturating_sub(gk) {
+            let mut sum = 0.0;
+            let mut wsum = 0.0;
+            for dy in -(gk as isize)..=(gk as isize) {
+                for dx in -(gk as isize)..=(gk as isize) {
+                    let ny = (y as isize + dy) as usize;
+                    let nx = (x as isize + dx) as usize;
+                    let g = (-(dx * dx + dy * dy) as f64 / (2.0 * sigma * sigma)).exp();
+                    sum += img_2d[[ny, nx]] as f64 * g;
+                    wsum += g;
+                }
+            }
+            blurred[[y, x]] = sum / wsum;
+        }
+    }
+
+    // Sobel gradients
+    let kx: [[f64; 3]; 3] = [[-1.0, 0.0, 1.0], [-2.0, 0.0, 2.0], [-1.0, 0.0, 1.0]];
+    let ky: [[f64; 3]; 3] = [[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]];
+
+    let mut mag = numpy::ndarray::Array2::<f64>::zeros((h, w));
+    let mut angle = numpy::ndarray::Array2::<f64>::zeros((h, w));
+
+    for y in 1..h.saturating_sub(1) {
+        for x in 1..w.saturating_sub(1) {
+            let mut gx = 0.0;
+            let mut gy = 0.0;
+            for dy in 0..3 {
+                for dx in 0..3 {
+                    let val = blurred[[(y + dy).saturating_sub(1), (x + dx).saturating_sub(1)]];
+                    gx += val * kx[dy][dx];
+                    gy += val * ky[dy][dx];
+                }
+            }
+            mag[[y, x]] = if l2_gradient {
+                (gx * gx + gy * gy).sqrt()
+            } else {
+                gx.abs() + gy.abs()
+            };
+            let mut theta = gy.atan2(gx).to_degrees();
+            if theta < 0.0 { theta += 180.0; }
+            angle[[y, x]] = theta;
+        }
+    }
+
+    // Non-maximum suppression
+    let mut suppressed = numpy::ndarray::Array2::<f64>::zeros((h, w));
+    for y in 1..h.saturating_sub(1) {
+        for x in 1..w.saturating_sub(1) {
+            let a = angle[[y, x]];
+            let (q, r) = if (0.0 <= a && a < 22.5) || (157.5 <= a && a <= 180.0) {
+                (mag[[y, x + 1]], mag[[y, x.saturating_sub(1)]])
+            } else if 22.5 <= a && a < 67.5 {
+                (mag[[y + 1, x.saturating_sub(1)]], mag[[y.saturating_sub(1), x + 1]])
+            } else if 67.5 <= a && a < 112.5 {
+                (mag[[y + 1, x]], mag[[y.saturating_sub(1), x]])
+            } else {
+                (mag[[y.saturating_sub(1), x.saturating_sub(1)]], mag[[y + 1, x + 1]])
+            };
+            if mag[[y, x]] >= q && mag[[y, x]] >= r {
+                suppressed[[y, x]] = mag[[y, x]];
+            }
+        }
+    }
+
+    // Hysteresis thresholding
+    let mut result = numpy::ndarray::Array2::<u8>::zeros((h, w));
+    let mut strong = Vec::new();
+
+    for y in 1..h.saturating_sub(1) {
+        for x in 1..w.saturating_sub(1) {
+            if suppressed[[y, x]] >= high_thresh {
+                result[[y, x]] = 255;
+                strong.push((y, x));
+            } else if suppressed[[y, x]] >= low_thresh {
+                result[[y, x]] = 128; // weak edge
+            }
+        }
+    }
+
+    while let Some((y, x)) = strong.pop() {
+        for dy in -1i32..=1 {
+            for dx in -1i32..=1 {
+                let ny = (y as i32 + dy) as usize;
+                let nx = (x as i32 + dx) as usize;
+                if ny > 0 && ny < h - 1 && nx > 0 && nx < w - 1 && result[[ny, nx]] == 128 {
+                    result[[ny, nx]] = 255;
+                    strong.push((ny, nx));
+                }
+            }
+        }
+    }
+
+    // Clear weak edges
+    result.mapv_inplace(|v| if v == 128 { 0 } else { v });
+
+    Ok(result.into_dyn().into_pyarray_bound(py).unbind())
+}
