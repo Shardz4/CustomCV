@@ -32,7 +32,8 @@ collection/
 │   ├── photo.rs              # Computational photography (inpainting, denoising, HDR, stylization)
 │   ├── imgcodecs.rs          # Image codecs (imread, imwrite, imdecode, imencode)
 │   ├── calib3d.rs            # Camera calibration & 3D (calibrateCamera, findChessboardCorners, undistort, etc.)
-│   └── dnn.rs                # DNN module (readNet, blobFromImage, NMSBoxes, Net class, etc.)
+│   ├── dnn.rs                # DNN module (readNet, blobFromImage, NMSBoxes, Net class, etc.)
+│   └── misc_imgproc.rs       # Miscellaneous imgproc functions (getStructuringElement, morphologyEx, cornerSubPix, etc.)
 ├── Cargo.toml                # Rust crate config (cdylib for PyO3)
 ├── Cargo.lock
 ├── pyproject.toml            # Maturin / PEP 517 build config
@@ -390,6 +391,28 @@ Provides interface for loading pre-trained deep learning networks and processing
 | `readNetFromTensorflow` | `(model: str, config: Optional[str] = None) → Net` | Loads a network from a TensorFlow model file. |
 | `blobFromImage` | `(image: ndarray, scalefactor: float = 1.0, size: tuple[int, int] = (0, 0), mean: tuple[float, float, float] = (0, 0, 0), swapRB: bool = False, crop: bool = False, ddepth: int = 5) → ndarray` | Creates a 4-dimensional blob from an image. |
 | `NMSBoxes` | `(bboxes: list, scores: list, score_threshold: float, nms_threshold: float, eta: float = 1.0, top_k: int = 0) → list/ndarray` | Performs non-maximum suppression on detection boxes. |
+
+---
+
+### 19. Miscellaneous (imgproc) — `misc_imgproc.rs`
+
+Provides various utility image processing functions including custom structuring elements, unified morphology, sub-pixel corner refinement, probabilistic Hough line transform, line segment detector (LSD), eigenvalue/eigenvector computation, integral images, separable filters, and custom borders.
+
+| Function | Signature | Description |
+|---|---|---|
+| `get_structuring_element` | `(shape: int, ksize_w: int, ksize_h: int, anchor_x: int = -1, anchor_y: int = -1) → ndarray[u8]` | Creates a structuring element (0=RECT, 1=CROSS, 2=ELLIPSE). |
+| `morphology_ex` | `(image: ndarray[u8], op: int, kernel: ndarray[u8], iterations: int = 1) → ndarray[u8]` | Unified morphological operations (0=ERODE, 1=DILATE, 2=OPEN, 3=CLOSE, 4=GRADIENT, 5=TOPHAT, 6=BLACKHAT). |
+| `canny_l2` | `(image: ndarray[u8], low_thresh: float, high_thresh: float, aperture_size: int = 3, l2_gradient: bool = False) → ndarray[u8]` | Canny edge detector with optional L2 gradient norm (magnitude vs sum of absolute values). |
+| `corner_sub_pix` | `(image: ndarray[u8], corners: list[(float, float)], win_size: int = 5, max_iter: int = 30, epsilon: float = 0.001) → list[(float, float)]` | Refines corner coordinates to sub-pixel accuracy. |
+| `hough_lines_p` | `(image: ndarray[u8], rho: float = 1.0, theta_deg: float = 1.0, threshold: int = 50, min_line_length: float = 30.0, max_line_gap: float = 10.0) → list[(int, int, int, int)]` | Probabilistic Hough Line Transform. Returns list of segments `(x1, y1, x2, y2)`. |
+| `line_segment_detector` | `(image: ndarray[u8], scale: float = 0.8, sigma_scale: float = 0.6, ang_th: float = 22.5, density_th: float = 0.7, n_bins: int = 1024) → list[(float, float, float, float, float)]` | Line Segment Detector (LSD). Returns list of `(x1, y1, x2, y2, width)`. |
+| `corner_eigen_vals_and_vecs` | `(image: ndarray[u8], block_size: int = 3, aperture_size: int = 3) → ndarray[f32]` | Computes eigenvalues and eigenvectors for each pixel. Returns shape `(H, W, 6)`. |
+| `pre_corner_detect` | `(image: ndarray[u8]) → ndarray[f32]` | Computes pre-corner detection map: $D_x^2 D_{yy} + D_y^2 D_{xx} - 2 D_x D_y D_{xy}$. |
+| `integral` | `(image: ndarray[u8]) → ndarray[f64]` | Computes the integral image (summed area table). Shape is `(H+1, W+1)`. |
+| `sqr_box_filter` | `(image: ndarray[u8], ksize: int = 3, normalize: bool = True) → ndarray[f64]` | Computes local sum of squared pixel values. |
+| `sep_filter_2d` | `(image: ndarray[u8], kernel_x: ndarray[f64], kernel_y: ndarray[f64]) → ndarray[u8]` | Convolves with separable kernels (row then column). |
+| `get_gabor_kernel` | `(ksize: int, sigma: float, theta: float, lambd: float, gamma: float, psi: float = 0.0) → ndarray[f64]` | Generates a Gabor filter kernel. |
+| `gaussian_blur_border` | `(image: ndarray[u8], ksize: int, sigma: float, border_type: int = 0, border_value: int = 0) → ndarray[u8]` | Gaussian blur with border modes (0=REFLECT_101, 1=REFLECT, 2=REPLICATE, 3=WRAP, 4=CONSTANT). |
 
 ---
 
