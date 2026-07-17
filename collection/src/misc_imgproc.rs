@@ -275,3 +275,89 @@ pub fn canny_l2<'py>(
 
     Ok(result.into_dyn().into_pyarray_bound(py).unbind())
 }
+
+// ==========================================
+// cornerSubPix
+// ==========================================
+
+/// Sub-pixel corner refinement.
+/// Takes a grayscale image and a list of corner (x,y) positions, refines them
+/// to sub-pixel accuracy using the gradient autocorrelation method.
+#[pyfunction]
+#[pyo3(signature = (image, corners, win_size = 5, max_iter = 30, epsilon = 0.001))]
+pub fn corner_sub_pix<'py>(
+    py: Python<'py>,
+    image: PyReadonlyArrayDyn<'py, u8>,
+    corners: Vec<(f64, f64)>,
+    win_size: usize,
+    max_iter: usize,
+    epsilon: f64,
+) -> PyResult<Vec<(f64, f64)>> {
+    let arr = image.as_array();
+    let img_2d = arr.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Image must be 2D grayscale"))?;
+    let (h, w) = (img_2d.shape()[0], img_2d.shape()[1]);
+    let half = win_size as i32 / 2;
+
+    // Compute gradients (Sobel)
+    let mut gx = numpy::ndarray::Array2::<f64>::zeros((h, w));
+    let mut gy = numpy::ndarray::Array2::<f64>::zeros((h, w));
+    for y in 1..h.saturating_sub(1) {
+        for x in 1..w.saturating_sub(1) {
+            gx[[y, x]] = (img_2d[[y, x + 1]] as f64 - img_2d[[y, x.saturating_sub(1)]] as f64) / 2.0;
+            gy[[y, x]] = (img_2d[[y + 1, x]] as f64 - img_2d[[y.saturating_sub(1), x]] as f64) / 2.0;
+        }
+    }
+
+    let mut refined = corners.clone();
+
+    for i in 0..refined.len() {
+        let (mut cx, mut cy) = refined[i];
+
+        for _iter in 0..max_iter {
+            // Accumulate gradient-based autocorrelation
+            let mut a11 = 0.0;
+            let mut a12 = 0.0;
+            let mut a22 = 0.0;
+            let mut b1 = 0.0;
+            let mut b2 = 0.0;
+
+            for dy in -half..=half {
+                for dx in -half..=half {
+                    let px = (cx as i32 + dx).clamp(1, w as i32 - 2) as usize;
+                    let py_coord = (cy as i32 + dy).clamp(1, h as i32 - 2) as usize;
+
+                    let ix = gx[[py_coord, px]];
+                    let iy = gy[[py_coord, px]];
+
+                    a11 += ix * ix;
+                    a12 += ix * iy;
+                    a22 += iy * iy;
+
+                    b1 += ix * ix * px as f64 + ix * iy * py_coord as f64;
+                    b2 += ix * iy * px as f64 + iy * iy * py_coord as f64;
+                }
+            }
+
+            let det = a11 * a22 - a12 * a12;
+            if det.abs() < 1e-10 {
+                break;
+            }
+
+            let new_cx = (a22 * b1 - a12 * b2) / det;
+            let new_cy = (a11 * b2 - a12 * b1) / det;
+
+            let shift = ((new_cx - cx).powi(2) + (new_cy - cy).powi(2)).sqrt();
+            cx = new_cx;
+            cy = new_cy;
+
+            if shift < epsilon {
+                break;
+            }
+        }
+
+        refined[i] = (cx, cy);
+    }
+
+    Ok(refined)
+}
