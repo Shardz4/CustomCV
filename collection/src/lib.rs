@@ -21,6 +21,7 @@ mod photo;
 mod imgcodecs;
 mod calib3d;
 mod dnn;
+mod misc_imgproc;
 
 #[pymodule]
 fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -286,5 +287,8 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(dnn::read_net_from_tensorflow, m)?)?;
     m.add_function(wrap_pyfunction!(dnn::blob_from_image, m)?)?;
     m.add_function(wrap_pyfunction!(dnn::nms_boxes, m)?)?;
+
+    // --- Miscellaneous imgproc ---
+    m.add_function(wrap_pyfunction!(misc_imgproc::get_structuring_element, m)?)?;
     Ok(())
 }
