@@ -293,5 +293,14 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(misc_imgproc::morphology_ex, m)?)?;
     m.add_function(wrap_pyfunction!(misc_imgproc::canny_l2, m)?)?;
     m.add_function(wrap_pyfunction!(misc_imgproc::corner_sub_pix, m)?)?;
+    m.add_function(wrap_pyfunction!(misc_imgproc::hough_lines_p, m)?)?;
+    m.add_function(wrap_pyfunction!(misc_imgproc::line_segment_detector, m)?)?;
+    m.add_function(wrap_pyfunction!(misc_imgproc::corner_eigen_vals_and_vecs, m)?)?;
+    m.add_function(wrap_pyfunction!(misc_imgproc::pre_corner_detect, m)?)?;
+    m.add_function(wrap_pyfunction!(misc_imgproc::integral, m)?)?;
+    m.add_function(wrap_pyfunction!(misc_imgproc::sqr_box_filter, m)?)?;
+    m.add_function(wrap_pyfunction!(misc_imgproc::sep_filter_2d, m)?)?;
+    m.add_function(wrap_pyfunction!(misc_imgproc::get_gabor_kernel, m)?)?;
+    m.add_function(wrap_pyfunction!(misc_imgproc::gaussian_blur_border, m)?)?;
     Ok(())
 }
