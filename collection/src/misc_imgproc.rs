@@ -63,3 +63,90 @@ pub fn get_structuring_element<'py>(
 
     Ok(kernel.into_dyn().into_pyarray_bound(py).unbind())
 }
+
+// ==========================================
+// morphologyEx
+// ==========================================
+
+/// Unified morphological operations entry point.
+/// op: 0=ERODE, 1=DILATE, 2=OPEN, 3=CLOSE, 4=GRADIENT, 5=TOPHAT, 6=BLACKHAT
+#[pyfunction]
+#[pyo3(signature = (image, op, kernel, iterations = 1))]
+pub fn morphology_ex<'py>(
+    py: Python<'py>,
+    image: PyReadonlyArrayDyn<'py, u8>,
+    op: i32,
+    kernel: PyReadonlyArrayDyn<'py, u8>,
+    iterations: usize,
+) -> PyResult<Py<PyArrayDyn<u8>>> {
+    let img_arr = image.as_array();
+    let k_arr = kernel.as_array();
+    let img_2d = img_arr.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Image must be 2D grayscale"))?;
+    let k_2d = k_arr.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Kernel must be 2D"))?;
+
+    use crate::morphological::{erode_2d, dilate_2d};
+
+    let mut result = img_2d.to_owned();
+
+    match op {
+        0 => {
+            // MORPH_ERODE
+            for _ in 0..iterations {
+                result = erode_2d(result.view(), k_2d.view());
+            }
+        }
+        1 => {
+            // MORPH_DILATE
+            for _ in 0..iterations {
+                result = dilate_2d(result.view(), k_2d.view());
+            }
+        }
+        2 => {
+            // MORPH_OPEN = erode then dilate
+            for _ in 0..iterations {
+                result = erode_2d(result.view(), k_2d.view());
+                result = dilate_2d(result.view(), k_2d.view());
+            }
+        }
+        3 => {
+            // MORPH_CLOSE = dilate then erode
+            for _ in 0..iterations {
+                result = dilate_2d(result.view(), k_2d.view());
+                result = erode_2d(result.view(), k_2d.view());
+            }
+        }
+        4 => {
+            // MORPH_GRADIENT = dilate - erode
+            let dilated = dilate_2d(img_2d.view(), k_2d.view());
+            let eroded = erode_2d(img_2d.view(), k_2d.view());
+            result = &dilated - &eroded;
+        }
+        5 => {
+            // MORPH_TOPHAT = src - open(src)
+            let mut opened = img_2d.to_owned();
+            for _ in 0..iterations {
+                opened = erode_2d(opened.view(), k_2d.view());
+                opened = dilate_2d(opened.view(), k_2d.view());
+            }
+            result = &img_2d - &opened;
+        }
+        6 => {
+            // MORPH_BLACKHAT = close(src) - src
+            let mut closed = img_2d.to_owned();
+            for _ in 0..iterations {
+                closed = dilate_2d(closed.view(), k_2d.view());
+                closed = erode_2d(closed.view(), k_2d.view());
+            }
+            result = &closed - &img_2d;
+        }
+        _ => {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "op must be 0-6: ERODE, DILATE, OPEN, CLOSE, GRADIENT, TOPHAT, BLACKHAT",
+            ));
+        }
+    }
+
+    Ok(result.into_dyn().into_pyarray_bound(py).unbind())
+}

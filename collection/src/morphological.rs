@@ -4,7 +4,7 @@ use numpy::{
     IntoPyArray, PyArrayDyn, PyReadonlyArrayDyn,
 };
 
-fn erode_2d(image: ArrayView2<u8>, kernel: ArrayView2<u8>) -> Array2<u8> {
+pub fn erode_2d(image: ArrayView2<u8>, kernel: ArrayView2<u8>) -> Array2<u8> {
     let (h, w) = (image.shape()[0], image.shape()[1]);
     let (kh, kw) = (kernel.shape()[0], kernel.shape()[1]);
     let pad_h = kh / 2;
@@ -31,7 +31,7 @@ fn erode_2d(image: ArrayView2<u8>, kernel: ArrayView2<u8>) -> Array2<u8> {
     out
 }
 
-fn dilate_2d(image: ArrayView2<u8>, kernel: ArrayView2<u8>) -> Array2<u8> {
+pub fn dilate_2d(image: ArrayView2<u8>, kernel: ArrayView2<u8>) -> Array2<u8> {
     let (h, w) = (image.shape()[0], image.shape()[1]);
     let (kh, kw) = (kernel.shape()[0], kernel.shape()[1]);
     let pad_h = kh / 2;
