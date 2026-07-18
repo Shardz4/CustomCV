@@ -249,11 +249,14 @@ pub fn rgb_to_lab<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyRes
     Ok(out.into_pyarray(py).to_dyn())
 }
 
-/// RGB → CIE L*u*v* (D65 illuminant).
+/// rgb_to_luv() - Convert RGB to CIE L*u*v* color space.
+/// @py: Python interpreter token.
+/// @x: Input 3D RGB image array (u8).
 ///
-/// Returns an f32 array with shape (H, W, 3).
+/// Converts a 3D RGB image array to the CIE L*u*v* color space under D65 illuminant.
 /// L ∈ [0, 100]; u and v can be negative.
-/// Uses the standard sRGB → linear → XYZ → Luv pipeline.
+///
+/// Return: A 3D f32 PyArrayDyn containing Luv channels.
 #[pyfunction]
 pub fn rgb_to_luv<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyResult<&'py PyArrayDyn<f32>> {
     let arr = x.as_array()
@@ -304,10 +307,13 @@ pub fn rgb_to_luv<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyRes
     Ok(out.into_pyarray(py).to_dyn())
 }
 
-/// BGR → RGB (swap channels 0 and 2).
+/// bgr_to_rgb() - Convert BGR to RGB color space.
+/// @py: Python interpreter token.
+/// @x: Input 3D BGR image array (u8).
 ///
-/// Input must have shape (H, W, 3). Returns u8 array.
-/// Useful when loading images with OpenCV (which defaults to BGR order).
+/// Swaps channels 0 and 2 of a 3D BGR image array to convert it to RGB.
+///
+/// Return: A 3D u8 PyArrayDyn containing RGB channels.
 #[pyfunction]
 pub fn bgr_to_rgb<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyResult<&'py PyArrayDyn<u8>> {
     let arr = x.as_array()
@@ -328,9 +334,13 @@ pub fn bgr_to_rgb<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyRes
     Ok(out.into_pyarray(py).to_dyn())
 }
 
-/// Grayscale → RGB (replicate single channel to three).
+/// gray_to_rgb() - Convert Grayscale to RGB.
+/// @py: Python interpreter token.
+/// @x: Input 2D grayscale image array (u8).
 ///
-/// Input must be a 2D array with shape (H, W). Returns u8 array with shape (H, W, 3).
+/// Replicates the single channel of a 2D grayscale image three times to form an RGB image.
+///
+/// Return: A 3D u8 PyArrayDyn of shape (H, W, 3) representing the RGB image.
 #[pyfunction]
 pub fn gray_to_rgb<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyResult<&'py PyArrayDyn<u8>> {
     let arr = x.as_array()
@@ -349,10 +359,14 @@ pub fn gray_to_rgb<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyRe
     Ok(out.into_pyarray(py).to_dyn())
 }
 
-/// RGB → YUV (BT.601).
+/// rgb_to_yuv() - Convert RGB to YUV color space.
+/// @py: Python interpreter token.
+/// @x: Input 3D RGB image array (u8).
 ///
-/// Returns a u8 array with shape (H, W, 3). All channels ∈ [0, 255].
-/// U and V are offset by 128 so they stay unsigned.
+/// Converts a 3D RGB image array to the YUV color space using BT.601 coefficients.
+/// U and V are offset by 128 to stay within [0, 255] u8 range.
+///
+/// Return: A 3D u8 PyArrayDyn containing YUV channels.
 #[pyfunction]
 pub fn rgb_to_yuv<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyResult<&'py PyArrayDyn<u8>> {
     let arr = x.as_array()
