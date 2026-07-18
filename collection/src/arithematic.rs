@@ -286,7 +286,16 @@ pub fn absdiff<'py>(
     Ok(result.into_pyarray_bound(py).into())
 }
 
-/// Compute per-element minimum of two arrays.
+/// apply_min() - Compute per-element minimum of two arrays.
+/// @py: Python interpreter token.
+/// @src1: First input array (PyAny).
+/// @src2: Second input array (PyAny).
+///
+/// Computes the per-element minimum of two dynamic dimensional arrays.
+/// The input arrays are extracted as f64. If their shapes differ, a PyValueError
+/// is returned.
+///
+/// Return: A dynamic dimensional 64-bit float PyArray on success.
 #[pyfunction]
 pub fn apply_min<'py>(
     py: Python<'py>,
@@ -305,7 +314,16 @@ pub fn apply_min<'py>(
     Ok(out.into_pyarray(py).to_dyn())
 }
 
-/// Compute per-element maximum of two arrays.
+/// apply_max() - Compute per-element maximum of two arrays.
+/// @py: Python interpreter token.
+/// @src1: First input array (PyAny).
+/// @src2: Second input array (PyAny).
+///
+/// Computes the per-element maximum of two dynamic dimensional arrays.
+/// The input arrays are extracted as f64. If their shapes differ, a PyValueError
+/// is returned.
+///
+/// Return: A dynamic dimensional 64-bit float PyArray on success.
 #[pyfunction]
 pub fn apply_max<'py>(
     py: Python<'py>,
@@ -324,7 +342,15 @@ pub fn apply_max<'py>(
     Ok(out.into_pyarray(py).to_dyn())
 }
 
-/// Compute per-element power.
+/// apply_pow() - Compute per-element power.
+/// @py: Python interpreter token.
+/// @src: Source input array (PyAny).
+/// @power: Exponent value.
+///
+/// Computes the per-element exponentiation (src[i]^power) of the input array.
+/// The input array is extracted as f64.
+///
+/// Return: A dynamic dimensional 64-bit float PyArray on success.
 #[pyfunction]
 pub fn apply_pow<'py>(
     py: Python<'py>,
@@ -336,7 +362,14 @@ pub fn apply_pow<'py>(
     Ok(out.into_pyarray(py).to_dyn())
 }
 
-/// Compute per-element square root.
+/// apply_sqrt() - Compute per-element square root.
+/// @py: Python interpreter token.
+/// @src: Source input array (PyAny).
+///
+/// Computes the per-element square root (sqrt(src[i])) of the input array.
+/// The input array is extracted as f64.
+///
+/// Return: A dynamic dimensional 64-bit float PyArray on success.
 #[pyfunction]
 pub fn apply_sqrt<'py>(
     py: Python<'py>,
@@ -347,7 +380,14 @@ pub fn apply_sqrt<'py>(
     Ok(out.into_pyarray(py).to_dyn())
 }
 
-/// Compute per-element exponential.
+/// apply_exp() - Compute per-element exponential.
+/// @py: Python interpreter token.
+/// @src: Source input array (PyAny).
+///
+/// Computes the per-element exponential (e^src[i]) of the input array.
+/// The input array is extracted as f64.
+///
+/// Return: A dynamic dimensional 64-bit float PyArray on success.
 #[pyfunction]
 pub fn apply_exp<'py>(
     py: Python<'py>,
@@ -358,7 +398,14 @@ pub fn apply_exp<'py>(
     Ok(out.into_pyarray(py).to_dyn())
 }
 
-/// Compute per-element natural log.
+/// apply_log_op() - Compute per-element natural logarithm.
+/// @py: Python interpreter token.
+/// @src: Source input array (PyAny).
+///
+/// Computes the per-element natural logarithm (ln(src[i])) of the input array.
+/// The input array is extracted as f64.
+///
+/// Return: A dynamic dimensional 64-bit float PyArray on success.
 #[pyfunction]
 pub fn apply_log_op<'py>(
     py: Python<'py>,
@@ -369,7 +416,18 @@ pub fn apply_log_op<'py>(
     Ok(out.into_pyarray(py).to_dyn())
 }
 
-/// Normalize the norm or value range of an array.
+/// apply_normalize() - Normalize the norm or value range of an array.
+/// @py: Python interpreter token.
+/// @src: Source input array (PyAny).
+/// @alpha: Lower bound value (min/max range) or norm target.
+/// @beta: Upper bound value (min/max range).
+/// @norm_type: Normalization type (32 for MINMAX, 4 for L2, otherwise L1).
+///
+/// Normalizes the input array according to the specified norm_type.
+/// If norm_type is 32, values are scaled to be within [alpha, beta] range.
+/// If norm_type is 4, L2 norm is normalized. Otherwise, L1 norm is normalized.
+///
+/// Return: A dynamic dimensional normalized 64-bit float PyArray on success.
 #[pyfunction]
 #[pyo3(signature = (src, alpha = 0.0, beta = 255.0, norm_type = 32))]
 pub fn apply_normalize<'py>(
@@ -424,7 +482,16 @@ pub fn apply_normalize<'py>(
     Ok(out.into_pyarray(py).to_dyn())
 }
 
-/// Scale, compute absolute value, and convert to 8-bit.
+/// convert_scale_abs() - Scale, compute absolute value, and convert to 8-bit.
+/// @py: Python interpreter token.
+/// @src: Source input array (PyAny).
+/// @alpha: Optional scale factor.
+/// @beta: Optional delta added to scaled values.
+///
+/// Scales, computes absolute values, and clamps the result to [0, 255] range as u8.
+/// The operation is computed as: result[i] = clamp(|src[i] * alpha + beta|, 0, 255).
+///
+/// Return: A dynamic dimensional 8-bit unsigned integer PyArray on success.
 #[pyfunction]
 #[pyo3(signature = (src, alpha = 1.0, beta = 0.0))]
 pub fn convert_scale_abs<'py>(
@@ -444,7 +511,17 @@ pub fn convert_scale_abs<'py>(
     Ok(out.into_pyarray(py).to_dyn())
 }
 
-/// Check if array elements lie between lowerb and upperb.
+/// in_range() - Check if array elements lie between lowerb and upperb.
+/// @py: Python interpreter token.
+/// @src: Source input image array (u8).
+/// @lowerb: Lower boundary vector.
+/// @upperb: Upper boundary vector.
+///
+/// Checks if the elements of the source array lie between the values of the
+/// lower and upper boundary vectors. If the image is multi-channel, boundary checks
+/// are performed on all channels, and all must satisfy the condition.
+///
+/// Return: A binary 2D PyArrayDyn where matching elements are 255, and others are 0.
 #[pyfunction]
 pub fn in_range<'py>(
     py: Python<'py>,
@@ -502,7 +579,15 @@ pub fn in_range<'py>(
     }
 }
 
-/// Apply a lookup table to an image.
+/// apply_lut() - Apply a lookup table to an image.
+/// @py: Python interpreter token.
+/// @src: Source input image array (u8).
+/// @lut: Lookup table containing at least 256 elements.
+///
+/// Performs lookup table transformation for each element of the input image:
+/// result[i] = lut[src[i]].
+///
+/// Return: A new PyArrayDyn containing lookup table mapped values.
 #[pyfunction]
 pub fn apply_lut<'py>(
     py: Python<'py>,
@@ -524,7 +609,14 @@ pub fn apply_lut<'py>(
     Ok(out.into_pyarray_bound(py).into())
 }
 
-/// Split a multi-channel image into a list of single-channel images.
+/// split_channels() - Split a multi-channel image into a list of single-channel images.
+/// @py: Python interpreter token.
+/// @image: Multi-channel or single-channel input image (u8).
+///
+/// Splits a multi-channel image into a vector of single-channel 2D images.
+/// If the input image is already 2D (single-channel), it returns a vector with the original image.
+///
+/// Return: A vector of 2D PyArrayDyn channels.
 #[pyfunction]
 pub fn split_channels<'py>(
     py: Python<'py>,
