@@ -371,7 +371,15 @@ pub fn calc_optical_flow_farneback<'py>(
     Ok(res.into())
 }
 
-/// Creates a KNN background subtractor.
+/// create_background_subtractor_knn() - Creates a KNN background subtractor.
+/// @py: Python interpreter token.
+/// @history: Length of the history.
+/// @dist2_threshold: Threshold on the squared distance between the pixel and the sample.
+/// @detect_shadows: Enable/disable shadow detection.
+///
+/// Constructs a K-Nearest Neighbors (KNN) background/foreground segmentation algorithm.
+///
+/// Return: BackgroundSubtractorKNN instance PyObject.
 #[pyfunction(name = "createBackgroundSubtractorKNN")]
 #[pyo3(signature = (history = 500, dist2_threshold = 400.0, detect_shadows = true))]
 pub fn create_background_subtractor_knn<'py>(
@@ -385,7 +393,15 @@ pub fn create_background_subtractor_knn<'py>(
     Ok(res.into())
 }
 
-/// Performs MeanShift object tracking.
+/// mean_shift() - Performs MeanShift object tracking.
+/// @py: Python interpreter token.
+/// @prob_image: Back projection of the object histogram.
+/// @window: Initial search window (x, y, w, h).
+/// @criteria: Stop criteria for the iterative search algorithm.
+///
+/// Finds an object on a backprojection image using the MeanShift algorithm.
+///
+/// Return: A tuple containing (number of iterations, updated search window).
 #[pyfunction(name = "meanShift")]
 #[pyo3(signature = (prob_image, window, criteria = None))]
 pub fn mean_shift<'py>(
@@ -409,7 +425,15 @@ pub fn mean_shift<'py>(
     Ok((retval, window_out))
 }
 
-/// Performs CamShift object tracking.
+/// cam_shift() - Performs CamShift object tracking.
+/// @py: Python interpreter token.
+/// @prob_image: Back projection of the object histogram.
+/// @window: Initial search window (x, y, w, h).
+/// @criteria: Stop criteria for the iterative search.
+///
+/// Finds an object center, size, and orientation using the Continuously Adaptive MeanShift algorithm.
+///
+/// Return: A tuple containing (rotated bounding box structure, updated search window).
 #[pyfunction(name = "CamShift")]
 #[pyo3(signature = (prob_image, window, criteria = None))]
 pub fn cam_shift<'py>(
@@ -433,7 +457,16 @@ pub fn cam_shift<'py>(
     Ok((retval, window_out))
 }
 
-/// Creates a KalmanFilter object.
+/// kalman_filter_constructor() - Creates a KalmanFilter object.
+/// @py: Python interpreter token.
+/// @dynam_params: Dimensionality of the state.
+/// @measure_params: Dimensionality of the measurement.
+/// @control_params: Dimensionality of the control vector.
+/// @kf_type: Type of the filter elements (e.g. CV_32F).
+///
+/// Constructs a Kalman filter object.
+///
+/// Return: KalmanFilter instance PyObject.
 #[pyfunction(name = "KalmanFilter")]
 #[pyo3(signature = (dynam_params, measure_params, control_params = 0, kf_type = None))]
 pub fn kalman_filter_constructor<'py>(
@@ -451,7 +484,13 @@ pub fn kalman_filter_constructor<'py>(
     Ok(res.into())
 }
 
-/// Creates a DISOpticalFlow dense optical flow solver.
+/// dis_optical_flow_create() - Creates a DISOpticalFlow dense optical flow solver.
+/// @py: Python interpreter token.
+/// @preset: Preset type (0 = PRESET_ULTRAFAST, 1 = PRESET_FAST, 2 = PRESET_MEDIUM).
+///
+/// Constructs a Dense Inverse Search (DIS) optical flow solver.
+///
+/// Return: DISOpticalFlow instance PyObject.
 #[pyfunction(name = "DISOpticalFlow_create")]
 #[pyo3(signature = (preset = 1))]
 pub fn dis_optical_flow_create<'py>(
@@ -463,7 +502,17 @@ pub fn dis_optical_flow_create<'py>(
     Ok(res.into())
 }
 
-/// Creates a SparsePyrLKOpticalFlow solver.
+/// sparse_pyr_lk_optical_flow_create() - Creates a SparsePyrLKOpticalFlow solver.
+/// @py: Python interpreter token.
+/// @win_size: Size of the search window at each pyramid level.
+/// @max_level: 0-based maximal pyramid level number.
+/// @criteria: Parameter specifying termination criteria.
+/// @flags: Operation flags.
+/// @min_eig_threshold: Minimum eigenvalue threshold.
+///
+/// Constructs a sparse pyramid Lucas-Kanade optical flow solver.
+///
+/// Return: SparsePyrLKOpticalFlow instance PyObject.
 #[pyfunction(name = "SparsePyrLKOpticalFlow_create")]
 #[pyo3(signature = (win_size = (21, 21), max_level = 3, criteria = None, flags = 0, min_eig_threshold = 1e-4))]
 pub fn sparse_pyr_lk_optical_flow_create<'py>(
@@ -496,7 +545,19 @@ pub fn sparse_pyr_lk_optical_flow_create<'py>(
     Ok(res.into())
 }
 
-/// Pre-builds image pyramid for optical flow.
+/// build_optical_flow_pyramid() - Pre-builds image pyramid for optical flow.
+/// @py: Python interpreter token.
+/// @img: 8-bit input image.
+/// @win_size: Size of the search window at each pyramid level.
+/// @max_level: 0-based maximal pyramid level number.
+/// @with_derivatives: Flag indicating if spatial derivatives should be precomputed.
+/// @pyr_border: Border mode for image pyramid construction.
+/// @deriv_border: Border mode for derivative computation.
+/// @try_reuse_input_image: Flag indicating whether to reuse the input image in the pyramid.
+///
+/// Constructs a Gaussian pyramid and optionally spatial derivative pyramids.
+///
+/// Return: A tuple containing (return status value, constructed pyramid array).
 #[pyfunction(name = "buildOpticalFlowPyramid")]
 #[pyo3(signature = (img, win_size, max_level, with_derivatives = true, pyr_border = None, deriv_border = None, try_reuse_input_image = true))]
 pub fn build_optical_flow_pyramid<'py>(
