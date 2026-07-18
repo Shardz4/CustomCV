@@ -1,6 +1,15 @@
 use pyo3::prelude::*;
 
-/// Inpaints an image using one of the available methods.
+/// inpaint() - Inpaints an image using one of the available methods.
+/// @py: Python interpreter token.
+/// @src: Source image (u8).
+/// @inpaint_mask: Inpainting mask (u8).
+/// @inpaint_radius: Radius of a circular neighborhood of each point inpainted.
+/// @flags: Inpainting algorithm flag.
+///
+/// Restores the selected region in an image using the surrounding pixels.
+///
+/// Return: Inpainted image array.
 #[pyfunction]
 #[pyo3(signature = (src, inpaint_mask, inpaint_radius, flags))]
 pub fn inpaint<'py>(
@@ -15,7 +24,16 @@ pub fn inpaint<'py>(
     Ok(res.into())
 }
 
-/// Perform non-local means denoising on grayscale images.
+/// fast_nl_means_denoising() - Perform non-local means denoising on grayscale images.
+/// @py: Python interpreter token.
+/// @src: Source image (u8).
+/// @h: Parameter deciding filter strength.
+/// @template_window_size: Size in pixels of the template patch.
+/// @search_window_size: Size in pixels of the search window.
+///
+/// Denoises the grayscale image using non-local means denoising algorithm.
+///
+/// Return: Denoised image array.
 #[pyfunction(name = "fastNlMeansDenoising")]
 #[pyo3(signature = (src, h = 3.0, template_window_size = 7, search_window_size = 21))]
 pub fn fast_nl_means_denoising<'py>(
@@ -35,7 +53,17 @@ pub fn fast_nl_means_denoising<'py>(
     Ok(res.into())
 }
 
-/// Perform non-local means denoising on colored images.
+/// fast_nl_means_denoising_colored() - Perform non-local means denoising on colored images.
+/// @py: Python interpreter token.
+/// @src: Source image (u8).
+/// @h: Parameter deciding filter strength for luminance component.
+/// @h_color: Parameter deciding filter strength for color components.
+/// @template_window_size: Size in pixels of the template patch.
+/// @search_window_size: Size in pixels of the search window.
+///
+/// Denoises the color image using non-local means denoising algorithm.
+///
+/// Return: Denoised image array.
 #[pyfunction(name = "fastNlMeansDenoisingColored")]
 #[pyo3(signature = (src, h = 3.0, h_color = 3.0, template_window_size = 7, search_window_size = 21))]
 pub fn fast_nl_means_denoising_colored<'py>(
@@ -57,7 +85,17 @@ pub fn fast_nl_means_denoising_colored<'py>(
     Ok(res.into())
 }
 
-/// Seamlessly clone a source image patch into a destination image.
+/// seamless_clone() - Seamlessly clone a source image patch into a destination image.
+/// @py: Python interpreter token.
+/// @src: Source image.
+/// @dst: Destination image.
+/// @mask: Mask image.
+/// @p: Coordinates in dst where the center of src is placed.
+/// @flags: Cloning method flags.
+///
+/// Performs seamless cloning of an image region onto another image.
+///
+/// Return: Cloned image array.
 #[pyfunction(name = "seamlessClone")]
 #[pyo3(signature = (src, dst, mask, p, flags))]
 pub fn seamless_clone<'py>(
@@ -73,7 +111,17 @@ pub fn seamless_clone<'py>(
     Ok(res.into())
 }
 
-/// Modifies the color of the specified region seamlessly.
+/// color_change() - Modifies the color of the specified region seamlessly.
+/// @py: Python interpreter token.
+/// @src: Source image.
+/// @mask: Mask image.
+/// @red_mul: Red channel multiplier.
+/// @green_mul: Green channel multiplier.
+/// @blue_mul: Blue channel multiplier.
+///
+/// Changes the color of a region seamlessly in the image.
+///
+/// Return: Modified image array.
 #[pyfunction(name = "colorChange")]
 #[pyo3(signature = (src, mask, red_mul = 1.0, green_mul = 1.0, blue_mul = 1.0))]
 pub fn color_change<'py>(
@@ -94,7 +142,16 @@ pub fn color_change<'py>(
     Ok(res.into())
 }
 
-/// Modifies the illumination of the specified region seamlessly.
+/// illumination_change() - Modifies the illumination of the specified region seamlessly.
+/// @py: Python interpreter token.
+/// @src: Source image.
+/// @mask: Mask image.
+/// @alpha: Value multiplier.
+/// @beta: Value multiplier.
+///
+/// Changes the illumination of a region seamlessly in the image.
+///
+/// Return: Modified image array.
 #[pyfunction(name = "illuminationChange")]
 #[pyo3(signature = (src, mask, alpha = 0.2, beta = 0.4))]
 pub fn illumination_change<'py>(
@@ -113,7 +170,17 @@ pub fn illumination_change<'py>(
     Ok(res.into())
 }
 
-/// Flattens the texture of the specified region seamlessly.
+/// texture_flattening() - Flattens the texture of the specified region seamlessly.
+/// @py: Python interpreter token.
+/// @src: Source image.
+/// @mask: Mask image.
+/// @low_threshold: Lower threshold.
+/// @high_threshold: Upper threshold.
+/// @kernel_size: Size of the kernel.
+///
+/// Flattens the texture of a region seamlessly in the image.
+///
+/// Return: Modified image array.
 #[pyfunction(name = "textureFlattening")]
 #[pyo3(signature = (src, mask, low_threshold = 30.0, high_threshold = 45.0, kernel_size = 3))]
 pub fn texture_flattening<'py>(
@@ -134,7 +201,13 @@ pub fn texture_flattening<'py>(
     Ok(res.into())
 }
 
-/// Converts a color image to grayscale with contrast preservation.
+/// decolor() - Converts a color image to grayscale with contrast preservation.
+/// @py: Python interpreter token.
+/// @src: Source image.
+///
+/// Converts color images to grayscale while preserving local contrast.
+///
+/// Return: A tuple containing (grayscale image array, contrast boost image array).
 #[pyfunction]
 pub fn decolor<'py>(
     py: Python<'py>,
@@ -146,7 +219,13 @@ pub fn decolor<'py>(
     Ok((gray, boost))
 }
 
-/// Creates a Tonemap object.
+/// create_tonemap() - Creates a Tonemap object.
+/// @py: Python interpreter token.
+/// @gamma: Gamma value.
+///
+/// Creates a Tonemap object for High Dynamic Range (HDR) processing.
+///
+/// Return: Tonemap instance.
 #[pyfunction(name = "createTonemap")]
 #[pyo3(signature = (gamma = 1.0))]
 pub fn create_tonemap<'py>(
@@ -158,7 +237,15 @@ pub fn create_tonemap<'py>(
     Ok(res.into())
 }
 
-/// Creates a MergeMertens object.
+/// create_merge_mertens() - Creates a MergeMertens object.
+/// @py: Python interpreter token.
+/// @contrast_weight: Contrast weight.
+/// @saturation_weight: Saturation weight.
+/// @exposure_weight: Exposure weight.
+///
+/// Creates a MergeMertens object for exposure fusion.
+///
+/// Return: MergeMertens instance.
 #[pyfunction(name = "createMergeMertens")]
 #[pyo3(signature = (contrast_weight = 1.0, saturation_weight = 1.0, exposure_weight = 0.0))]
 pub fn create_merge_mertens<'py>(
@@ -172,7 +259,15 @@ pub fn create_merge_mertens<'py>(
     Ok(res.into())
 }
 
-/// Creates a CalibrateDebevec object.
+/// create_calibrate_debevec() - Creates a CalibrateDebevec object.
+/// @py: Python interpreter token.
+/// @samples: Number of pixel samples.
+/// @lambda_val: Regularization term weight.
+/// @random: Use random samples.
+///
+/// Creates a CalibrateDebevec object for camera response function calibration.
+///
+/// Return: CalibrateDebevec instance.
 #[pyfunction(name = "createCalibrateDebevec")]
 #[pyo3(signature = (samples = 70, lambda_val = 10.0, random = false))]
 pub fn create_calibrate_debevec<'py>(
@@ -186,7 +281,12 @@ pub fn create_calibrate_debevec<'py>(
     Ok(res.into())
 }
 
-/// Creates a MergeDebevec object.
+/// create_merge_debevec() - Creates a MergeDebevec object.
+/// @py: Python interpreter token.
+///
+/// Creates a MergeDebevec object to merge exposures.
+///
+/// Return: MergeDebevec instance.
 #[pyfunction(name = "createMergeDebevec")]
 pub fn create_merge_debevec<'py>(
     py: Python<'py>,
@@ -196,7 +296,16 @@ pub fn create_merge_debevec<'py>(
     Ok(res.into())
 }
 
-/// Applies an edge-preserving smoothing filter to an image.
+/// edge_preserving_filter() - Applies an edge-preserving smoothing filter to an image.
+/// @py: Python interpreter token.
+/// @src: Source image.
+/// @flags: Edge-preserving filter flag.
+/// @sigma_s: Range between 0 to 200.
+/// @sigma_r: Range between 0 to 1.
+///
+/// Smooths the image while preserving its edges.
+///
+/// Return: Filtered image array.
 #[pyfunction(name = "edgePreservingFilter")]
 #[pyo3(signature = (src, flags = 1, sigma_s = 60.0, sigma_r = 0.4))]
 pub fn edge_preserving_filter<'py>(
@@ -216,7 +325,15 @@ pub fn edge_preserving_filter<'py>(
     Ok(res.into())
 }
 
-/// Applies a detail enhancement filter to an image.
+/// detail_enhance() - Applies a detail enhancement filter to an image.
+/// @py: Python interpreter token.
+/// @src: Source image.
+/// @sigma_s: Range between 0 to 200.
+/// @sigma_r: Range between 0 to 1.
+///
+/// Enhances details in the image using an edge-preserving filter.
+///
+/// Return: Enhanced image array.
 #[pyfunction(name = "detailEnhance")]
 #[pyo3(signature = (src, sigma_s = 10.0, sigma_r = 0.15))]
 pub fn detail_enhance<'py>(
@@ -234,7 +351,16 @@ pub fn detail_enhance<'py>(
     Ok(res.into())
 }
 
-/// Generates pencil sketch images from a color image.
+/// pencil_sketch() - Generates pencil sketch images from a color image.
+/// @py: Python interpreter token.
+/// @src: Source image.
+/// @sigma_s: Range between 0 to 200.
+/// @sigma_r: Range between 0 to 1.
+/// @shade_factor: Range between 0 to 0.1.
+///
+/// Converts a color image into a pencil sketch.
+///
+/// Return: A tuple containing (grayscale pencil sketch, color pencil sketch).
 #[pyfunction(name = "pencilSketch")]
 #[pyo3(signature = (src, sigma_s = 60.0, sigma_r = 0.07, shade_factor = 0.02))]
 pub fn pencil_sketch<'py>(
@@ -255,7 +381,15 @@ pub fn pencil_sketch<'py>(
     Ok((dst1, dst2))
 }
 
-/// Applies a non-photorealistic stylization filter to an image.
+/// stylization() - Applies a non-photorealistic stylization filter to an image.
+/// @py: Python interpreter token.
+/// @src: Source image.
+/// @sigma_s: Range between 0 to 200.
+/// @sigma_r: Range between 0 to 1.
+///
+/// Stylizes the image using a non-photorealistic edge-preserving filter.
+///
+/// Return: Stylized image array.
 #[pyfunction(name = "stylization")]
 #[pyo3(signature = (src, sigma_s = 60.0, sigma_r = 0.07))]
 pub fn stylization<'py>(
