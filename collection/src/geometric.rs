@@ -1182,13 +1182,18 @@ pub fn apply_linear_polar<'py>(
     }
 }
 
-/// Remap an image to log-polar coordinates.
+/// apply_log_polar() - Remap an image to log-polar coordinates.
+/// @py: Python interpreter token.
+/// @image: Input image array (u8).
+/// @center: Coordinates of the transformation center (cx, cy).
+/// @scale: Magnitude scale factor.
+/// @out_w: Optional output width.
+/// @out_h: Optional output height.
+/// @interpolation: Interpolation method.
 ///
-/// - `center`: coordinates of the transformation center (cx, cy).
-/// - `scale`: magnitude scale factor.
-/// - `out_w`: optional output width.
-/// - `out_h`: optional output height.
-/// - `interpolation`: interpolation method (0 = nearest, 1 = bilinear, 2 = bicubic, 4 = Lanczos4).
+/// Remaps the input image to log-polar space.
+///
+/// Return: Remapped image array.
 #[pyfunction]
 #[pyo3(signature = (image, center, scale, out_w = None, out_h = None, interpolation = 1))]
 pub fn apply_log_polar<'py>(
@@ -1275,7 +1280,16 @@ pub fn apply_log_polar<'py>(
       }
 }
 
-/// Alias for apply_resize matching OpenCV name.
+/// resize() - Resize an image.
+/// @py: Python interpreter token.
+/// @image: Input image array (u8).
+/// @new_w: Desired width.
+/// @new_h: Desired height.
+/// @interpolation: Interpolation method.
+///
+/// Alias for apply_resize. Resizes the image to specified width and height.
+///
+/// Return: Resized image array.
 #[pyfunction(name = "resize")]
 #[pyo3(signature = (image, new_w, new_h, interpolation = 1))]
 pub fn resize<'py>(
@@ -1288,7 +1302,17 @@ pub fn resize<'py>(
     apply_resize(py, image, new_w, new_h, interpolation)
 }
 
-/// Alias for apply_warp_affine matching OpenCV name.
+/// warp_affine() - Warp an image using affine transformation.
+/// @py: Python interpreter token.
+/// @image: Input image array (u8).
+/// @M: 2x3 affine transformation matrix.
+/// @out_w: Output image width.
+/// @out_h: Output image height.
+/// @flags: Optional mapping flags.
+///
+/// Alias for apply_warp_affine. Warps the image using a 2x3 affine matrix.
+///
+/// Return: Warped image array.
 #[pyfunction(name = "warpAffine")]
 #[pyo3(signature = (image, M, out_w, out_h, flags = 0))]
 pub fn warp_affine<'py>(
@@ -1302,7 +1326,15 @@ pub fn warp_affine<'py>(
     apply_warp_affine(py, image, M, out_w, out_h, flags)
 }
 
-/// Alias for get_rotation_matrix_2d matching OpenCV name.
+/// get_rotation_matrix_2d_cv() - Calculate a 2D rotation matrix.
+/// @py: Python interpreter token.
+/// @center: Coordinates of the rotation center (cx, cy).
+/// @angle: Rotation angle in degrees.
+/// @scale: Isotropic scale factor.
+///
+/// Alias for get_rotation_matrix_2d. Calculates a 2x3 affine matrix.
+///
+/// Return: Calculated 2x3 affine matrix array.
 #[pyfunction(name = "getRotationMatrix2D")]
 pub fn get_rotation_matrix_2d_cv<'py>(
     py: Python<'py>,
@@ -1313,7 +1345,14 @@ pub fn get_rotation_matrix_2d_cv<'py>(
     get_rotation_matrix_2d(py, center, angle, scale)
 }
 
-/// Alias for get_affine_transform matching OpenCV name.
+/// get_affine_transform_cv() - Calculate an affine transform from three pairs of corresponding points.
+/// @py: Python interpreter token.
+/// @src: Coordinates of three triangle vertices in the source image.
+/// @dst: Coordinates of the corresponding triangle vertices in the destination image.
+///
+/// Alias for get_affine_transform. Calculates a 2x3 affine matrix.
+///
+/// Return: Calculated 2x3 affine matrix array.
 #[pyfunction(name = "getAffineTransform")]
 pub fn get_affine_transform_cv<'py>(
     py: Python<'py>,
@@ -1323,7 +1362,14 @@ pub fn get_affine_transform_cv<'py>(
     get_affine_transform(py, src, dst)
 }
 
-/// Alias for get_perspective_transform matching OpenCV name.
+/// get_perspective_transform_cv() - Calculate a perspective transform from four pairs of corresponding points.
+/// @py: Python interpreter token.
+/// @src: Coordinates of four quadrangle vertices in the source image.
+/// @dst: Coordinates of the corresponding quadrangle vertices in the destination image.
+///
+/// Alias for get_perspective_transform. Calculates a 3x3 perspective matrix.
+///
+/// Return: Calculated 3x3 perspective matrix array.
 #[pyfunction(name = "getPerspectiveTransform")]
 pub fn get_perspective_transform_cv<'py>(
     py: Python<'py>,
@@ -1333,7 +1379,16 @@ pub fn get_perspective_transform_cv<'py>(
     get_perspective_transform(py, src, dst)
 }
 
-/// Alias for apply_remap matching OpenCV name.
+/// remap() - Apply a generic geometrical transformation to an image.
+/// @py: Python interpreter token.
+/// @image: Input image array (u8).
+/// @map_x: 2D array of source x coordinates.
+/// @map_y: 2D array of source y coordinates.
+/// @interpolation: Interpolation method.
+///
+/// Alias for apply_remap. Remaps the image to a new image using coordinate maps.
+///
+/// Return: Remapped image array.
 #[pyfunction(name = "remap")]
 #[pyo3(signature = (image, map_x, map_y, interpolation = 1))]
 pub fn remap<'py>(
@@ -1346,7 +1401,14 @@ pub fn remap<'py>(
     apply_remap(py, image, map_x, map_y, interpolation)
 }
 
-/// Alias for apply_flip matching OpenCV name.
+/// flip() - Flip an image horizontally, vertically, or both.
+/// @py: Python interpreter token.
+/// @image: Input image array (u8).
+/// @flip_code: Flip orientation flag.
+///
+/// Alias for apply_flip. Flips the input image.
+///
+/// Return: Flipped image array.
 #[pyfunction(name = "flip")]
 pub fn flip<'py>(
     py: Python<'py>,
@@ -1356,7 +1418,13 @@ pub fn flip<'py>(
     apply_flip(py, image, flip_code)
 }
 
-/// Alias for apply_transpose matching OpenCV name.
+/// transpose() - Transpose an image (swap rows and columns).
+/// @py: Python interpreter token.
+/// @image: Input image array (u8).
+///
+/// Alias for apply_transpose. Transposes the input image.
+///
+/// Return: Transposed image array.
 #[pyfunction(name = "transpose")]
 pub fn transpose<'py>(
     py: Python<'py>,
@@ -1365,7 +1433,13 @@ pub fn transpose<'py>(
     apply_transpose(py, image)
 }
 
-/// Alias for invert_affine_transform matching OpenCV name.
+/// invert_affine_transform_cv() - Invert an affine transform matrix (2x3).
+/// @py: Python interpreter token.
+/// @M: 2x3 affine transformation matrix.
+///
+/// Alias for invert_affine_transform. Calculates the inverse of the given 2x3 affine matrix.
+///
+/// Return: Inverted 2x3 affine matrix array.
 #[pyfunction(name = "invertAffineTransform")]
 #[allow(non_snake_case)]
 pub fn invert_affine_transform_cv<'py>(
@@ -1375,7 +1449,18 @@ pub fn invert_affine_transform_cv<'py>(
     invert_affine_transform(py, M)
 }
 
-/// Alias for apply_linear_polar matching OpenCV name.
+/// linear_polar() - Remap an image to linear polar coordinates.
+/// @py: Python interpreter token.
+/// @image: Input image array (u8).
+/// @center: Coordinates of the transformation center (cx, cy).
+/// @max_radius: Bounding circle radius.
+/// @out_w: Optional output width.
+/// @out_h: Optional output height.
+/// @interpolation: Interpolation method.
+///
+/// Alias for apply_linear_polar. Remaps the image to linear polar space.
+///
+/// Return: Remapped image array.
 #[pyfunction(name = "linearPolar")]
 #[pyo3(signature = (image, center, max_radius, out_w = None, out_h = None, interpolation = 1))]
 pub fn linear_polar<'py>(
@@ -1390,7 +1475,18 @@ pub fn linear_polar<'py>(
     apply_linear_polar(py, image, center, max_radius, out_w, out_h, interpolation)
 }
 
-/// Alias for apply_log_polar matching OpenCV name.
+/// log_polar() - Remap an image to log-polar coordinates.
+/// @py: Python interpreter token.
+/// @image: Input image array (u8).
+/// @center: Coordinates of the transformation center (cx, cy).
+/// @scale: Magnitude scale factor.
+/// @out_w: Optional output width.
+/// @out_h: Optional output height.
+/// @interpolation: Interpolation method.
+///
+/// Alias for apply_log_polar. Remaps the image to log-polar space.
+///
+/// Return: Remapped image array.
 #[pyfunction(name = "logPolar")]
 #[pyo3(signature = (image, center, scale = 1.0, out_w = None, out_h = None, interpolation = 1))]
 pub fn log_polar<'py>(
