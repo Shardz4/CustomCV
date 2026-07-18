@@ -4,6 +4,16 @@ use numpy::{
     IntoPyArray, PyArray3, PyArrayDyn, PyArrayMethods, PyReadonlyArray3, PyReadonlyArrayDyn,
 };
 
+/// add_images() - Saturating addition of two images.
+/// @py: Python interpreter token.
+/// @img1: First input image array.
+/// @img2: Second input image array.
+///
+/// Performs per-element saturating addition of two input image arrays of shape (h, w, c) or (h, w).
+/// The two input images must have the exact same shape. If the shapes differ,
+/// a PyValueError is returned.
+///
+/// Return: A new PyArrayDyn containing the summed image pixels.
 #[pyfunction]
 pub fn add_images<'py>(py: Python<'py>, img1:PyReadonlyArrayDyn<'py,u8>,img2:PyReadonlyArrayDyn<'py,u8>)->PyResult<Py<PyArrayDyn<u8>>>{
 
@@ -19,6 +29,17 @@ pub fn add_images<'py>(py: Python<'py>, img1:PyReadonlyArrayDyn<'py,u8>,img2:PyR
     Ok(result.into_pyarray_bound(py).into())   
 }
 
+/// sub_images() - Saturating subtraction of two images.
+/// @py: Python interpreter token.
+/// @img1: First input image array (minuend).
+/// @img2: Second input image array (subtrahend).
+///
+/// Performs per-element saturating subtraction of two input image arrays.
+/// The operation is computed as: result = saturating_sub(img1, img2).
+/// The input images must have the exact same shape. If the shapes differ,
+/// a PyValueError is returned.
+///
+/// Return: A new PyArrayDyn containing the subtracted image pixels.
 #[pyfunction]
 pub fn sub_images<'py>(py: Python<'py>, img1:PyReadonlyArrayDyn<'py,u8>,img2:PyReadonlyArrayDyn<'py,u8>)->PyResult<Py<PyArrayDyn<u8>>>{
 
@@ -34,6 +55,20 @@ pub fn sub_images<'py>(py: Python<'py>, img1:PyReadonlyArrayDyn<'py,u8>,img2:PyR
     Ok(result.into_pyarray_bound(py).into())   
 }
 
+/// add_weighted() - Compute weighted sum of two images.
+/// @py: Python interpreter token.
+/// @img1: First input image array.
+/// @alpha: Weight of the first image elements.
+/// @img2: Second input image array.
+/// @beta: Weight of the second image elements.
+/// @gamma: Scalar added to each sum.
+///
+/// Computes the weighted sum of two arrays as follows:
+/// result = clamp(img1 * alpha + img2 * beta + gamma, 0, 255)
+/// The input images must have the exact same shape. If the shapes differ,
+/// a PyValueError is returned.
+///
+/// Return: A new PyArrayDyn containing the weighted sum of elements.
 #[pyfunction]
 pub fn add_weighted<'py>(py: Python<'py>, img1: PyReadonlyArrayDyn<'py, u8>, alpha: f64, img2: PyReadonlyArrayDyn<'py, u8>, beta: f64, gamma: f64) -> PyResult<Py<PyArrayDyn<u8>>> {
     let arr1 = img1.as_array();
@@ -50,6 +85,16 @@ pub fn add_weighted<'py>(py: Python<'py>, img1: PyReadonlyArrayDyn<'py, u8>, alp
     Ok(result.into_pyarray_bound(py).into())
 }
 
+/// bitwise_and() - Compute bitwise conjunction of two images.
+/// @py: Python interpreter token.
+/// @img1: First input image array.
+/// @img2: Second input image array.
+///
+/// Computes the per-element bitwise logical AND of two input images.
+/// The input images must have the exact same shape. If the shapes differ,
+/// a PyValueError is returned.
+///
+/// Return: A new PyArrayDyn containing the bitwise ANDed elements.
 #[pyfunction]
 pub fn bitwise_and<'py>(py: Python<'py>, img1: PyReadonlyArrayDyn<'py,u8>,img2: PyReadonlyArrayDyn<'py,u8>)->PyResult<Py<PyArrayDyn<u8>>>{
 
@@ -63,6 +108,16 @@ pub fn bitwise_and<'py>(py: Python<'py>, img1: PyReadonlyArrayDyn<'py,u8>,img2: 
     Ok(result.into_pyarray_bound(py).into())   
 }
 
+/// bitwise_or() - Compute bitwise disjunction of two images.
+/// @py: Python interpreter token.
+/// @img1: First input image array.
+/// @img2: Second input image array.
+///
+/// Computes the per-element bitwise logical OR of two input images.
+/// The input images must have the exact same shape. If the shapes differ,
+/// a PyValueError is returned.
+///
+/// Return: A new PyArrayDyn containing the bitwise ORed elements.
 #[pyfunction]
 pub fn bitwise_or<'py>(py: Python<'py>, img1: PyReadonlyArrayDyn<'py,u8>,img2: PyReadonlyArrayDyn<'py,u8>)->PyResult<Py<PyArrayDyn<u8>>>{
 
@@ -76,6 +131,13 @@ pub fn bitwise_or<'py>(py: Python<'py>, img1: PyReadonlyArrayDyn<'py,u8>,img2: P
     Ok(result.into_pyarray_bound(py).into())   
 }
 
+/// bitwise_not() - Compute bitwise inversion of an image.
+/// @py: Python interpreter token.
+/// @img: Input image array.
+///
+/// Computes the per-element bitwise logical NOT (inversion) of an image.
+///
+/// Return: A new PyArrayDyn containing the bitwise inverted elements.
 #[pyfunction]
 pub fn bitwise_not<'py>(py:Python<'py>,img:PyReadonlyArrayDyn<'py,u8>)->PyResult<Py<PyArrayDyn<u8>>>{
     let arr = img.as_array();
@@ -84,6 +146,16 @@ pub fn bitwise_not<'py>(py:Python<'py>,img:PyReadonlyArrayDyn<'py,u8>)->PyResult
     Ok(result.into_pyarray_bound(py).into())   
 }
 
+/// bitwise_xor() - Compute bitwise exclusive-OR of two images.
+/// @py: Python interpreter token.
+/// @img1: First input image array.
+/// @img2: Second input image array.
+///
+/// Computes the per-element bitwise logical XOR of two input images.
+/// The input images must have the exact same shape. If the shapes differ,
+/// a PyValueError is returned.
+///
+/// Return: A new PyArrayDyn containing the bitwise XORed elements.
 #[pyfunction]
 pub fn bitwise_xor<'py>(py:Python<'py>,img1:PyReadonlyArrayDyn<'py,u8>,img2:PyReadonlyArrayDyn<'py,u8>)->PyResult<Py<PyArrayDyn<u8>>>{
 
@@ -97,6 +169,14 @@ pub fn bitwise_xor<'py>(py:Python<'py>,img1:PyReadonlyArrayDyn<'py,u8>,img2:PyRe
     Ok(result.into_pyarray_bound(py).into())   
 }
 
+/// extract_f64_array() - Extract array as f64 ndarray.
+/// @arr_py: PyAny object representing the source array.
+///
+/// Extracts the dynamic dimensional array as an f64 ndarray.
+/// It converts and supports u8, i32, f32, or f64 source data types.
+/// If the data type is not supported, a PyTypeError is returned.
+///
+/// Return: A 64-bit float dynamic-dimensional ndarray on success, or PyResult error.
 fn extract_f64_array<'py>(arr_py: &'py pyo3::PyAny) -> PyResult<numpy::ndarray::ArrayD<f64>> {
     if let Ok(arr) = arr_py.extract::<PyReadonlyArrayDyn<f64>>() {
         return Ok(arr.as_array().to_owned());
@@ -113,7 +193,16 @@ fn extract_f64_array<'py>(arr_py: &'py pyo3::PyAny) -> PyResult<numpy::ndarray::
     Err(pyo3::exceptions::PyTypeError::new_err("Unsupported array type. Expected u8, i32, f32, or f64."))
 }
 
-/// Per-element multiplication of two arrays with scale.
+/// apply_multiply() - Per-element multiplication of two arrays with scale.
+/// @py: Python interpreter token.
+/// @src1: First input array (PyAny).
+/// @src2: Second input array (PyAny).
+/// @scale: Scaling factor.
+///
+/// Performs per-element multiplication of two arrays and scales the result.
+/// The arrays are extracted as f64. If the shapes differ, a PyValueError is returned.
+///
+/// Return: A dynamic dimensional 64-bit float PyArray on success.
 #[pyfunction]
 #[pyo3(signature = (src1, src2, scale = 1.0))]
 pub fn apply_multiply<'py>(
@@ -134,7 +223,18 @@ pub fn apply_multiply<'py>(
     Ok(out.into_pyarray(py).to_dyn())
 }
 
-/// Per-element division of two arrays with scale.
+/// apply_divide() - Per-element division of two arrays with scale.
+/// @py: Python interpreter token.
+/// @src1: First input array (numerator, PyAny).
+/// @src2: Second input array (denominator, PyAny).
+/// @scale: Scaling factor.
+///
+/// Performs per-element division of two arrays and scales the result.
+/// If any element in the divisor is close to zero (absolute value < 1e-9),
+/// the result for that element is set to 0.0. If shapes differ, a PyValueError
+/// is returned.
+///
+/// Return: A dynamic dimensional 64-bit float PyArray on success.
 #[pyfunction]
 #[pyo3(signature = (src1, src2, scale = 1.0))]
 pub fn apply_divide<'py>(
@@ -159,7 +259,15 @@ pub fn apply_divide<'py>(
     Ok(out.into_pyarray(py).to_dyn())
 }
 
-/// Compute absolute difference between two images.
+/// absdiff() - Compute absolute difference between two images.
+/// @py: Python interpreter token.
+/// @src1: First input image array.
+/// @src2: Second input image array.
+///
+/// Computes the absolute difference between two images of the same shape.
+/// For each pixel, result = |src1 - src2|. If shapes differ, a PyValueError is returned.
+///
+/// Return: A new PyArrayDyn containing the absolute difference.
 #[pyfunction]
 pub fn absdiff<'py>(
     py: Python<'py>,
