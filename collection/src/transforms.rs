@@ -163,9 +163,13 @@ pub fn apply_threshold_tozero_inv<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<u8
     Ok(result.into_pyarray(py))
 }
 
-/// Triangle automatic threshold.
+/// apply_threshold_triangle() - Triangle automatic threshold.
+/// @py: Python interpreter token.
+/// @x: Input grayscale image array (u8).
+///
 /// Computes the optimal threshold using the Triangle algorithm, then applies binary thresholding.
-/// Returns (threshold_value, thresholded_image).
+///
+/// Return: A tuple containing (computed threshold value, binary thresholded image array).
 #[pyfunction]
 pub fn apply_threshold_triangle<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyResult<(u8, &'py PyArrayDyn<u8>)> {
     let arr = x.as_array();
@@ -176,10 +180,14 @@ pub fn apply_threshold_triangle<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py,
     Ok((thresh, result.into_pyarray(py).to_dyn()))
 }
 
-/// Otsu threshold combined with any threshold mode.
+/// apply_otsu_with_mode() - Otsu threshold combined with any threshold mode.
+/// @py: Python interpreter token.
+/// @x: Input grayscale image array (u8).
+/// @mode: Thresholding mode ("binary", "binary_inv", "trunc", "tozero", "tozero_inv").
+///
 /// Auto-computes the optimal threshold using Otsu's method, then applies the given mode.
-/// Supported modes: "binary", "binary_inv", "trunc", "tozero", "tozero_inv".
-/// Returns (threshold_value, thresholded_image).
+///
+/// Return: A tuple containing (computed threshold value, thresholded image array).
 #[pyfunction]
 pub fn apply_otsu_with_mode<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>, mode: &str) -> PyResult<(u8, &'py PyArrayDyn<u8>)> {
     let arr = x.as_array();
@@ -199,6 +207,13 @@ pub fn apply_otsu_with_mode<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>
     Ok((thresh, result.into_pyarray(py).to_dyn()))
 }
 
+/// rgb_to_cmy() - Convert an RGB image to CMY color space.
+/// @py: Python interpreter token.
+/// @x: Input RGB image array (u8) of shape (H, W, 3).
+///
+/// Converts the RGB pixel values to Cyan, Magenta, and Yellow (CMY) floating-point format [0.0, 1.0].
+///
+/// Return: CMY image array of shape (H, W, 3) (f32).
 #[pyfunction]
 pub fn rgb_to_cmy<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyResult<&'py PyArrayDyn<f32>> {
     let arr = x.as_array();
@@ -219,6 +234,15 @@ pub fn rgb_to_cmy<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyRes
 // FREQUENCY DOMAIN FILTER
 // ==========================================
 
+/// apply_frequency_filter() - Apply a frequency domain filter.
+/// @py: Python interpreter token.
+/// @f_shifted: Shifted 2D DFT spectrum (3D array of Complex64).
+/// @d0: Cut-off frequency.
+/// @filter_type: Type of filter ("ILPF", "IHPF", "GLPF", "GHPF").
+///
+/// Filters the shifted discrete Fourier transform spectrum in the frequency domain.
+///
+/// Return: Filtered frequency spectrum (Complex64).
 #[pyfunction]
 pub fn apply_frequency_filter<'py>(py: Python<'py>, f_shifted: PyReadonlyArray3<'py, Complex64>, d0: f64, filter_type: &str) -> &'py PyArray3<Complex64> {
     let f_arr = f_shifted.as_array();
