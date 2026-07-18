@@ -21,6 +21,18 @@ pub struct KeyPoint {
 
 #[pymethods]
 impl KeyPoint {
+    /// KeyPoint::new() - Constructor for KeyPoint.
+    /// @x: X-coordinate of the keypoint.
+    /// @y: Y-coordinate of the keypoint.
+    /// @size: Keypoint diameter.
+    /// @angle: Keypoint orientation.
+    /// @response: Keypoint strength/response.
+    /// @octave: Image octave (scale space layer).
+    /// @class_id: Object class ID.
+    ///
+    /// Creates a new KeyPoint instance.
+    ///
+    /// Return: A KeyPoint instance.
     #[new]
     #[pyo3(signature = (x, y, size = 0.0, angle = -1.0, response = 0.0, octave = 0, class_id = -1))]
     pub fn new(
@@ -65,6 +77,15 @@ pub struct DMatch {
 
 #[pymethods]
 impl DMatch {
+    /// DMatch::new() - Constructor for DMatch.
+    /// @query_idx: Query descriptor index.
+    /// @train_idx: Train descriptor index.
+    /// @distance: Distance between descriptors.
+    /// @img_idx: Train image index.
+    ///
+    /// Creates a new DMatch instance representing a descriptor match.
+    ///
+    /// Return: A DMatch instance.
     #[new]
     #[pyo3(signature = (query_idx, train_idx, distance, img_idx = 0))]
     pub fn new(query_idx: i32, train_idx: i32, distance: f32, img_idx: i32) -> Self {
@@ -79,7 +100,15 @@ impl DMatch {
     }
 }
 
-/// FAST corner detection.
+/// fast_detect() - FAST corner detection.
+/// @_py: Python interpreter token.
+/// @image: Input 2D grayscale image (u8).
+/// @threshold: Threshold on difference between intensity of the center pixel and pixels on a circle around it.
+/// @nonmax_suppression: If true, non-maximum suppression is applied.
+///
+/// Detects corners using the FAST (Features from Accelerated Segment Test) method.
+///
+/// Return: A vector of detected KeyPoints.
 #[pyfunction]
 #[pyo3(signature = (image, threshold = 10, nonmax_suppression = true))]
 pub fn fast_detect<'py>(
@@ -228,7 +257,19 @@ pub fn fast_detect<'py>(
     Ok(keypoints)
 }
 
-/// Good Features to Track (Shi-Tomasi or Harris wrapper with NMS and distance sorting).
+/// good_features_to_track() - Good Features to Track detector (Shi-Tomasi/Harris).
+/// @_py: Python interpreter token.
+/// @image: Input 2D grayscale image (u8).
+/// @max_corners: Maximum number of corners to return.
+/// @quality_level: Parameter characterizing the minimal accepted quality of image corners.
+/// @min_distance: Minimum possible Euclidean distance between the returned corners.
+/// @block_size: Size of an average block for computing a derivative covariation matrix over each pixel neighborhood.
+/// @use_harris_detector: Parameter indicating whether to use a Harris detector or Shi-Tomasi.
+/// @k: Free parameter of the Harris detector.
+///
+/// Finds the most prominent corners in an image using the Shi-Tomasi or Harris method.
+///
+/// Return: A vector of detected KeyPoints.
 #[pyfunction]
 #[pyo3(signature = (image, max_corners = 1000, quality_level = 0.01, min_distance = 10.0, block_size = 3, use_harris_detector = false, k = 0.04))]
 pub fn good_features_to_track<'py>(
@@ -343,7 +384,15 @@ fn get_brief_pairs() -> Vec<((i32, i32), (i32, i32))> {
     pairs
 }
 
-/// ORB keypoint detector and descriptor extractor.
+/// orb_detect_and_compute() - ORB keypoint detector and descriptor extractor.
+/// @py: Python interpreter token.
+/// @image: Input 2D grayscale image (u8).
+/// @max_features: Maximum number of features to retain.
+/// @threshold: FAST threshold.
+///
+/// Detects keypoints and computes BRIEF descriptors for them using ORB.
+///
+/// Return: A tuple of (detected KeyPoints vector, descriptor matrix array).
 #[pyfunction]
 #[pyo3(signature = (image, max_features = 500, threshold = 20))]
 pub fn orb_detect_and_compute<'py>(
