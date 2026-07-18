@@ -648,7 +648,15 @@ pub fn split_channels<'py>(
     }
 }
 
-/// Merge several single-channel images into a single multi-channel image.
+/// merge_channels() - Merge several single-channel images into a single multi-channel image.
+/// @py: Python interpreter token.
+/// @channels: Vector of single-channel 2D input images (u8).
+///
+/// Merges several single-channel 2D arrays into a single multi-channel 3D array.
+/// All input channels must have the exact same height and width. If the channels list
+/// is empty or shapes do not match, a PyValueError is returned.
+///
+/// Return: A multi-channel 3D PyArrayDyn containing merged channels.
 #[pyfunction]
 pub fn merge_channels<'py>(
     py: Python<'py>,
@@ -691,7 +699,18 @@ pub fn merge_channels<'py>(
     Ok(out.into_pyarray(py).to_dyn())
 }
 
-/// Copy specified channels from input arrays to specified channels of output arrays.
+/// mix_channels() - Copy specified channels from input arrays to specified channels of output arrays.
+/// @py: Python interpreter token.
+/// @src: Vector of source image arrays (u8).
+/// @dst: Vector of destination image arrays (u8), defining layout and output shapes.
+/// @from_to: Vector of index pairs `[src_chan_idx, dst_chan_idx]` indicating mapping.
+///
+/// Copies specified channels from a set of source images to a set of destination images.
+/// Source and destination images can be 2D or 3D. The from_to vector must contain
+/// an even number of elements. If any index is out of bounds or shapes mismatch,
+/// a PyValueError is returned.
+///
+/// Return: A vector of PyArrayDyn containing the destination images with copied channels.
 #[pyfunction]
 pub fn mix_channels<'py>(
     py: Python<'py>,
@@ -792,7 +811,14 @@ pub fn mix_channels<'py>(
     Ok(out_images)
 }
 
-/// Count non-zero array elements.
+/// count_non_zero() - Count non-zero array elements.
+/// @_py: Python interpreter token.
+/// @src: Source input array (PyAny).
+///
+/// Counts the number of elements in the array that are not equal to 0.0.
+/// The array is extracted as f64.
+///
+/// Return: The number of non-zero elements.
 #[pyfunction]
 pub fn count_non_zero<'py>(
     _py: Python<'py>,
@@ -808,7 +834,14 @@ pub fn count_non_zero<'py>(
     Ok(count)
 }
 
-/// Compute mean and standard deviation of array elements.
+/// mean_std_dev() - Compute mean and standard deviation of array elements.
+/// @_py: Python interpreter token.
+/// @src: Source input image array (u8).
+///
+/// Computes the mean and standard deviation of the input image's pixels.
+/// Supports both 2D (single-channel) and 3D (multi-channel) images.
+///
+/// Return: A tuple of two vectors, containing the means and standard deviations respectively.
 #[pyfunction]
 pub fn mean_std_dev<'py>(
     _py: Python<'py>,
@@ -866,7 +899,15 @@ pub fn mean_std_dev<'py>(
     }
 }
 
-/// Find minimum and maximum values and their locations in a 2D single-channel image.
+/// min_max_loc() - Find minimum and maximum values and their locations in a 2D single-channel image.
+/// @_py: Python interpreter token.
+/// @src: Source 2D single-channel image array (u8).
+///
+/// Finds the minimum and maximum pixel values and their corresponding coordinate locations
+/// (x, y) in a 2D single-channel image.
+/// If the input image is not 2D, a PyValueError is returned.
+///
+/// Return: A tuple containing (min_val, max_val, min_loc, max_loc).
 #[pyfunction]
 pub fn min_max_loc<'py>(
     _py: Python<'py>,
@@ -903,7 +944,17 @@ pub fn min_max_loc<'py>(
     Ok((min_val, max_val, min_loc, max_loc))
 }
 
-/// Calculate the rotation angle of 2D vectors.
+/// calculate_phase() - Calculate the rotation angle of 2D vectors.
+/// @py: Python interpreter token.
+/// @x: X-coordinate array (PyAny).
+/// @y: Y-coordinate array (PyAny).
+/// @angle_in_degrees: Boolean flag to return angles in degrees (true) or radians (false).
+///
+/// Calculates the rotation angle of each 2D vector (x[i], y[i]) as:
+/// angle[i] = atan2(y[i], x[i]). The angle is normalized to [0, 2pi) range.
+/// The input arrays must have the same shape.
+///
+/// Return: A dynamic dimensional 64-bit float PyArray of angles.
 #[pyfunction]
 #[pyo3(signature = (x, y, angle_in_degrees = false))]
 pub fn calculate_phase<'py>(
@@ -934,7 +985,15 @@ pub fn calculate_phase<'py>(
     Ok(out.into_pyarray(py).to_dyn())
 }
 
-/// Calculate the magnitude of 2D vectors.
+/// calculate_magnitude() - Calculate the magnitude of 2D vectors.
+/// @py: Python interpreter token.
+/// @x: X-coordinate array (PyAny).
+/// @y: Y-coordinate array (PyAny).
+///
+/// Calculates the magnitude of each 2D vector (x[i], y[i]) as:
+/// magnitude[i] = sqrt(x[i]^2 + y[i]^2). The input arrays must have the same shape.
+///
+/// Return: A dynamic dimensional 64-bit float PyArray of magnitudes.
 #[pyfunction]
 pub fn calculate_magnitude<'py>(
     py: Python<'py>,
@@ -955,7 +1014,17 @@ pub fn calculate_magnitude<'py>(
     Ok(out.into_pyarray(py).to_dyn())
 }
 
-/// Convert Cartesian coordinates to polar.
+/// cart_to_polar() - Convert Cartesian coordinates to polar.
+/// @py: Python interpreter token.
+/// @x: X-coordinate array (PyAny).
+/// @y: Y-coordinate array (PyAny).
+/// @angle_in_degrees: Boolean flag to return angles in degrees (true) or radians (false).
+///
+/// Converts Cartesian coordinates (x, y) to polar coordinates (magnitude, angle).
+/// The magnitude is computed as sqrt(x^2 + y^2), and the angle as atan2(y, x) mapped to [0, 2pi).
+/// The input arrays must have the same shape.
+///
+/// Return: A tuple of two 64-bit float PyArrays representing magnitude and angle.
 #[pyfunction]
 #[pyo3(signature = (x, y, angle_in_degrees = false))]
 pub fn cart_to_polar<'py>(
@@ -989,7 +1058,17 @@ pub fn cart_to_polar<'py>(
     Ok((mag.into_pyarray(py).to_dyn(), ang.into_pyarray(py).to_dyn()))
 }
 
-/// Convert polar coordinates to Cartesian.
+/// polar_to_cart() - Convert polar coordinates to Cartesian.
+/// @py: Python interpreter token.
+/// @magnitude: Magnitude array (PyAny).
+/// @angle: Angle array (PyAny).
+/// @angle_in_degrees: Boolean flag indicating if input angles are in degrees.
+///
+/// Converts polar coordinates (magnitude, angle) to Cartesian coordinates (x, y).
+/// The coordinates are computed as: x = magnitude * cos(angle), y = magnitude * sin(angle).
+/// The input arrays must have the same shape.
+///
+/// Return: A tuple of two 64-bit float PyArrays representing x and y.
 #[pyfunction]
 #[pyo3(signature = (magnitude, angle, angle_in_degrees = false))]
 pub fn polar_to_cart<'py>(
