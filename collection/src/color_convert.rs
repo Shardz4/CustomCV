@@ -36,11 +36,15 @@ const ZN: f64 = 1.08883;
 // COLOR SPACE CONVERSION FUNCTIONS
 // ==========================================
 
-/// RGB → HSV.
+/// rgb_to_hsv() - Convert RGB to HSV color space.
+/// @py: Python interpreter token.
+/// @x: Input 3D RGB image array (u8).
 ///
-/// Returns a u8 array with shape (H, W, 3).
-/// Channel ranges (OpenCV convention): H ∈ [0, 180], S ∈ [0, 255], V ∈ [0, 255].
-/// Hue is halved (0–360° mapped to 0–180) to fit in a single byte.
+/// Converts a 3D RGB image array to the HSV color space.
+/// The output has H ∈ [0, 180], S ∈ [0, 255], and V ∈ [0, 255].
+/// Hue is halved (0–360° mapped to 0–180) to fit within a single u8 byte.
+///
+/// Return: A 3D PyArrayDyn containing HSV channels.
 #[pyfunction]
 pub fn rgb_to_hsv<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyResult<&'py PyArrayDyn<u8>> {
     let arr = x.as_array()
@@ -81,10 +85,15 @@ pub fn rgb_to_hsv<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyRes
     Ok(out.into_pyarray(py).to_dyn())
 }
 
-/// RGB → HLS (Hue-Lightness-Saturation).
+/// rgb_to_hls() - Convert RGB to HLS color space.
+/// @py: Python interpreter token.
+/// @x: Input 3D RGB image array (u8).
 ///
-/// Returns a u8 array with shape (H, W, 3).
-/// Channel ranges (OpenCV convention): H ∈ [0, 180], L ∈ [0, 255], S ∈ [0, 255].
+/// Converts a 3D RGB image array to the HLS (Hue-Lightness-Saturation) color space.
+/// The output has H ∈ [0, 180], L ∈ [0, 255], and S ∈ [0, 255].
+/// Hue is halved to fit in a single byte.
+///
+/// Return: A 3D PyArrayDyn containing HLS channels.
 #[pyfunction]
 pub fn rgb_to_hls<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyResult<&'py PyArrayDyn<u8>> {
     let arr = x.as_array()
@@ -132,10 +141,14 @@ pub fn rgb_to_hls<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyRes
     Ok(out.into_pyarray(py).to_dyn())
 }
 
-/// RGB → YCrCb (BT.601 luma + chroma).
+/// rgb_to_ycrcb() - Convert RGB to YCrCb color space.
+/// @py: Python interpreter token.
+/// @x: Input 3D RGB image array (u8).
 ///
-/// Returns a u8 array with shape (H, W, 3). All channels ∈ [0, 255].
-/// Cr and Cb are offset by 128 so they stay unsigned.
+/// Converts a 3D RGB image array to the YCrCb color space using BT.601 coefficients.
+/// The chroma components Cr and Cb are offset by 128 to stay within [0, 255] u8 range.
+///
+/// Return: A 3D PyArrayDyn containing YCrCb channels.
 #[pyfunction]
 pub fn rgb_to_ycrcb<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyResult<&'py PyArrayDyn<u8>> {
     let arr = x.as_array()
@@ -163,11 +176,14 @@ pub fn rgb_to_ycrcb<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyR
     Ok(out.into_pyarray(py).to_dyn())
 }
 
-/// RGB → CIE XYZ (sRGB with D65 illuminant).
+/// rgb_to_xyz() - Convert RGB to CIE XYZ color space.
+/// @py: Python interpreter token.
+/// @x: Input 3D RGB image array (u8).
 ///
-/// Returns an f32 array with shape (H, W, 3).
-/// Applies sRGB inverse-gamma (linearization) before the 3×3 matrix multiply.
-/// Output values are in physical XYZ units (typically 0.0–1.0 for in-gamut colours).
+/// Converts a 3D RGB image array to the CIE XYZ color space with D65 illuminant.
+/// Applies sRGB inverse-gamma (linearization) prior to the matrix multiplication.
+///
+/// Return: A 3D f32 PyArrayDyn containing XYZ channels.
 #[pyfunction]
 pub fn rgb_to_xyz<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyResult<&'py PyArrayDyn<f32>> {
     let arr = x.as_array()
@@ -192,11 +208,14 @@ pub fn rgb_to_xyz<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyRes
     Ok(out.into_pyarray(py).to_dyn())
 }
 
-/// RGB → CIE L*a*b* (D65 illuminant).
+/// rgb_to_lab() - Convert RGB to CIE L*a*b* color space.
+/// @py: Python interpreter token.
+/// @x: Input 3D RGB image array (u8).
 ///
-/// Returns an f32 array with shape (H, W, 3).
-/// L ∈ [0, 100], a ∈ [−128, 127], b ∈ [−128, 127] (approximately).
-/// Uses the standard sRGB → linear → XYZ → Lab pipeline.
+/// Converts a 3D RGB image array to the CIE L*a*b* color space under D65 illuminant.
+/// L ∈ [0, 100], a ∈ [-128, 127], b ∈ [-128, 127].
+///
+/// Return: A 3D f32 PyArrayDyn containing Lab channels.
 #[pyfunction]
 pub fn rgb_to_lab<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyResult<&'py PyArrayDyn<f32>> {
     let arr = x.as_array()
