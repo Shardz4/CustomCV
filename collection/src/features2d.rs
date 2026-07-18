@@ -1319,7 +1319,32 @@ fn convex_hull_area(points: &[(usize, usize)]) -> f64 {
     (area.abs() / 2.0)
 }
 
-/// Simple Blob Detector to find blobs (connected components) filtering by size, shape, convexity, and color.
+/// simple_blob_detect() - Extract blobs (connected components) based on color, size, circularity, inertia, and convexity.
+/// @_py: Python interpreter token.
+/// @image: Input 2D grayscale image (u8).
+/// @min_threshold: Minimum threshold.
+/// @max_threshold: Maximum threshold.
+/// @threshold_step: Step for threshold iteration.
+/// @min_dist_between_blobs: Minimum distance between centers of two blobs.
+/// @min_repeatability: Minimum repeatability to accept a blob.
+/// @filter_by_color: If true, filters by blob color.
+/// @blob_color: Blob color to search (0 or 255).
+/// @filter_by_area: If true, filters by blob area size.
+/// @min_area: Minimum area.
+/// @max_area: Maximum area.
+/// @filter_by_circularity: If true, filters by circularity ratio.
+/// @min_circularity: Minimum circularity.
+/// @max_circularity: Maximum circularity.
+/// @filter_by_inertia: If true, filters by inertia ratio.
+/// @min_inertia_ratio: Minimum inertia ratio.
+/// @max_inertia_ratio: Maximum inertia ratio.
+/// @filter_by_convexity: If true, filters by convexity ratio.
+/// @min_convexity: Minimum convexity.
+/// @max_convexity: Maximum convexity.
+///
+/// Detects blobs in a grayscale image based on various shape features.
+///
+/// Return: A vector of detected KeyPoints.
 #[pyfunction]
 #[pyo3(signature = (
     image,
@@ -1581,7 +1606,16 @@ pub fn simple_blob_detect<'py>(
     Ok(final_kps)
 }
 
-/// Brute-force descriptor matcher.
+/// bf_match() - Brute-force descriptor matcher.
+/// @_py: Python interpreter token.
+/// @query_descriptors: Matrix of query descriptors (u8 or f32).
+/// @train_descriptors: Matrix of train descriptors (u8 or f32).
+/// @cross_check: If true, performs bidirectional matching.
+/// @norm_type: Normalization type ("L1", "L2", or "HAMMING").
+///
+/// Finds the best matches for each descriptor in the query set from the train set.
+///
+/// Return: A vector of DMatch instances.
 #[pyfunction]
 #[pyo3(signature = (query_descriptors, train_descriptors, cross_check = false, norm_type = "L2"))]
 pub fn bf_match<'py>(
@@ -1776,7 +1810,16 @@ pub fn bf_match<'py>(
     }
 }
 
-/// K-Nearest Neighbor descriptor matcher.
+/// knn_match() - K-Nearest Neighbor descriptor matcher.
+/// @_py: Python interpreter token.
+/// @query_descriptors: Matrix of query descriptors (u8 or f32).
+/// @train_descriptors: Matrix of train descriptors (u8 or f32).
+/// @k: Number of nearest neighbors to search.
+/// @norm_type: Normalization type ("L1", "L2", or "HAMMING").
+///
+/// Finds the k best matches for each descriptor in the query set.
+///
+/// Return: A vector of vectors containing up to k matches per query descriptor.
 #[pyfunction]
 #[pyo3(signature = (query_descriptors, train_descriptors, k, norm_type = "L2"))]
 pub fn knn_match<'py>(
