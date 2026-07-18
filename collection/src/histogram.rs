@@ -102,6 +102,13 @@ fn get_target_cdf(target_pdf: ArrayView1<f32>) -> PyResult<Vec<f32>> {
 // EXPORTED HISTOGRAM FUNCTIONS
 // ==========================================
 
+/// hist_equalize_rgb() - Equalizes the histogram of a color image.
+/// @py: Python interpreter token.
+/// @x: Input color image array (u8) of shape (H, W, 3).
+///
+/// Equalizes the histogram of a color image by applying histogram equalization to each channel.
+///
+/// Return: Equalized color image array.
 #[pyfunction]
 pub fn hist_equalize_rgb<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyResult<&'py PyArrayDyn<u8>> {
     let arr = x.as_array();
@@ -121,6 +128,13 @@ pub fn hist_equalize_rgb<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -
     Ok(out_arr.into_pyarray(py).to_dyn())
 }
 
+/// hist_equalize_gray() - Equalizes the histogram of a grayscale image.
+/// @py: Python interpreter token.
+/// @x: Input image array (u8).
+///
+/// Converts a color image to grayscale and equalizes its histogram.
+///
+/// Return: Equalized grayscale image array.
 #[pyfunction]
 pub fn hist_equalize_gray<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyResult<&'py PyArrayDyn<u8>> {
     let arr = x.as_array();
@@ -135,6 +149,14 @@ pub fn hist_equalize_gray<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) 
 }
 
 
+/// hist_spec_rgb() - Adjusts the histogram of a color image to match a target histogram.
+/// @py: Python interpreter token.
+/// @x: Input color image array (u8).
+/// @target_hist: Target 1D histogram (f32) with 256 bins.
+///
+/// Shapes the histogram of each color channel to match the target CDF.
+///
+/// Return: Specified color image array.
 #[pyfunction]
 pub fn hist_spec_rgb<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>, target_hist: PyReadonlyArrayDyn<'py, f32>) -> PyResult<Py<PyArrayDyn<u8>>> {
     let arr = x.as_array();
@@ -162,6 +184,14 @@ pub fn hist_spec_rgb<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>, targe
     Ok(out_arr.into_pyarray(py).to_dyn().to_owned().into())
 }
 
+/// hist_spec_gray() - Adjusts the histogram of a grayscale image to match a target histogram.
+/// @py: Python interpreter token.
+/// @x: Input image array (u8).
+/// @target_hist: Target 1D histogram (f32) with 256 bins.
+///
+/// Converts a color image to grayscale and shapes its histogram to match the target CDF.
+///
+/// Return: Specified grayscale image array.
 #[pyfunction]
 pub fn hist_spec_gray<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>, target_hist: PyReadonlyArrayDyn<'py, f32>) -> PyResult<Py<PyArrayDyn<u8>>> {
     let arr = x.as_array();
@@ -188,6 +218,13 @@ pub fn hist_spec_gray<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>, targ
     Ok(result.into_pyarray(py).to_dyn().to_owned().into())
 }
 
+/// apply_otsu_threshold() - Applies thresholding using Otsu's optimal threshold.
+/// @py: Python interpreter token.
+/// @x: Input 2D grayscale image array (u8).
+///
+/// Calculates Otsu's threshold and applies binary thresholding to the image.
+///
+/// Return: A tuple containing (computed threshold value, binary thresholded image array).
 #[pyfunction]
 pub fn apply_otsu_threshold<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyResult<(u8, &'py PyArrayDyn<u8>)> {
     let arr = x.as_array();
@@ -203,13 +240,16 @@ pub fn apply_otsu_threshold<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>
     Ok((threshold_value, result.into_pyarray(py).to_dyn()))
 }
 
-/// Compute a 1D histogram of a single channel from an image.
+/// calc_hist() - Compute a 1D histogram of a single channel from an image.
+/// @py: Python interpreter token.
+/// @image: Grayscale (2D) or Color (3D) u8 image.
+/// @channel_idx: Index of the channel.
+/// @hist_size: Number of bins.
+/// @ranges: (low, high) float bounds.
 ///
-/// - `image`: Grayscale (2D) or Color (3D) u8 image.
-/// - `channel_idx`: index of the channel (0 for grayscale).
-/// - `hist_size`: number of bins (e.g. 256).
-/// - `ranges`: (low, high) float bounds (e.g. (0.0, 256.0)).
-/// Returns a float32 array of shape (hist_size, 1) containing bin counts.
+/// Computes a 1D histogram of a single channel from an image.
+///
+/// Return: 1D histogram array of shape (hist_size, 1).
 #[pyfunction]
 #[pyo3(signature = (image, channel_idx, hist_size, ranges))]
 pub fn calc_hist<'py>(
