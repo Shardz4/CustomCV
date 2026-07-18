@@ -10,6 +10,13 @@ use crate::helpers::{apply_median_3x3, apply_laplacian_3x3};
 // SPATIAL FILTERS (Median / Laplacian)
 // ==========================================
 
+/// median_filter() - Apply a median filter to an image.
+/// @py: Python interpreter token.
+/// @x: Input image array (u8).
+///
+/// Blurs an image using a median filter with a 3x3 aperture size.
+///
+/// Return: Filtered image array.
 #[pyfunction]
 pub fn median_filter<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyResult<&'py PyArrayDyn<u8>> {
     let arr = x.as_array();
@@ -30,6 +37,13 @@ pub fn median_filter<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> Py
     panic!("Unsupported image dimensions!");
 }
 
+/// laplacian_filter() - Apply a Laplacian filter to an image.
+/// @py: Python interpreter token.
+/// @x: Input image array (u8).
+///
+/// Calculates the Laplacian of an image using a 3x3 aperture size.
+///
+/// Return: Filtered image array.
 #[pyfunction]
 pub fn laplacian_filter<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyResult<&'py PyArrayDyn<u8>> {
     let arr = x.as_array();
@@ -60,6 +74,13 @@ pub fn laplacian_filter<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) ->
 // IMAGE PYRAMIDS
 // ==========================================
 
+/// pyr_down() - Blurs an image and downsamples it.
+/// @py: Python interpreter token.
+/// @img: Input image array (u8).
+///
+/// Blurs an image using a 5x5 Gaussian kernel and downsamples it by a factor of 2.
+///
+/// Return: Downsampled image array.
 #[pyfunction]
 pub fn pyr_down<'py>(py: Python<'py>, img: PyReadonlyArrayDyn<'py, u8>) -> PyResult<&'py PyArrayDyn<u8>> {
     let arr = img.as_array();
@@ -117,6 +138,13 @@ pub fn pyr_down<'py>(py: Python<'py>, img: PyReadonlyArrayDyn<'py, u8>) -> PyRes
     }
 }
 
+/// pyr_up() - Upsamples an image and then blurs it.
+/// @py: Python interpreter token.
+/// @img: Input image array (u8).
+///
+/// Upsamples an image by a factor of 2 (by injecting zeros) and blurs it with a 5x5 Gaussian kernel.
+///
+/// Return: Upsampled image array.
 #[pyfunction]
 pub fn pyr_up<'py>(py: Python<'py>, img: PyReadonlyArrayDyn<'py, u8>) -> PyResult<&'py PyArrayDyn<u8>> {
     let arr = img.as_array();
