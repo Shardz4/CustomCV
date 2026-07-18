@@ -211,7 +211,7 @@ pub fn shi_tomasi_corners<'py>(py: Python<'py>, image:PyReadonlyArrayDyn<'py, u8
 /// hough_lines() - Find lines in a binary image using the Standard Hough Transform.
 /// @image: Input 2D binary edge image (u8).
 /// @threshold: Minimum accumulator votes to accept a line.
-/// @theta_res: Angular resolution in degrees.
+/// @theta_res: Angular resolution/step size in degrees.
 ///
 /// Finds lines using standard polar parameterization (rho, theta).
 ///
