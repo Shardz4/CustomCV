@@ -1095,7 +1095,15 @@ pub fn polar_to_cart<'py>(
     Ok((x.into_pyarray(py).to_dyn(), y.into_pyarray(py).to_dyn()))
 }
 
-/// Alias for apply_multiply matching OpenCV name.
+/// multiply() - Alias for apply_multiply matching OpenCV name.
+/// @py: Python interpreter token.
+/// @src1: First input array (PyAny).
+/// @src2: Second input array (PyAny).
+/// @scale: Scaling factor.
+///
+/// Refers to apply_multiply() to compute per-element multiplication.
+///
+/// Return: A dynamic dimensional 64-bit float PyArray on success.
 #[pyfunction(name = "multiply")]
 #[pyo3(signature = (src1, src2, scale = 1.0))]
 pub fn multiply<'py>(
@@ -1107,7 +1115,15 @@ pub fn multiply<'py>(
     apply_multiply(py, src1, src2, scale)
 }
 
-/// Alias for apply_divide matching OpenCV name.
+/// divide() - Alias for apply_divide matching OpenCV name.
+/// @py: Python interpreter token.
+/// @src1: First input array (PyAny).
+/// @src2: Second input array (PyAny).
+/// @scale: Scaling factor.
+///
+/// Refers to apply_divide() to compute per-element division.
+///
+/// Return: A dynamic dimensional 64-bit float PyArray on success.
 #[pyfunction(name = "divide")]
 #[pyo3(signature = (src1, src2, scale = 1.0))]
 pub fn divide<'py>(
@@ -1119,7 +1135,14 @@ pub fn divide<'py>(
     apply_divide(py, src1, src2, scale)
 }
 
-/// Alias for apply_min matching OpenCV name.
+/// min() - Alias for apply_min matching OpenCV name.
+/// @py: Python interpreter token.
+/// @src1: First input array (PyAny).
+/// @src2: Second input array (PyAny).
+///
+/// Refers to apply_min() to compute per-element minimum.
+///
+/// Return: A dynamic dimensional 64-bit float PyArray on success.
 #[pyfunction(name = "min")]
 pub fn min<'py>(
     py: Python<'py>,
@@ -1129,7 +1152,14 @@ pub fn min<'py>(
     apply_min(py, src1, src2)
 }
 
-/// Alias for apply_max matching OpenCV name.
+/// max() - Alias for apply_max matching OpenCV name.
+/// @py: Python interpreter token.
+/// @src1: First input array (PyAny).
+/// @src2: Second input array (PyAny).
+///
+/// Refers to apply_max() to compute per-element maximum.
+///
+/// Return: A dynamic dimensional 64-bit float PyArray on success.
 #[pyfunction(name = "max")]
 pub fn max<'py>(
     py: Python<'py>,
@@ -1139,7 +1169,16 @@ pub fn max<'py>(
     apply_max(py, src1, src2)
 }
 
-/// Alias for apply_normalize matching OpenCV name.
+/// normalize() - Alias for apply_normalize matching OpenCV name.
+/// @py: Python interpreter token.
+/// @src: Source input array (PyAny).
+/// @alpha: Lower bound value (min/max range) or norm target.
+/// @beta: Upper bound value (min/max range).
+/// @norm_type: Normalization type (32 for MINMAX, 4 for L2, otherwise L1).
+///
+/// Refers to apply_normalize() to normalize array norm or value range.
+///
+/// Return: A dynamic dimensional normalized 64-bit float PyArray on success.
 #[pyfunction(name = "normalize")]
 #[pyo3(signature = (src, alpha = 0.0, beta = 255.0, norm_type = 32))]
 pub fn normalize<'py>(
@@ -1152,7 +1191,13 @@ pub fn normalize<'py>(
     apply_normalize(py, src, alpha, beta, norm_type)
 }
 
-/// Alias for split_channels matching OpenCV name.
+/// split() - Alias for split_channels matching OpenCV name.
+/// @py: Python interpreter token.
+/// @image: Multi-channel or single-channel input image (u8).
+///
+/// Refers to split_channels() to split a multi-channel image into channels.
+///
+/// Return: A vector of 2D PyArrayDyn channels.
 #[pyfunction(name = "split")]
 pub fn split<'py>(
     py: Python<'py>,
@@ -1161,7 +1206,13 @@ pub fn split<'py>(
     split_channels(py, image)
 }
 
-/// Alias for merge_channels matching OpenCV name.
+/// merge() - Alias for merge_channels matching OpenCV name.
+/// @py: Python interpreter token.
+/// @channels: Vector of single-channel 2D input images (u8).
+///
+/// Refers to merge_channels() to merge single-channel images into one.
+///
+/// Return: A multi-channel 3D PyArrayDyn.
 #[pyfunction(name = "merge")]
 pub fn merge<'py>(
     py: Python<'py>,
@@ -1170,7 +1221,15 @@ pub fn merge<'py>(
     merge_channels(py, channels)
 }
 
-/// Alias for mix_channels matching OpenCV name.
+/// mix_channels_cv() - Alias for mix_channels matching OpenCV name.
+/// @py: Python interpreter token.
+/// @src: Vector of source image arrays (u8).
+/// @dst: Vector of destination image arrays (u8).
+/// @from_to: Vector of index pairs `[src_chan_idx, dst_chan_idx]` indicating mapping.
+///
+/// Refers to mix_channels() to copy specified channels from source to destination.
+///
+/// Return: A vector of PyArrayDyn containing the destination images with copied channels.
 #[pyfunction(name = "mixChannels")]
 pub fn mix_channels_cv<'py>(
     py: Python<'py>,
@@ -1181,7 +1240,15 @@ pub fn mix_channels_cv<'py>(
     mix_channels(py, src, dst, from_to)
 }
 
-/// Alias for in_range matching OpenCV name.
+/// in_range_cv() - Alias for in_range matching OpenCV name.
+/// @py: Python interpreter token.
+/// @src: Source input image array (u8).
+/// @lowerb: Lower boundary vector.
+/// @upperb: Upper boundary vector.
+///
+/// Refers to in_range() to check if elements lie between lowerb and upperb.
+///
+/// Return: A binary 2D PyArrayDyn.
 #[pyfunction(name = "inRange")]
 pub fn in_range_cv<'py>(
     py: Python<'py>,
@@ -1192,7 +1259,14 @@ pub fn in_range_cv<'py>(
     in_range(py, src, lowerb, upperb)
 }
 
-/// Alias for apply_lut matching OpenCV name.
+/// lut_cv() - Alias for apply_lut matching OpenCV name.
+/// @py: Python interpreter token.
+/// @src: Source input image array (u8).
+/// @lut: Lookup table.
+///
+/// Refers to apply_lut() to apply lookup table to an image.
+///
+/// Return: A new PyArrayDyn containing mapped values.
 #[pyfunction(name = "LUT")]
 pub fn lut_cv<'py>(
     py: Python<'py>,
@@ -1202,7 +1276,13 @@ pub fn lut_cv<'py>(
     apply_lut(py, src, lut)
 }
 
-/// Alias for count_non_zero matching OpenCV name.
+/// count_non_zero_cv() - Alias for count_non_zero matching OpenCV name.
+/// @py: Python interpreter token.
+/// @src: Source input array (PyAny).
+///
+/// Refers to count_non_zero() to count non-zero elements.
+///
+/// Return: The number of non-zero elements.
 #[pyfunction(name = "countNonZero")]
 pub fn count_non_zero_cv<'py>(
     py: Python<'py>,
@@ -1211,7 +1291,13 @@ pub fn count_non_zero_cv<'py>(
     count_non_zero(py, src)
 }
 
-/// Alias for mean_std_dev matching OpenCV name.
+/// mean_std_dev_cv() - Alias for mean_std_dev matching OpenCV name.
+/// @py: Python interpreter token.
+/// @src: Source input image array (u8).
+///
+/// Refers to mean_std_dev() to compute mean and standard deviation.
+///
+/// Return: A tuple of two vectors containing means and standard deviations.
 #[pyfunction(name = "meanStdDev")]
 pub fn mean_std_dev_cv<'py>(
     py: Python<'py>,
@@ -1220,7 +1306,13 @@ pub fn mean_std_dev_cv<'py>(
     mean_std_dev(py, src)
 }
 
-/// Alias for min_max_loc matching OpenCV name.
+/// min_max_loc_cv() - Alias for min_max_loc matching OpenCV name.
+/// @py: Python interpreter token.
+/// @src: Source 2D single-channel image array (u8).
+///
+/// Refers to min_max_loc() to find min/max values and their locations.
+///
+/// Return: A tuple containing (min_val, max_val, min_loc, max_loc).
 #[pyfunction(name = "minMaxLoc")]
 pub fn min_max_loc_cv<'py>(
     py: Python<'py>,
