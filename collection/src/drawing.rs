@@ -438,13 +438,17 @@ pub fn ellipse<'py>(
     Ok(out_arr.into_pyarray(py).to_dyn())
 }
 
-/// Draw one or more polygonal curves (polylines) on an image.
+/// polylines() - Draw one or more polygonal curves (polylines) on an image.
+/// @py: Python interpreter token.
+/// @img: Input image array (u8).
+/// @pts: List of 2D coordinates arrays representing polylines.
+/// @is_closed: If true, draws a line connecting the last and first points of each polyline.
+/// @color: Line color.
+/// @thickness: Line thickness.
 ///
-/// Returns a new annotated image.
-/// - `pts`: a list of 2D coordinates arrays representing polylines.
-/// - `is_closed`: if True, the function draws a line connecting the last and first points.
-/// - `color`: color value, either single int or (R, G, B) tuple.
-/// - `thickness`: line thickness (default 1).
+/// Draws one or more polygonal curves on the image.
+///
+/// Return: Annotated image array.
 #[pyfunction]
 #[pyo3(signature = (img, pts, is_closed, color, thickness = 1))]
 pub fn polylines<'py>(
@@ -500,11 +504,15 @@ pub fn polylines<'py>(
     Ok(out_arr.into_pyarray(py).to_dyn())
 }
 
-/// Fill the area bounded by several polygonal contours on an image.
+/// fill_poly() - Fill the area bounded by several polygonal contours on an image.
+/// @py: Python interpreter token.
+/// @img: Input image array (u8).
+/// @pts: List of 2D coordinates arrays representing polygons to fill.
+/// @color: Fill color.
 ///
-/// Returns a new annotated image.
-/// - `pts`: a list of 2D coordinates arrays representing polygons to fill.
-/// - `color`: color value, either single int or (R, G, B) tuple.
+/// Fills the interior of one or more polygons on the image.
+///
+/// Return: Annotated image array.
 #[pyfunction]
 pub fn fill_poly<'py>(
     py: Python<'py>,
@@ -549,14 +557,18 @@ pub fn fill_poly<'py>(
     Ok(out_arr.into_pyarray(py).to_dyn())
 }
 
-/// Draw an arrowed line segment from pt1 to pt2 on an image.
+/// arrowed_line() - Draw an arrowed line segment from pt1 to pt2 on an image.
+/// @py: Python interpreter token.
+/// @img: Input image array (u8).
+/// @pt1: Starting point (x, y).
+/// @pt2: Ending point (x, y).
+/// @color: Arrow color.
+/// @thickness: Line thickness.
+/// @tip_length: Length of the arrow tip relative to the line segment length.
 ///
-/// Returns a new annotated image.
-/// - `pt1`: Starting point (x, y) as integer tuple.
-/// - `pt2`: Ending point (x, y) as integer tuple.
-/// - `color`: color value, either single int or (R, G, B) tuple.
-/// - `thickness`: line thickness (default 1).
-/// - `tip_length`: length of the arrow tip relative to the line segment length (default 0.1).
+/// Draws an arrowed line segment with the tip pointing to pt2.
+///
+/// Return: Annotated image array.
 #[pyfunction]
 #[pyo3(signature = (img, pt1, pt2, color, thickness = 1, tip_length = 0.1))]
 pub fn arrowed_line<'py>(
@@ -608,14 +620,18 @@ pub fn arrowed_line<'py>(
     Ok(out_arr.into_pyarray(py).to_dyn())
 }
 
-/// Render text on an image.
+/// put_text() - Render text on an image.
+/// @py: Python interpreter token.
+/// @img: Input image array (u8).
+/// @text: String to be written.
+/// @org: Bottom-left corner coordinates of the text string in the image.
+/// @font_scale: Font scale factor.
+/// @color: Text color.
+/// @thickness: Line/fill thickness.
 ///
-/// Returns a new annotated image.
-/// - `text`: String to be written.
-/// - `org`: Bottom-left corner (x, y) coordinates of the text string in the image.
-/// - `font_scale`: Font scale factor that is multiplied by the base 8x8 font size.
-/// - `color`: color value, either single int or (R, G, B) tuple.
-/// - `thickness`: line/fill thickness (default 1).
+/// Renders the specified text string on the image.
+///
+/// Return: Annotated image array.
 #[pyfunction]
 #[pyo3(signature = (img, text, org, font_scale, color, thickness = 1))]
 pub fn put_text<'py>(
