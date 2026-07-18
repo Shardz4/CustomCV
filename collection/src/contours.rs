@@ -965,10 +965,15 @@ fn solve_5x5(mut s: [[f64; 5]; 5], mut b: [f64; 5]) -> Option<[f64; 5]> {
     Some(x)
 }
 
-/// Compute the convex hull of a point set.
+/// convex_hull() - Compute the convex hull of a point set.
+/// @py: Python interpreter token.
+/// @contour: Input contour array.
+/// @clockwise: If true, returns hull points in clockwise order.
+/// @return_points: If true, returns coordinate array (M, 2). Otherwise, returns index array (M, 1).
 ///
-/// - `clockwise`: if True, returns hull points in clockwise order. Else, counter-clockwise.
-/// - `return_points`: if True, returns coordinate array (M, 2). Else, returns index array (M, 1).
+/// Computes the convex hull of a point set using the Monotone Chain (Andrew's) algorithm.
+///
+/// Return: An array representing the convex hull.
 #[pyfunction]
 #[pyo3(signature = (contour, clockwise = false, return_points = true))]
 pub fn convex_hull<'py>(
@@ -1023,12 +1028,14 @@ pub fn convex_hull<'py>(
     }
 }
 
-/// Find convexity defects in a contour.
+/// convexity_defects() - Find convexity defects in a contour.
+/// @py: Python interpreter token.
+/// @contour: Input contour array of shape (N, 2) or (N, 1, 2).
+/// @convexhull: Index array of the hull vertices in the contour.
 ///
-/// - `contour`: a (N, 2) or (N, 1, 2) array of coordinates.
-/// - `convexhull`: index array of the hull vertices in the contour (e.g. from convex_hull with return_points=False).
+/// Finds convexity defects (valleys/indents relative to the convex hull) in a contour.
 ///
-/// Returns (K, 4) array containing: [start_index, end_index, far_index, depth_scaled_by_256]
+/// Return: A (K, 4) array containing [start_index, end_index, far_index, depth_scaled_by_256].
 #[pyfunction]
 pub fn convexity_defects<'py>(
     py: Python<'py>,
@@ -1115,13 +1122,15 @@ pub fn convexity_defects<'py>(
     Ok(out.into_pyarray(py).to_dyn())
 }
 
-/// Approximate a polygonal curve with specified precision using Douglas-Peucker algorithm.
+/// approx_poly_dp() - Approximate a polygonal curve with specified precision.
+/// @py: Python interpreter token.
+/// @curve: Input curve array of shape (N, 2) or (N, 1, 2).
+/// @epsilon: Parameter specifying the approximation accuracy.
+/// @closed: If true, the approximated curve is closed.
 ///
-/// - `curve`: a (N, 2) or (N, 1, 2) array of coordinates.
-/// - `epsilon`: parameter specifying the approximation accuracy (maximum distance).
-/// - `closed`: if True, the approximated curve is closed.
+/// Approximates a polygonal curve with specified precision using the Douglas-Peucker algorithm.
 ///
-/// Returns (M, 2) approximated curve coordinates.
+/// Return: The approximated curve array.
 #[pyfunction]
 #[pyo3(signature = (curve, epsilon, closed = true))]
 pub fn approx_poly_dp<'py>(
@@ -1506,9 +1515,13 @@ fn hu_moments_internal(m: SpatialMoments) -> Vec<f64> {
     vec![h1, h2, h3, h4, h5, h6, h7]
 }
 
-/// Compute spatial, central, and normalized moments of a grayscale image or a 2D contour.
+/// moments() - Compute spatial, central, and normalized moments.
+/// @py: Python interpreter token.
+/// @x: Input grayscale image (u8) or 2D/3D contour (i32).
 ///
-/// Returns a python dictionary with keys like m00, m10, mu20, nu11, etc.
+/// Computes spatial, central, and normalized moments of a grayscale image or a 2D contour.
+///
+/// Return: A python dictionary with moment keys (e.g. m00, m10, mu20, nu11, etc.).
 #[pyfunction]
 pub fn moments<'py>(py: Python<'py>, x: PyObject) -> PyResult<PyObject> {
     if let Ok(arr_u8) = x.extract::<PyReadonlyArrayDyn<u8>>(py) {
@@ -1531,9 +1544,12 @@ pub fn moments<'py>(py: Python<'py>, x: PyObject) -> PyResult<PyObject> {
     ))
 }
 
-/// Compute Hu invariant moments of a shape from its moments.
+/// hu_moments() - Compute Hu invariant moments of a shape from its moments.
+/// @moments_dict: Python dictionary of moments (nu20, nu11, nu02, nu30, nu21, nu12, nu03).
 ///
-/// Returns a list of 7 Hu moments.
+/// Computes the 7 Hu invariant moments of a shape, which are invariant to translation, scale, and rotation.
+///
+/// Return: A vector of 7 Hu invariant moments.
 #[pyfunction]
 pub fn hu_moments(moments_dict: &pyo3::types::PyDict) -> PyResult<Vec<f64>> {
     let get_val = |key: &str| -> f64 {
@@ -1568,10 +1584,14 @@ pub fn hu_moments(moments_dict: &pyo3::types::PyDict) -> PyResult<Vec<f64>> {
     Ok(vec![h1, h2, h3, h4, h5, h6, h7])
 }
 
-/// Compare two contour shapes using Hu moments.
+/// match_shapes() - Compare two contour shapes using Hu moments.
+/// @contour1: First contour array.
+/// @contour2: Second contour array.
+/// @method: Comparison method (1, 2, or 3).
 ///
-/// - `method`: comparison method (1 = CONTOURS_MATCH_I1, 2 = CONTOURS_MATCH_I2, 3 = CONTOURS_MATCH_I3).
-/// Returns a similarity score (lower is more similar).
+/// Compares two contour shapes using Hu moments.
+///
+/// Return: A similarity score (lower is more similar).
 #[pyfunction]
 #[pyo3(signature = (contour1, contour2, method = 1))]
 pub fn match_shapes(
@@ -1633,9 +1653,12 @@ pub fn match_shapes(
     Ok(score)
 }
 
-/// Test if a contour is convex.
+/// is_contour_convex() - Test if a contour is convex.
+/// @contour: Input contour array.
 ///
-/// Returns True if the contour is convex, False otherwise.
+/// Tests if the input contour is convex by checking the sign of the cross products of consecutive edges.
+///
+/// Return: True if the contour is convex, False otherwise.
 #[pyfunction]
 pub fn is_contour_convex(contour: PyReadonlyArrayDyn<i32>) -> PyResult<bool> {
     let arr = contour.as_array();
@@ -1674,12 +1697,14 @@ pub fn is_contour_convex(contour: PyReadonlyArrayDyn<i32>) -> PyResult<bool> {
     Ok(true)
 }
 
-/// Test if a point is inside, outside, or on the boundary of a contour.
+/// point_polygon_test() - Test if a point is inside, outside, or on the boundary of a contour.
+/// @contour: Input contour array.
+/// @pt: The 2D point (x, y).
+/// @measure_dist: If true, returns signed Euclidean distance. If false, returns +1.0, -1.0, or 0.0.
 ///
-/// - `pt`: the 2D point (x, y) as a float tuple.
-/// - `measure_dist`: if True, returns the signed Euclidean distance to the nearest edge
-///                  (positive if inside, negative if outside, 0 if on the boundary).
-///                  If False, returns +1.0 (inside), -1.0 (outside), or 0.0 (boundary).
+/// Tests if a point is inside, outside, or on the boundary of a contour.
+///
+/// Return: The result of the test (distance or indicator float).
 #[pyfunction]
 pub fn point_polygon_test(
     contour: PyReadonlyArrayDyn<i32>,
