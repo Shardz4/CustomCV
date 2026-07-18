@@ -98,9 +98,13 @@ pub fn calculate_otsu_threshold(channel_data: ArrayView2<u8>) -> u8 {
     threshold
 }
 
-/// Triangle threshold algorithm.
+/// calculate_triangle_threshold() - Triangle threshold algorithm.
+/// @channel_data: 2D input image channel slice (u8).
+///
 /// Draws a line between the histogram peak and the farthest non-zero bin,
 /// then picks the threshold at the bin with maximum perpendicular distance.
+///
+/// Return: Optimal threshold value (0-255).
 pub fn calculate_triangle_threshold(channel_data: ArrayView2<u8>) -> u8 {
     // Build histogram
     let mut hist = [0usize; 256];
@@ -169,6 +173,13 @@ pub fn calculate_triangle_threshold(channel_data: ArrayView2<u8>) -> u8 {
     threshold as u8
 }
 
+/// compute_structure_tensor() - Computes the structure tensor of a grayscale image.
+/// @image: 2D grayscale image slice.
+/// @window_size: Integration window size.
+///
+/// Computes structure tensor components Sxx, Syy, and Sxy using Sobel derivatives.
+///
+/// Return: A tuple containing (Sxx, Syy, Sxy) Array2 matrix components.
 pub fn compute_structure_tensor(image: &numpy::ndarray::ArrayView2<u8>, window_size: usize) -> (numpy::ndarray::Array2<f32>, numpy::ndarray::Array2<f32>, numpy::ndarray::Array2<f32>) {
     let (h, w) = (image.shape()[0], image.shape()[1]);
 
@@ -227,6 +238,13 @@ pub fn compute_structure_tensor(image: &numpy::ndarray::ArrayView2<u8>, window_s
     
 }
 
+/// convolve_2d_channel() - Convolve a 2D channel with a 2D float kernel.
+/// @channel: 2D input image channel slice (u8).
+/// @kernel: 2D float convolution kernel.
+///
+/// Convolves the 2D channel with the specified kernel, clamping the results to [0, 255].
+///
+/// Return: Convolved 2D channel array.
 pub fn convolve_2d_channel(channel:numpy::ndarray::ArrayView2<u8>, kernel:numpy::ndarray::ArrayView2<f64>) -> numpy::ndarray::Array2<u8> {
     let (h,w) = (channel.shape()[0], channel.shape()[1]);
     let (kh, kw) = (kernel.shape()[0], kernel.shape()[1]);
