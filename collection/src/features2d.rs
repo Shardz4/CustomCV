@@ -476,7 +476,14 @@ pub fn orb_detect_and_compute<'py>(
     Ok((valid_kps, desc_arr.into_pyarray(py).to_dyn()))
 }
 
-/// SIFT keypoint detector and descriptor extractor.
+/// sift_detect_and_compute() - SIFT keypoint detector and descriptor extractor.
+/// @py: Python interpreter token.
+/// @image: Input 2D grayscale image (u8).
+/// @max_features: Maximum number of features to retain.
+///
+/// Detects keypoints and computes SIFT descriptors for them.
+///
+/// Return: A tuple of (detected KeyPoints vector, descriptor matrix array).
 #[pyfunction]
 #[pyo3(signature = (image, max_features = 500))]
 pub fn sift_detect_and_compute<'py>(
@@ -713,7 +720,15 @@ fn get_brisk_pairs(pattern: &[(f64, f64)]) -> (Vec<(usize, usize)>, Vec<(usize, 
     (short_pairs, long_pairs)
 }
 
-/// BRISK keypoint detector and descriptor extractor.
+/// brisk_detect_and_compute() - BRISK keypoint detector and descriptor extractor.
+/// @py: Python interpreter token.
+/// @image: Input 2D grayscale image (u8).
+/// @max_features: Maximum number of features to retain.
+/// @threshold: FAST/AGAST detection threshold.
+///
+/// Detects keypoints and computes BRISK descriptors for them.
+///
+/// Return: A tuple of (detected KeyPoints vector, descriptor matrix array).
 #[pyfunction]
 #[pyo3(signature = (image, max_features = 500, threshold = 20))]
 pub fn brisk_detect_and_compute<'py>(
@@ -924,7 +939,14 @@ fn bilateral_filter_gray(img: &numpy::ndarray::Array2<u8>, sigma_s: f64, sigma_r
     out
 }
 
-/// AKAZE keypoint detector and descriptor extractor.
+/// akaze_detect_and_compute() - AKAZE keypoint detector and descriptor extractor.
+/// @py: Python interpreter token.
+/// @image: Input 2D grayscale image (u8).
+/// @max_features: Maximum number of features to retain.
+///
+/// Detects keypoints and computes AKAZE descriptors for them using nonlinear scale space.
+///
+/// Return: A tuple of (detected KeyPoints vector, descriptor matrix array).
 #[pyfunction]
 #[pyo3(signature = (image, max_features = 500))]
 pub fn akaze_detect_and_compute<'py>(
@@ -1118,7 +1140,17 @@ pub fn akaze_detect_and_compute<'py>(
     Ok((valid_kps, desc_arr.into_pyarray(py).to_dyn()))
 }
 
-/// MSER (Maximally Stable Extremal Regions) blob detector.
+/// mser_detect() - MSER (Maximally Stable Extremal Regions) blob detector.
+/// @_py: Python interpreter token.
+/// @image: Input 2D grayscale image (u8).
+/// @delta: Delta parameter.
+/// @min_area: Minimum area of a region.
+/// @max_area: Maximum area of a region.
+/// @max_variation: Maximum variation to accept a region.
+///
+/// Detects Maximally Stable Extremal Regions (MSER) in an image.
+///
+/// Return: A list of regions, where each region is a list of pixel coordinates.
 #[pyfunction]
 #[pyo3(signature = (image, delta = 5, min_area = 60, max_area = 14400, max_variation = 0.25))]
 pub fn mser_detect<'py>(
