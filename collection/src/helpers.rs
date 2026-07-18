@@ -1,6 +1,11 @@
 use numpy::ndarray::{Array2, ArrayView2};
 
-/// Applies a 3×3 median filter to a single 2D channel.
+/// apply_median_3x3() - Applies a 3×3 median filter to a single 2D channel.
+/// @channel: 2D input image channel slice (u8).
+///
+/// Computes the median value in a 3x3 window around each pixel.
+///
+/// Return: Filtered 2D channel.
 pub fn apply_median_3x3(channel: ArrayView2<u8>) -> Array2<u8> {
     let (h, w) = (channel.shape()[0], channel.shape()[1]);
     let mut out = Array2::<u8>::zeros((h, w));
@@ -19,7 +24,12 @@ pub fn apply_median_3x3(channel: ArrayView2<u8>) -> Array2<u8> {
     out
 }
 
-/// Applies a 3×3 Laplacian filter to a single 2D channel.
+/// apply_laplacian_3x3() - Applies a 3×3 Laplacian filter to a single 2D channel.
+/// @channel: 2D input image channel slice (u8).
+///
+/// Approximates the Laplacian using a discrete differentiation operator.
+///
+/// Return: Filtered 2D channel.
 pub fn apply_laplacian_3x3(channel: ArrayView2<u8>) -> Array2<u8> {
     let (h, w) = (channel.shape()[0], channel.shape()[1]);
     let mut out = Array2::<u8>::zeros((h, w));
@@ -37,7 +47,12 @@ pub fn apply_laplacian_3x3(channel: ArrayView2<u8>) -> Array2<u8> {
     out
 }
 
-/// Calculates the optimal threshold using Otsu's method.
+/// calculate_otsu_threshold() - Calculates the optimal threshold using Otsu's method.
+/// @channel_data: 2D input image channel slice (u8).
+///
+/// Chooses a threshold that minimizes the intra-class variance of the thresholded black and white pixels.
+///
+/// Return: Optimal threshold value (0-255).
 pub fn calculate_otsu_threshold(channel_data: ArrayView2<u8>) -> u8 {
     let mut hist = [0usize; 256];
     let mut total_pixels = 0;
