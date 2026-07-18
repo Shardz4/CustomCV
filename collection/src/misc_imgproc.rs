@@ -7,8 +7,17 @@ use crate::helpers;
 // getStructuringElement
 // ==========================================
 
-/// Create morphological structuring elements.
-/// shape: 0 = MORPH_RECT, 1 = MORPH_CROSS, 2 = MORPH_ELLIPSE
+/// get_structuring_element() - Create morphological structuring elements.
+/// @py: Python interpreter token.
+/// @shape: Element shape: 0 = MORPH_RECT, 1 = MORPH_CROSS, 2 = MORPH_ELLIPSE.
+/// @ksize_w: Width of the structuring element.
+/// @ksize_h: Height of the structuring element.
+/// @anchor_x: Anchor x-position within the element.
+/// @anchor_y: Anchor y-position within the element.
+///
+/// Creates structuring elements of specified shape and size for morphological operations.
+///
+/// Return: Structuring element array.
 #[pyfunction]
 #[pyo3(signature = (shape, ksize_w, ksize_h, anchor_x = -1, anchor_y = -1))]
 pub fn get_structuring_element<'py>(
@@ -68,8 +77,16 @@ pub fn get_structuring_element<'py>(
 // morphologyEx
 // ==========================================
 
-/// Unified morphological operations entry point.
-/// op: 0=ERODE, 1=DILATE, 2=OPEN, 3=CLOSE, 4=GRADIENT, 5=TOPHAT, 6=BLACKHAT
+/// morphology_ex() - Unified morphological operations entry point.
+/// @py: Python interpreter token.
+/// @image: 2D grayscale input image (u8).
+/// @op: Morphological operation: 0=ERODE, 1=DILATE, 2=OPEN, 3=CLOSE, 4=GRADIENT, 5=TOPHAT, 6=BLACKHAT.
+/// @kernel: Morphological structuring element array.
+/// @iterations: Number of times erosion and dilation are applied.
+///
+/// Performs advanced morphological transformations on the input image.
+///
+/// Return: Transformed image array.
 #[pyfunction]
 #[pyo3(signature = (image, op, kernel, iterations = 1))]
 pub fn morphology_ex<'py>(
@@ -155,8 +172,17 @@ pub fn morphology_ex<'py>(
 // Canny with L2 gradient norm
 // ==========================================
 
-/// Canny edge detection with L2 gradient norm option.
-/// When l2_gradient is true, uses L2 norm (sqrt(gx^2+gy^2)) instead of L1 norm (|gx|+|gy|).
+/// canny_l2() - Canny edge detection with L2 gradient norm option.
+/// @py: Python interpreter token.
+/// @image: 2D grayscale input image (u8).
+/// @low_thresh: Lower threshold for hysteresis thresholding.
+/// @high_thresh: Upper threshold for hysteresis thresholding.
+/// @aperture_size: Size of Sobel aperture.
+/// @l2_gradient: Flag indicating whether L2 norm should be used.
+///
+/// Finds edges in the input image and marks them in the output map using the Canny algorithm.
+///
+/// Return: Binary edge map image array.
 #[pyfunction]
 #[pyo3(signature = (image, low_thresh, high_thresh, aperture_size = 3, l2_gradient = false))]
 pub fn canny_l2<'py>(
@@ -280,9 +306,17 @@ pub fn canny_l2<'py>(
 // cornerSubPix
 // ==========================================
 
-/// Sub-pixel corner refinement.
-/// Takes a grayscale image and a list of corner (x,y) positions, refines them
-/// to sub-pixel accuracy using the gradient autocorrelation method.
+/// corner_sub_pix() - Sub-pixel corner refinement.
+/// @py: Python interpreter token.
+/// @image: 2D grayscale input image (u8).
+/// @corners: Initial coordinates of the input corners.
+/// @win_size: Half-width of the search window size.
+/// @max_iter: Maximum number of iterations.
+/// @epsilon: Minimum change value for stopping iteration.
+///
+/// Refines the corner locations to sub-pixel accuracy using the gradient autocorrelation method.
+///
+/// Return: Vector of refined corner coordinates.
 #[pyfunction]
 #[pyo3(signature = (image, corners, win_size = 5, max_iter = 30, epsilon = 0.001))]
 pub fn corner_sub_pix<'py>(
@@ -366,8 +400,17 @@ pub fn corner_sub_pix<'py>(
 // HoughLinesP (Probabilistic Hough)
 // ==========================================
 
-/// Probabilistic Hough Line Transform.
-/// Returns line segments as (x1, y1, x2, y2) tuples.
+/// hough_lines_p() - Probabilistic Hough Line Transform.
+/// @image: 2D binary/edge input image (u8).
+/// @rho: Distance resolution of the accumulator in pixels.
+/// @theta_deg: Angle resolution of the accumulator in degrees.
+/// @threshold: Accumulator threshold parameter.
+/// @min_line_length: Minimum line length.
+/// @max_line_gap: Maximum allowed gap between line segments to link them.
+///
+/// Finds line segments in a binary image using the probabilistic Hough transform.
+///
+/// Return: Vector of line segment tuples (x1, y1, x2, y2).
 #[pyfunction]
 #[pyo3(signature = (image, rho = 1.0, theta_deg = 1.0, threshold = 50, min_line_length = 30.0, max_line_gap = 10.0))]
 pub fn hough_lines_p(
@@ -509,8 +552,17 @@ pub fn hough_lines_p(
 // createLineSegmentDetector (LSD)
 // ==========================================
 
-/// Line Segment Detector using gradient-based region growing.
-/// Returns line segments as (x1, y1, x2, y2, width) tuples.
+/// line_segment_detector() - Line Segment Detector using gradient-based region growing.
+/// @image: 2D grayscale input image (u8).
+/// @scale: Scale of the image that will be used in detection.
+/// @sigma_scale: Sigma value for Gaussian filter.
+/// @ang_th: Gradient angle tolerance threshold in degrees.
+/// @density_th: Log-density threshold.
+/// @n_bins: Number of bins in gradient histogram.
+///
+/// Detects straight line segments in the grayscale image.
+///
+/// Return: Vector of line segments as (x1, y1, x2, y2, width) tuples.
 #[pyfunction]
 #[pyo3(signature = (image, scale = 0.8, sigma_scale = 0.6, ang_th = 22.5, density_th = 0.7, n_bins = 1024))]
 pub fn line_segment_detector(
