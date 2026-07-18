@@ -212,7 +212,16 @@ pub fn stereo_rectify<'py>(
     Ok((r1, r2, p1, p2, q, roi1, roi2))
 }
 
+/// reproject_image_to_3d() - Reprojects a disparity image to 3D space.
+/// @py: Python interpreter token.
+/// @disparity: Input single-channel 8-bit or 16-bit signed disparity image.
+/// @q: 4x4 perspective transformation matrix.
+/// @handle_missing_values: If true, pixels with minimum disparity are set to large values.
+/// @ddepth: Output depth.
+///
 /// Reprojects a disparity image to 3D space.
+///
+/// Return: The 3-channel 3D point cloud image.
 #[pyfunction(name = "reprojectImageTo3D")]
 #[pyo3(signature = (disparity, q, handle_missing_values = false, ddepth = -1))]
 pub fn reproject_image_to_3d<'py>(
@@ -231,7 +240,18 @@ pub fn reproject_image_to_3d<'py>(
     Ok(res.into())
 }
 
+/// find_essential_mat() - Calculates an essential matrix from corresponding points in two images.
+/// @py: Python interpreter token.
+/// @points1: Array of N corresponding points from the first image.
+/// @points2: Array of N corresponding points from the second image.
+/// @camera_matrix: Camera matrix.
+/// @method: Method for robust estimation.
+/// @prob: Parameter used for RANSAC or LMedS methods.
+/// @threshold: Parameter used for RANSAC.
+///
 /// Calculates an essential matrix from corresponding points in two images.
+///
+/// Return: A tuple containing (essential_matrix, mask).
 #[pyfunction(name = "findEssentialMat")]
 #[pyo3(signature = (points1, points2, camera_matrix = None, method = 8, prob = 0.999, threshold = 1.0))]
 pub fn find_essential_mat<'py>(
@@ -257,7 +277,18 @@ pub fn find_essential_mat<'py>(
     Ok((e, mask))
 }
 
+/// find_fundamental_mat() - Calculates a fundamental matrix from corresponding points in two images.
+/// @py: Python interpreter token.
+/// @points1: Array of N corresponding points from the first image.
+/// @points2: Array of N corresponding points from the second image.
+/// @method: Method for robust estimation.
+/// @ransac_reproj_threshold: Parameter used for RANSAC.
+/// @confidence: Parameter specifying confidence level.
+/// @max_iters: Maximum number of iterations.
+///
 /// Calculates a fundamental matrix from corresponding points in two images.
+///
+/// Return: A tuple containing (fundamental_matrix, mask).
 #[pyfunction(name = "findFundamentalMat")]
 #[pyo3(signature = (points1, points2, method = 8, ransac_reproj_threshold = 3.0, confidence = 0.99, max_iters = 2000))]
 pub fn find_fundamental_mat<'py>(
@@ -281,7 +312,14 @@ pub fn find_fundamental_mat<'py>(
     Ok((f, mask))
 }
 
-/// Decomposes a homography matrix to rotation and translation.
+/// decompose_homography_mat() - Decomposes a homography matrix to rotation and translation.
+/// @py: Python interpreter token.
+/// @h: Homography matrix.
+/// @k: Camera intrinsic matrix.
+///
+/// Decomposes a homography matrix to rotation, translation, and plane normal vectors.
+///
+/// Return: A tuple containing (retval, rotations, translations, normals).
 #[pyfunction(name = "decomposeHomographyMat")]
 pub fn decompose_homography_mat<'py>(
     py: Python<'py>,
@@ -294,7 +332,16 @@ pub fn decompose_homography_mat<'py>(
     Ok((retval, rotations, translations, normals))
 }
 
+/// triangulate_points() - Reconstructs 3D points from stereo camera observations.
+/// @py: Python interpreter token.
+/// @proj_matrix1: 3x4 projection matrix of the first camera.
+/// @proj_matrix2: 3x4 projection matrix of the second camera.
+/// @proj_points1: 2xN array of feature points in the first image.
+/// @proj_points2: 2xN array of feature points in the second image.
+///
 /// Reconstructs 3D points from stereo camera observations.
+///
+/// Return: A 4xN array of reconstructed points in homogeneous coordinates.
 #[pyfunction(name = "triangulatePoints")]
 pub fn triangulate_points<'py>(
     py: Python<'py>,
