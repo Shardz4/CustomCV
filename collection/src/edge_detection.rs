@@ -10,6 +10,16 @@ use numpy::ndarray;
 // CANNY EDGE DETECTION
 // ==========================================
 
+/// apply_canny() - Apply the Canny edge detection algorithm.
+/// @py: Python interpreter token.
+/// @image: Input image array (f64).
+/// @low_thresh: Lower threshold for hysteresis.
+/// @high_thresh: Higher threshold for hysteresis.
+///
+/// Implements the multi-stage Canny edge detector: Gaussian smoothing,
+/// computing gradients, non-maximum suppression, and hysteresis thresholding.
+///
+/// Return: A float PyArrayDyn of binary edges (1.0 or 0.0).
 #[pyfunction]
 pub fn apply_canny<'py>(py: Python<'py>, image: PyReadonlyArrayDyn<'py, f64>, low_thresh: f64, high_thresh: f64) -> PyResult<&'py PyArrayDyn<f64>> {
     let img_dyn = image.as_array();
@@ -136,6 +146,15 @@ pub fn apply_canny<'py>(py: Python<'py>, image: PyReadonlyArrayDyn<'py, f64>, lo
     Ok(output.into_pyarray(py).to_dyn())
 }
 
+/// harris_corner() - Compute the Harris corner response.
+/// @py: Python interpreter token.
+/// @image: Input 2D grayscale image (u8).
+/// @window_size: Size of the structure tensor integration window.
+/// @k: Harris detector free parameter scale (multiplied by trace^2).
+///
+/// Computes the Harris corner response for each pixel.
+///
+/// Return: A 32-bit float response matrix PyArrayDyn.
 #[pyfunction]
 pub fn harris_corner<'py> (py: Python<'py>, image: PyReadonlyArrayDyn<'py, u8>, window_size: usize, k: i32) -> PyResult<Py<PyArrayDyn<f32>>> {
     let arr = image.as_array();
@@ -155,6 +174,14 @@ pub fn harris_corner<'py> (py: Python<'py>, image: PyReadonlyArrayDyn<'py, u8>, 
     Ok(response.into_pyarray_bound(py).to_dyn().clone().unbind())
 }
 
+/// shi_tomasi_corners() - Compute the Shi-Tomasi corner response.
+/// @py: Python interpreter token.
+/// @image: Input 2D grayscale image (u8).
+/// @window_size: Integration window size.
+///
+/// Computes the minimum eigenvalue of the structure tensor as corner response.
+///
+/// Return: A 32-bit float response matrix PyArrayDyn.
 #[pyfunction]
 pub fn shi_tomasi_corners<'py>(py: Python<'py>, image:PyReadonlyArrayDyn<'py, u8>, window_size: usize)-> PyResult<Py<PyArrayDyn<f32>>>{
     let arr = image.as_array();
@@ -181,6 +208,14 @@ pub fn shi_tomasi_corners<'py>(py: Python<'py>, image:PyReadonlyArrayDyn<'py, u8
     Ok(response.into_pyarray_bound(py).to_dyn().clone().unbind())
 }
 
+/// hough_lines() - Find lines in a binary image using the Standard Hough Transform.
+/// @image: Input 2D binary edge image (u8).
+/// @threshold: Minimum accumulator votes to accept a line.
+/// @theta_res: Angular resolution in degrees.
+///
+/// Finds lines using standard polar parameterization (rho, theta).
+///
+/// Return: A vector of (rho, theta) line parameters.
 #[pyfunction]
 pub fn hough_lines(image: PyReadonlyArrayDyn<'_, u8>, threshold: u32, theta_res: usize) -> PyResult<Vec<(f64, f64)>> {
     let arr = image.as_array();
@@ -236,6 +271,14 @@ pub fn hough_lines(image: PyReadonlyArrayDyn<'_, u8>, threshold: u32, theta_res:
 }
 
 
+/// hough_circles() - Find circles of a fixed radius using the Hough Circle Transform.
+/// @image: Input 2D binary edge image (u8).
+/// @radius: Target circle radius.
+/// @threshold: Minimum accumulator votes to accept a circle.
+///
+/// Finds circles of the given radius using the accumulator voting process.
+///
+/// Return: A vector of (center_x, center_y, radius) coordinates.
 #[pyfunction]
 pub fn hough_circles(image: PyReadonlyArrayDyn<'_,u8>, radius: usize, threshold: i32) -> PyResult<Vec<(i32, i32, usize)>> {
     let arr = image.as_array();
