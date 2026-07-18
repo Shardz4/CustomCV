@@ -4,6 +4,13 @@ use numpy::{
     IntoPyArray, PyArrayDyn, PyReadonlyArrayDyn,
 };
 
+/// erode_2d() - Erode a 2D grayscale image with a structuring element.
+/// @image: 2D input image slice (u8).
+/// @kernel: 2D structuring element (kernel) slice.
+///
+/// Computes the local minimum over the neighborhood specified by the kernel.
+///
+/// Return: Eroded 2D image array.
 pub fn erode_2d(image: ArrayView2<u8>, kernel: ArrayView2<u8>) -> Array2<u8> {
     let (h, w) = (image.shape()[0], image.shape()[1]);
     let (kh, kw) = (kernel.shape()[0], kernel.shape()[1]);
@@ -31,6 +38,13 @@ pub fn erode_2d(image: ArrayView2<u8>, kernel: ArrayView2<u8>) -> Array2<u8> {
     out
 }
 
+/// dilate_2d() - Dilate a 2D grayscale image with a structuring element.
+/// @image: 2D input image slice (u8).
+/// @kernel: 2D structuring element (kernel) slice.
+///
+/// Computes the local maximum over the neighborhood specified by the kernel.
+///
+/// Return: Dilated 2D image array.
 pub fn dilate_2d(image: ArrayView2<u8>, kernel: ArrayView2<u8>) -> Array2<u8> {
     let (h, w) = (image.shape()[0], image.shape()[1]);
     let (kh, kw) = (kernel.shape()[0], kernel.shape()[1]);
@@ -58,6 +72,14 @@ pub fn dilate_2d(image: ArrayView2<u8>, kernel: ArrayView2<u8>) -> Array2<u8> {
     out
 }
 
+/// apply_erosion() - Applies erosion to an image using a structuring element.
+/// @py: Python interpreter token.
+/// @image: 2D input image array (u8).
+/// @kernel: Structuring element array.
+///
+/// Erodes the input image using the specified structuring element.
+///
+/// Return: Eroded image array.
 #[pyfunction]
 pub fn apply_erosion<'py>(
     py: Python<'py>, image: PyReadonlyArrayDyn<'py, u8>, kernel: PyReadonlyArrayDyn<'py, u8>
@@ -72,6 +94,14 @@ pub fn apply_erosion<'py>(
     Ok(result.into_pyarray(py).to_dyn())
 }
 
+/// apply_dilation() - Applies dilation to an image using a structuring element.
+/// @py: Python interpreter token.
+/// @image: 2D input image array (u8).
+/// @kernel: Structuring element array.
+///
+/// Dilates the input image using the specified structuring element.
+///
+/// Return: Dilated image array.
 #[pyfunction]
 pub fn apply_dilation<'py>(
     py: Python<'py>, image: PyReadonlyArrayDyn<'py, u8>, kernel: PyReadonlyArrayDyn<'py, u8>
