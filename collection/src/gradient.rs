@@ -160,15 +160,16 @@ fn build_laplacian_kernel(ksize: usize) -> Array2<f64> {
 // GRADIENT / EDGE OPERATOR FUNCTIONS
 // ==========================================
 
-/// Sobel gradient operator.
+/// apply_sobel() - Sobel gradient operator.
+/// @py: Python interpreter token.
+/// @x: Input image array (u8).
+/// @dx: Order of the derivative x.
+/// @dy: Order of the derivative y.
+/// @ksize: Size of the extended Sobel kernel; must be 1, 3, 5, or 7.
 ///
-/// Computes image derivatives using the Sobel kernel.
-/// - `dx`: Order of the x-derivative (0, 1, or 2).
-/// - `dy`: Order of the y-derivative (0, 1, or 2). At least one of dx/dy must be > 0.
-/// - `ksize`: Kernel size — must be 1, 3, 5, or 7.
+/// Computes the first, second, or third-order image derivatives using an extended Sobel operator.
 ///
-/// Returns an **f32** array (signed gradient values, not clamped to [0, 255]).
-/// Supports both 2D grayscale and 3D multi-channel images.
+/// Return: 32-bit float gradient image array.
 #[pyfunction]
 pub fn apply_sobel<'py>(
     py: Python<'py>,
@@ -210,14 +211,15 @@ pub fn apply_sobel<'py>(
     }
 }
 
-/// Scharr gradient operator (3×3 only).
+/// apply_scharr() - Scharr gradient operator (3×3 only).
+/// @py: Python interpreter token.
+/// @x: Input image array (u8).
+/// @dx: Order of the derivative x.
+/// @dy: Order of the derivative y.
 ///
-/// More accurate than the 3×3 Sobel. Computes the gradient in either x or y direction.
-/// - `dx`: 1 for horizontal gradient, 0 otherwise.
-/// - `dy`: 1 for vertical gradient, 0 otherwise.
-/// Exactly one of dx, dy must be 1 (the other 0).
+/// Calculates the first x- or y-image derivative using the 3x3 Scharr operator.
 ///
-/// Returns an **f32** array (signed gradient values).
+/// Return: 32-bit float gradient image array.
 #[pyfunction]
 pub fn apply_scharr<'py>(
     py: Python<'py>,
@@ -273,12 +275,14 @@ pub fn apply_scharr<'py>(
     }
 }
 
-/// Laplacian operator with configurable kernel size.
+/// apply_laplacian() - Laplacian operator with configurable kernel size.
+/// @py: Python interpreter token.
+/// @x: Input image array (u8).
+/// @ksize: Aperture size used to compute the second-derivative filters; must be 1, 3, 5, or 7.
 ///
-/// Computes the Laplacian (second spatial derivative) of the image.
-/// - `ksize`: Kernel size — 1 (4-connected 3×3), 3 (8-connected 3×3), 5, or 7.
+/// Calculates the Laplacian of an image by summing the second x and y derivatives.
 ///
-/// Returns an **f32** array (signed values — edges have large magnitude).
+/// Return: 32-bit float Laplacian image array.
 #[pyfunction]
 pub fn apply_laplacian<'py>(
     py: Python<'py>,
