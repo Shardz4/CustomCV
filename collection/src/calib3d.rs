@@ -1,6 +1,18 @@
 use pyo3::prelude::*;
 
-/// Estimates intrinsic camera parameters and extrinsic parameters.
+/// calibrate_camera() - Estimates intrinsic camera parameters and extrinsic parameters.
+/// @py: Python interpreter token.
+/// @object_points: Vector of vectors of calibration pattern points in calibration pattern coordinate space.
+/// @image_points: Vector of vectors of projections of calibration pattern points.
+/// @image_size: Size of the image used only to initialize the intrinsic camera matrix.
+/// @camera_matrix: Input/output camera matrix.
+/// @dist_coeffs: Input/output vector of distortion coefficients.
+/// @flags: Calibration flags.
+/// @criteria: Termination criteria for the iterative optimization algorithm.
+///
+/// Estimates intrinsic camera parameters and extrinsic parameters for each camera view.
+///
+/// Return: A tuple containing (retval, camera_matrix, dist_coeffs, rvecs, tvecs).
 #[pyfunction(name = "calibrateCamera")]
 #[pyo3(signature = (object_points, image_points, image_size, camera_matrix = None, dist_coeffs = None, flags = 0, criteria = None))]
 pub fn calibrate_camera<'py>(
@@ -25,7 +37,15 @@ pub fn calibrate_camera<'py>(
     Ok((retval, camera_matrix_out, dist_coeffs_out, rvecs, tvecs))
 }
 
-/// Finds the positions of internal corners of the chessboard.
+/// find_chessboard_corners() - Finds the positions of internal corners of the chessboard.
+/// @py: Python interpreter token.
+/// @image: Source chessboard view. It must be an 8-bit grayscale or color image.
+/// @pattern_size: Number of inner corners per chessboard row and column.
+/// @flags: Various operation flags.
+///
+/// Finds the positions of internal corners of the chessboard calibration pattern.
+///
+/// Return: A tuple containing (retval, corners).
 #[pyfunction(name = "findChessboardCorners")]
 #[pyo3(signature = (image, pattern_size, flags = 0))]
 pub fn find_chessboard_corners<'py>(
@@ -43,7 +63,16 @@ pub fn find_chessboard_corners<'py>(
     Ok((retval, corners))
 }
 
-/// Transforms an image to compensate for lens distortion.
+/// undistort() - Transforms an image to compensate for lens distortion.
+/// @py: Python interpreter token.
+/// @src: Input image.
+/// @camera_matrix: Input camera matrix.
+/// @dist_coeffs: Input vector of distortion coefficients.
+/// @new_camera_matrix: Camera matrix of the undistorted image.
+///
+/// Transforms an image to compensate for radial and tangential lens distortion.
+///
+/// Return: The undistorted image.
 #[pyfunction(name = "undistort")]
 #[pyo3(signature = (src, camera_matrix, dist_coeffs, new_camera_matrix = None))]
 pub fn undistort<'py>(
@@ -63,7 +92,18 @@ pub fn undistort<'py>(
     Ok(res.into())
 }
 
+/// solve_pnp() - Finds an object pose from 3D-2D correspondences.
+/// @py: Python interpreter token.
+/// @object_points: Array of object points in the object coordinate space.
+/// @image_points: Array of corresponding image points.
+/// @camera_matrix: Input camera matrix.
+/// @dist_coeffs: Input vector of distortion coefficients.
+/// @use_extrinsic_guess: If true, uses the initial rvec and tvec as guess.
+/// @flags: Method for solving the PNP problem.
+///
 /// Finds an object pose from 3D-2D correspondences.
+///
+/// Return: A tuple containing (retval, rvec, tvec).
 #[pyfunction(name = "solvePnP")]
 #[pyo3(signature = (object_points, image_points, camera_matrix, dist_coeffs, use_extrinsic_guess = false, flags = 0))]
 pub fn solve_pnp<'py>(
@@ -85,7 +125,22 @@ pub fn solve_pnp<'py>(
     Ok((retval, rvec, tvec))
 }
 
+/// stereo_calibrate() - Calibrates a stereo camera setup.
+/// @py: Python interpreter token.
+/// @object_points: Vector of vectors of calibration pattern points.
+/// @image_points1: Vector of vectors of projections in the first camera.
+/// @image_points2: Vector of vectors of projections in the second camera.
+/// @camera_matrix1: Camera matrix of the first camera.
+/// @dist_coeffs1: Distortion coefficients of the first camera.
+/// @camera_matrix2: Camera matrix of the second camera.
+/// @dist_coeffs2: Distortion coefficients of the second camera.
+/// @image_size: Size of the image.
+/// @flags: Calibration flags.
+/// @criteria: Termination criteria.
+///
 /// Calibrates a stereo camera setup.
+///
+/// Return: A tuple containing (retval, cm1, dc1, cm2, dc2, r, t, e, f).
 #[pyfunction(name = "stereoCalibrate")]
 #[pyo3(signature = (object_points, image_points1, image_points2, camera_matrix1, dist_coeffs1, camera_matrix2, dist_coeffs2, image_size, flags = 0, criteria = None))]
 pub fn stereo_calibrate<'py>(
@@ -113,7 +168,22 @@ pub fn stereo_calibrate<'py>(
     Ok((retval, cm1, dc1, cm2, dc2, r, t, e, f))
 }
 
-/// Computes rectification transforms for each head of a calibrated stereo camera.
+/// stereo_rectify() - Computes rectification transforms for each head of a calibrated stereo camera.
+/// @py: Python interpreter token.
+/// @camera_matrix1: First camera matrix.
+/// @dist_coeffs1: First camera distortion coefficients.
+/// @camera_matrix2: Second camera matrix.
+/// @dist_coeffs2: Second camera distortion coefficients.
+/// @image_size: Size of the image.
+/// @r: Rotation matrix between the first and second camera coordinate systems.
+/// @t: Translation vector between coordinate systems.
+/// @flags: Operation flags.
+/// @alpha: Free scaling parameter.
+/// @new_image_size: New image resolution after rectification.
+///
+/// Computes rectification transforms for a calibrated stereo camera.
+///
+/// Return: A tuple containing (r1, r2, p1, p2, q, roi1, roi2).
 #[pyfunction(name = "stereoRectify")]
 #[pyo3(signature = (camera_matrix1, dist_coeffs1, camera_matrix2, dist_coeffs2, image_size, r, t, flags = 1, alpha = -1.0, new_image_size = None))]
 pub fn stereo_rectify<'py>(
