@@ -699,8 +699,15 @@ pub fn line_segment_detector(
 // cornerEigenValsAndVecs
 // ==========================================
 
-/// Compute eigenvalues and eigenvectors at each pixel from the structure tensor.
-/// Returns (lambda1, lambda2, x1, y1, x2, y2) per pixel as a 6-channel float image.
+/// corner_eigen_vals_and_vecs() - Compute eigenvalues and eigenvectors at each pixel from the structure tensor.
+/// @py: Python interpreter token.
+/// @image: 2D grayscale input image (u8).
+/// @block_size: Size of integration window.
+/// @aperture_size: Sobel aperture size.
+///
+/// Computes structure tensor eigenvalues and eigenvectors per pixel.
+///
+/// Return: 6-channel float image containing (lambda1, lambda2, x1, y1, x2, y2).
 #[pyfunction]
 #[pyo3(signature = (image, block_size = 3, aperture_size = 3))]
 pub fn corner_eigen_vals_and_vecs<'py>(
@@ -760,8 +767,13 @@ pub fn corner_eigen_vals_and_vecs<'py>(
 // preCornerDetect
 // ==========================================
 
-/// Pre-corner detection function.
-/// Computes Dx^2 * Dyy + Dy^2 * Dxx - 2 * Dx * Dy * Dxy
+/// pre_corner_detect() - Pre-corner detection function.
+/// @py: Python interpreter token.
+/// @image: 2D grayscale input image (u8).
+///
+/// Computes cornerness map: Dx^2 * Dyy + Dy^2 * Dxx - 2 * Dx * Dy * Dxy.
+///
+/// Return: Cornerness score float image.
 #[pyfunction]
 pub fn pre_corner_detect<'py>(
     py: Python<'py>,
@@ -794,8 +806,13 @@ pub fn pre_corner_detect<'py>(
 // integral (summed area table)
 // ==========================================
 
-/// Compute integral image (summed area table).
-/// Returns accumulated sum at each pixel position.
+/// integral() - Compute integral image (summed area table).
+/// @py: Python interpreter token.
+/// @image: 2D grayscale input image (u8).
+///
+/// Computes the integral image. Matches OpenCV's (H+1) x (W+1) format.
+///
+/// Return: Integral image array.
 #[pyfunction]
 pub fn integral<'py>(
     py: Python<'py>,
@@ -825,8 +842,15 @@ pub fn integral<'py>(
 // sqrBoxFilter
 // ==========================================
 
-/// Squared box filter (unnormalized or normalized sum of squared pixel values).
-/// Useful for computing local variance.
+/// sqr_box_filter() - Squared box filter.
+/// @py: Python interpreter token.
+/// @image: 2D grayscale input image (u8).
+/// @ksize: Size of the neighborhood window.
+/// @normalize: Whether to divide the squared sum by neighborhood area.
+///
+/// Computes the sum of squared pixel values in a neighborhood of size ksize x ksize.
+///
+/// Return: Squared box filter result array.
 #[pyfunction]
 #[pyo3(signature = (image, ksize = 3, normalize = true))]
 pub fn sqr_box_filter<'py>(
@@ -866,8 +890,15 @@ pub fn sqr_box_filter<'py>(
 // sepFilter2D
 // ==========================================
 
-/// Separable 2D filter: applies row kernel then column kernel.
-/// This is faster than a full 2D convolution when the kernel is separable.
+/// sep_filter_2d() - Separable 2D filter.
+/// @py: Python interpreter token.
+/// @image: 2D grayscale input image (u8).
+/// @kernel_x: Horizontal (row) filter kernel.
+/// @kernel_y: Vertical (column) filter kernel.
+///
+/// Performs horizontal convolution first, then vertical convolution.
+///
+/// Return: Filtered image array.
 #[pyfunction]
 pub fn sep_filter_2d<'py>(
     py: Python<'py>,
@@ -923,7 +954,18 @@ pub fn sep_filter_2d<'py>(
 // getGaborKernel
 // ==========================================
 
-/// Generate a Gabor filter kernel.
+/// get_gabor_kernel() - Generate a Gabor filter kernel.
+/// @py: Python interpreter token.
+/// @ksize: Size of the filter returned.
+/// @sigma: Standard deviation of the Gaussian envelope.
+/// @theta: Orientation of the normal to the parallel stripes.
+/// @lambd: Wavelength of the sinusoidal factor.
+/// @gamma: Spatial aspect ratio.
+/// @psi: Phase offset.
+///
+/// Generates a Gabor filter kernel of size ksize x ksize.
+///
+/// Return: Gabor kernel float array.
 #[pyfunction]
 #[pyo3(signature = (ksize, sigma, theta, lambd, gamma, psi = 0.0))]
 pub fn get_gabor_kernel<'py>(
@@ -961,8 +1003,17 @@ pub fn get_gabor_kernel<'py>(
 // GaussianBlur with configurable border modes
 // ==========================================
 
-/// Gaussian blur with configurable border handling.
-/// border_type: 0=REFLECT_101 (default), 1=REFLECT, 2=REPLICATE (clamp), 3=WRAP, 4=CONSTANT
+/// gaussian_blur_border() - Gaussian blur with configurable border handling.
+/// @py: Python interpreter token.
+/// @image: 2D grayscale input image (u8).
+/// @ksize: Size of the Gaussian filter.
+/// @sigma: Gaussian kernel standard deviation.
+/// @border_type: Border type: 0=REFLECT_101, 1=REFLECT, 2=REPLICATE, 3=WRAP, 4=CONSTANT.
+/// @border_value: Border value used for constant border type.
+///
+/// Blurs the image using a Gaussian filter with custom border handling.
+///
+/// Return: Blurred image array.
 #[pyfunction]
 #[pyo3(signature = (image, ksize, sigma, border_type = 0, border_value = 0))]
 pub fn gaussian_blur_border<'py>(
