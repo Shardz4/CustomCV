@@ -1,5 +1,13 @@
 use pyo3::prelude::*;
 
+/// video_capture() - Start video capture from device and optionally save to file.
+/// @py: Python interpreter token.
+/// @device_index: Index of the video capture device.
+/// @save_path: Optional output file path.
+///
+/// Starts capturing frames from the specified camera and displays them.
+///
+/// Return: Result signal indicating success or failure.
 #[pyfunction]
 #[pyo3(signature = (device_index = 0, save_path = None))]
 pub fn video_capture<'py>(
@@ -51,6 +59,15 @@ pub fn video_capture<'py>(
     Ok(())
 }
 
+/// extract_images_from_video() - Extract frames from a video file as PNG images.
+/// @py: Python interpreter token.
+/// @video_path: Path to the input video file.
+/// @output_dir: Output directory where extracted frames will be saved.
+/// @frame_interval: Extract every N-th frame (default 1).
+///
+/// Reads the video and saves frames to disk at the specified interval.
+///
+/// Return: Result signal.
 #[pyfunction]
 #[pyo3(signature = (video_path, output_dir, frame_interval = 1))]
 pub fn extract_images_from_video<'py>(
@@ -92,6 +109,15 @@ pub fn extract_images_from_video<'py>(
     Ok(())
 }
 
+/// extract_video_from_images() - Compile a list of images into a video file.
+/// @py: Python interpreter token.
+/// @image_paths: Vector of paths to input image files.
+/// @output_video_path: Path to the output video file.
+/// @fps: Target frames per second.
+///
+/// Compiles the sorted image sequence into an MP4 video file.
+///
+/// Return: Result signal.
 #[pyfunction]
 #[pyo3(signature = (image_paths, output_video_path, fps = 20.0))]
 pub fn extract_video_from_images<'py>(
@@ -139,16 +165,18 @@ pub fn extract_video_from_images<'py>(
     Ok(())
 }
 
-/// Applies MOG2 background subtraction to a video file.
+/// background_subtract_mog2() - Applies MOG2 background subtraction to a video file.
+/// @py: Python interpreter token.
+/// @video_path: Path to the video file.
+/// @history: Length of the history.
+/// @var_threshold: Threshold on the squared Mahalanobis distance.
+/// @detect_shadows: Enable/disable shadow detection.
+/// @kernel_size: Morphological opening kernel size.
+/// @output_path: Optional output video path.
 ///
-/// Processes each frame through a Mixture of Gaussians (v2) background model,
-/// returning a foreground mask. The mask is cleaned with morphological opening
-/// to remove noise.
+/// Performs background subtraction using Mixture of Gaussians v2.
 ///
-/// Mask values: 0 = background, 127 = shadow (when detectShadows=true), 255 = foreground.
-///
-/// If `output_path` is provided, the foreground mask video is saved to that path.
-/// Otherwise, the mask is displayed in a window (press 'q' or ESC to exit).
+/// Return: Result signal.
 #[pyfunction]
 #[pyo3(signature = (video_path, history = 500, var_threshold = 16.0, detect_shadows = true, kernel_size = 5, output_path = None))]
 pub fn background_subtract_mog2<'py>(
@@ -237,7 +265,21 @@ pub fn background_subtract_mog2<'py>(
     Ok(())
 }
 
-/// Computes sparse optical flow using the Lucas-Kanade method with pyramids.
+/// calc_optical_flow_pyr_lk() - Computes sparse optical flow using the Lucas-Kanade method with pyramids.
+/// @py: Python interpreter token.
+/// @prev_img: First 8-bit input image.
+/// @next_img: Second input image of the same size and type.
+/// @prev_pts: Vector of 2D points for which the flow needs to be found.
+/// @next_pts: Vector of 2D points containing calculated new positions.
+/// @win_size: Size of the search window at each pyramid level.
+/// @max_level: 0-based maximal pyramid level number.
+/// @criteria: Parameter specifying termination criteria.
+/// @flags: Operation flags.
+/// @min_eig_threshold: Minimum eigenvalue threshold.
+///
+/// Calculates sparse optical flow using the iterative Lucas-Kanade method.
+///
+/// Return: A tuple containing (calculated next points, status vector, error vector).
 #[pyfunction]
 #[pyo3(signature = (prev_img, next_img, prev_pts, next_pts = None, win_size = (21, 21), max_level = 3, criteria = None, flags = 0, min_eig_threshold = 1e-4))]
 pub fn calc_optical_flow_pyr_lk<'py>(
@@ -282,7 +324,22 @@ pub fn calc_optical_flow_pyr_lk<'py>(
     Ok((next_pts_res, status, err))
 }
 
-/// Computes dense optical flow using the Farneback method.
+/// calc_optical_flow_farneback() - Computes dense optical flow using the Farneback method.
+/// @py: Python interpreter token.
+/// @prev: First 8-bit single-channel input image.
+/// @next: Second input image of the same size and type.
+/// @flow: Computed flow image that has the same size as prev and type CV_32FC2.
+/// @pyr_scale: Parameter specifying the image scale.
+/// @levels: Number of pyramid layers.
+/// @winsize: Averaging window size.
+/// @iterations: Number of iterations.
+/// @poly_n: Size of the pixel neighborhood used to find polynomial expansion.
+/// @poly_sigma: Standard deviation of the Gaussian.
+/// @flags: Operation flags.
+///
+/// Computes dense optical flow using Gunnar Farneback's algorithm.
+///
+/// Return: Dense optical flow array PyObject.
 #[pyfunction]
 #[pyo3(signature = (prev, next, flow, pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags))]
 pub fn calc_optical_flow_farneback<'py>(
