@@ -8,8 +8,13 @@ use numpy::{
 // INTERNAL HELPERS
 // ==========================================
 
-/// Suzuki-Abe (Suzuki85) border following algorithm to find all contours.
-/// Returns a list of contours, where each contour is a vector of (x, y) points.
+/// find_contours_suzuki() - Suzuki-Abe border following algorithm.
+/// @image: Dynamic-dimensional input image slice.
+///
+/// Implements the Suzuki-Abe (Suzuki85) border following algorithm
+/// to extract all outer and hole contours from a binary image.
+///
+/// Return: A vector of contours, where each contour is a vector of (x, y) coordinates.
 pub fn find_contours_suzuki(image: &ArrayView2<u8>) -> Vec<Vec<(i32, i32)>> {
     let (h, w) = (image.shape()[0], image.shape()[1]);
     
@@ -297,10 +302,13 @@ pub(crate) fn fill_polygon(img: &mut ArrayViewMutD<u8>, pts: &[(i32, i32)], colo
 // PYFUNCTION EXPORTS
 // ==========================================
 
-/// Extract contours from a binary image using the Suzuki-Abe border following algorithm.
+/// find_contours() - Extract contours from a binary image.
+/// @py: Python interpreter token.
+/// @x: Input 2D binary image array (u8).
 ///
-/// Returns a list of contours, where each contour is a numpy array of shape (N, 2)
-/// containing [x, y] coordinates (column, row).
+/// Extracts contours from a binary image using the Suzuki-Abe border following algorithm.
+///
+/// Return: A list of numpy arrays of shape (N, 2) containing [x, y] coordinates.
 #[pyfunction]
 pub fn find_contours<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyResult<Vec<&'py PyArrayDyn<i32>>> {
     let arr = x.as_array();
@@ -323,13 +331,17 @@ pub fn find_contours<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> Py
     Ok(out)
 }
 
-/// Render contours onto a grayscale or color image.
+/// draw_contours() - Render contours onto an image.
+/// @py: Python interpreter token.
+/// @img: Input grayscale or color image array (u8).
+/// @contours: List of contours to draw.
+/// @contour_idx: Index of contour to draw. If -1, all are drawn.
+/// @color: Color value (int or tuple).
+/// @thickness: Line thickness (if negative, contours are filled).
 ///
-/// Returns a new annotated image.
-/// - `contours`: list of numpy arrays representing contours.
-/// - `contour_idx`: index of the contour to draw. If -1, all contours are drawn.
-/// - `color`: color value, either a single int (for grayscale) or a list/tuple (R, G, B).
-/// - `thickness`: line thickness. If negative (e.g. -1), the contours are filled.
+/// Renders contours onto the input image.
+///
+/// Return: Annotated image array.
 #[pyfunction]
 #[pyo3(signature = (img, contours, contour_idx, color, thickness = 1))]
 pub fn draw_contours<'py>(
@@ -428,10 +440,13 @@ pub fn draw_contours<'py>(
     Ok(out_arr.into_pyarray(py).to_dyn())
 }
 
-/// Compute the area enclosed by a contour.
+/// contour_area() - Compute the area enclosed by a contour.
+/// @contour: Input contour array of shape (N, 2) or (N, 1, 2) containing coordinates.
+/// @oriented: If true, returns signed area indicating orientation.
 ///
-/// - `contour`: a (N, 2) or (N, 1, 2) array of coordinates.
-/// - `oriented`: if True, returns signed area indicating clockwise/counter-clockwise orientation.
+/// Computes the area enclosed by a contour using Green's theorem (Shoelace formula).
+///
+/// Return: Enclosed area.
 #[pyfunction]
 #[pyo3(signature = (contour, oriented = false))]
 pub fn contour_area(contour: PyReadonlyArrayDyn<i32>, oriented: bool) -> PyResult<f64> {
@@ -479,10 +494,13 @@ pub fn contour_area(contour: PyReadonlyArrayDyn<i32>, oriented: bool) -> PyResul
     }
 }
 
-/// Compute the perimeter / arc length of a contour or curve.
+/// arc_length() - Compute the perimeter / arc length of a contour or curve.
+/// @curve: Input curve array of shape (N, 2) or (N, 1, 2) containing coordinates.
+/// @closed: If true, includes the segment from the last point to the first.
 ///
-/// - `curve`: a (N, 2) or (N, 1, 2) array of coordinates.
-/// - `closed`: if True, includes the segment from the last point back to the first.
+/// Computes the perimeter or arc length of a contour.
+///
+/// Return: Arc length.
 #[pyfunction]
 #[pyo3(signature = (curve, closed = true))]
 pub fn arc_length(curve: PyReadonlyArrayDyn<i32>, closed: bool) -> PyResult<f64> {
@@ -532,9 +550,12 @@ pub fn arc_length(curve: PyReadonlyArrayDyn<i32>, closed: bool) -> PyResult<f64>
     Ok(length)
 }
 
-/// Compute the axis-aligned bounding rectangle of a contour.
+/// bounding_rect() - Compute the axis-aligned bounding rectangle of a contour.
+/// @contour: Input contour array of shape (N, 2) or (N, 1, 2).
 ///
-/// Returns (x, y, width, height).
+/// Computes the axis-aligned bounding rectangle of a contour.
+///
+/// Return: A tuple containing (x, y, width, height).
 #[pyfunction]
 pub fn bounding_rect(contour: PyReadonlyArrayDyn<i32>) -> PyResult<(i32, i32, i32, i32)> {
     let arr = contour.as_array();
@@ -569,9 +590,12 @@ pub fn bounding_rect(contour: PyReadonlyArrayDyn<i32>) -> PyResult<(i32, i32, i3
     Ok((min_x, min_y, width, height))
 }
 
-/// Compute the minimum-area rotated bounding rectangle of a contour.
+/// min_area_rect() - Compute the minimum-area rotated bounding rectangle of a contour.
+/// @contour: Input contour array.
 ///
-/// Returns ((center_x, center_y), (width, height), angle_in_degrees)
+/// Computes the minimum-area rotated bounding rectangle of a contour.
+///
+/// Return: A tuple containing ((center_x, center_y), (width, height), angle_in_degrees).
 #[pyfunction]
 pub fn min_area_rect(contour: PyReadonlyArrayDyn<i32>) -> PyResult<((f64, f64), (f64, f64), f64)> {
     let arr = contour.as_array();
@@ -646,9 +670,12 @@ pub fn min_area_rect(contour: PyReadonlyArrayDyn<i32>) -> PyResult<((f64, f64), 
     Ok((best_center, best_size, best_angle))
 }
 
-/// Compute the minimum enclosing circle of a contour.
+/// min_enclosing_circle() - Compute the minimum enclosing circle of a contour.
+/// @contour: Input contour array.
 ///
-/// Returns ((center_x, center_y), radius)
+/// Computes the minimum enclosing circle of a 2D point set using Welzl's algorithm.
+///
+/// Return: A tuple containing ((center_x, center_y), radius).
 #[pyfunction]
 pub fn min_enclosing_circle(contour: PyReadonlyArrayDyn<i32>) -> PyResult<((f64, f64), f64)> {
     let arr = contour.as_array();
@@ -673,9 +700,12 @@ pub fn min_enclosing_circle(contour: PyReadonlyArrayDyn<i32>) -> PyResult<((f64,
     Ok(circle)
 }
 
-/// Fit an ellipse to a 2D point set.
+/// fit_ellipse() - Fit an ellipse to a 2D point set.
+/// @contour: Input contour array containing at least 5 points.
 ///
-/// Returns ((center_x, center_y), (axis_width, axis_height), angle_in_degrees)
+/// Fits an ellipse to a 2D point set using the direct least squares method.
+///
+/// Return: A tuple containing ((center_x, center_y), (axis_width, axis_height), angle_in_degrees).
 #[pyfunction]
 pub fn fit_ellipse(contour: PyReadonlyArrayDyn<i32>) -> PyResult<((f64, f64), (f64, f64), f64)> {
     let arr = contour.as_array();
