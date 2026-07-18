@@ -296,15 +296,14 @@ pub fn calc_hist<'py>(
     Ok(hist.into_pyarray(py).to_dyn())
 }
 
-/// Compare two histograms.
+/// compare_hist() - Compare two histogram arrays.
+/// @h1: First histogram array.
+/// @h2: Second histogram array (must have the same shape).
+/// @method: Comparison method: 0 = Correlation, 1 = Chi-Square, 2 = Intersection, 3 = Bhattacharyya.
 ///
-/// - `h1`: First histogram array.
-/// - `h2`: Second histogram array (must have the same shape).
-/// - `method`: comparison method:
-///            0 = Correlation (HISTCMP_CORREL)
-///            1 = Chi-Square (HISTCMP_CHISQR)
-///            2 = Intersection (HISTCMP_INTERSECT)
-///            3 = Bhattacharyya (HISTCMP_BHATTACHARYYA)
+/// Compares two histograms using the specified comparison metric.
+///
+/// Return: Comparison score.
 #[pyfunction]
 pub fn compare_hist(
     h1: PyReadonlyArrayDyn<f32>,
@@ -386,16 +385,15 @@ pub fn compare_hist(
     }
 }
 
-/// Slide a template across a 2D grayscale image and score matches.
+/// match_template() - Slide a template over an image and compare the templates.
+/// @py: Python interpreter token.
+/// @image: Grayscale source image (u8).
+/// @templ: Searched template image (u8).
+/// @method: Comparison method: 0 = SQDIFF, 1 = SQDIFF_NORMED, 2 = CCORR, 3 = CCORR_NORMED, 4 = CCOEFF, 5 = CCOEFF_NORMED.
 ///
-/// Returns a float32 scoring map of shape (H - th + 1, W - tw + 1).
-/// - `method`: template matching method:
-///            0 = SQDIFF
-///            1 = SQDIFF_NORMED
-///            2 = CCORR
-///            3 = CCORR_NORMED
-///            4 = CCOEFF
-///            5 = CCOEFF_NORMED
+/// Slides the template over the source image and computes the comparison scoring map.
+///
+/// Return: Float scoring map of shape (H - th + 1, W - tw + 1).
 #[pyfunction]
 #[pyo3(signature = (image, templ, method = 0))]
 pub fn match_template<'py>(
@@ -528,14 +526,17 @@ pub fn match_template<'py>(
     Ok(result.into_pyarray(py).to_dyn())
 }
 
-/// Back-project a histogram model onto a single channel of an image.
+/// calc_back_project() - Back-project a histogram model onto a single channel of an image.
+/// @py: Python interpreter token.
+/// @image: Grayscale (2D) or Color (3D) u8 image.
+/// @channel_idx: Index of the channel to project on.
+/// @hist: 1D histogram array of shape (hist_size, 1) or flat.
+/// @ranges: (low, high) float bounds.
+/// @scale: Optional float multiplier for back-projected values.
 ///
-/// - `image`: Grayscale (2D) or Color (3D) u8 image.
-/// - `channel_idx`: index of the channel.
-/// - `hist`: 1D histogram array of shape (hist_size, 1) or flat.
-/// - `ranges`: (low, high) float bounds (e.g. (0.0, 256.0)).
-/// - `scale`: float multiplier for the back-projected values.
-/// Returns a 2D u8 back-projection image.
+/// Projects the histogram values back onto the source image coordinates.
+///
+/// Return: Back-projection image array.
 #[pyfunction]
 #[pyo3(signature = (image, channel_idx, hist, ranges, scale = 1.0))]
 pub fn calc_back_project<'py>(
@@ -593,12 +594,13 @@ pub fn calc_back_project<'py>(
     Ok(back_proj.into_pyarray(py).to_dyn())
 }
 
-/// Compute the Earth Mover's Distance (EMD) between two 1D histograms.
+/// emd_1d() - Compute the Earth Mover's Distance (EMD) between two 1D histograms.
+/// @h1: First 1D histogram array.
+/// @h2: Second 1D histogram array.
 ///
-/// Under L1 ground distance, EMD simplifies to the sum of absolute differences of their CDFs.
-/// - `h1`: First 1D histogram.
-/// - `h2`: Second 1D histogram (must be of same size).
-/// Returns EMD distance score.
+/// Computes the Earth Mover's Distance under L1 ground distance.
+///
+/// Return: EMD distance score.
 #[pyfunction]
 pub fn emd_1d(
     h1: PyReadonlyArrayDyn<f32>,
