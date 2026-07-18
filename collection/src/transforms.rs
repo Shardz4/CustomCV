@@ -10,6 +10,13 @@ use crate::helpers::{calculate_otsu_threshold, calculate_triangle_threshold};
 // POINT TRANSFORMATIONS
 // ==========================================
 
+/// apply_negative() - Compute image negative.
+/// @py: Python interpreter token.
+/// @x: Input image array (u8).
+///
+/// Inverts the pixel values of the input image (255 - pixel).
+///
+/// Return: Inverted image array.
 #[pyfunction]
 pub fn apply_negative<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<u8>) -> PyResult<&'py PyArrayDyn<u8>> {
     let x_array = x.as_array();
@@ -17,6 +24,13 @@ pub fn apply_negative<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<u8>) -> PyResu
     Ok(result.into_pyarray(py))
 }
 
+/// apply_log() - Apply logarithmic transformation to an image.
+/// @py: Python interpreter token.
+/// @x: Input image array (u8).
+///
+/// Compresses the dynamic range of an image using a log transform.
+///
+/// Return: Transformed image array.
 #[pyfunction]
 pub fn apply_log<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<u8>) -> PyResult<&'py PyArrayDyn<u8>> {
     let x_array = x.as_array();
@@ -28,6 +42,14 @@ pub fn apply_log<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<u8>) -> PyResult<&'
     Ok(result.into_pyarray(py))
 }
 
+/// apply_gamma() - Apply power-law (gamma) transformation to an image.
+/// @py: Python interpreter token.
+/// @x: Input image array (u8).
+/// @gamma: Gamma exponent value.
+///
+/// Adjusts the brightness/contrast of an image using power-law curves.
+///
+/// Return: Transformed image array.
 #[pyfunction]
 pub fn apply_gamma<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<u8>, gamma: f64) -> PyResult<&'py PyArrayDyn<u8>> {
     let x_array = x.as_array();
@@ -39,6 +61,13 @@ pub fn apply_gamma<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<u8>, gamma: f64) 
     Ok(result.into_pyarray(py))
 }
 
+/// rgb_to_gray() - Convert an RGB image to grayscale.
+/// @py: Python interpreter token.
+/// @x: Input RGB image array (u8) of shape (H, W, 3).
+///
+/// Computes grayscale values using the NTSC/BT.601 luminance formula.
+///
+/// Return: Grayscale 2D image array.
 #[pyfunction]
 pub fn rgb_to_gray<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<u8>) -> PyResult<&'py PyArrayDyn<u8>> {
     let arr = x.as_array();
@@ -49,6 +78,14 @@ pub fn rgb_to_gray<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<u8>) -> PyResult<
     Ok(gray.into_pyarray(py).to_dyn())
 }
 
+/// apply_threshold() - Apply binary thresholding.
+/// @py: Python interpreter token.
+/// @x: Input image array (u8).
+/// @threshold_value: Threshold value.
+///
+/// Sets pixels above the threshold value to 255 and all others to 0.
+///
+/// Return: Binary thresholded image array.
 #[pyfunction]
 pub fn apply_threshold<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<u8>, threshold_value: u8) -> PyResult<&'py PyArrayDyn<u8>> {
     let arr = x.as_array();
@@ -58,7 +95,14 @@ pub fn apply_threshold<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<u8>, threshol
     Ok(result.into_pyarray(py))
 }
 
-/// Binary inverse threshold: pixels > thresh → 0, else → 255.
+/// apply_threshold_binary_inv() - Apply inverse binary thresholding.
+/// @py: Python interpreter token.
+/// @x: Input image array (u8).
+/// @threshold_value: Threshold value.
+///
+/// Sets pixels above the threshold value to 0 and all others to 255.
+///
+/// Return: Inverse binary thresholded image array.
 #[pyfunction]
 pub fn apply_threshold_binary_inv<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<u8>, threshold_value: u8) -> PyResult<&'py PyArrayDyn<u8>> {
     let arr = x.as_array();
@@ -68,7 +112,14 @@ pub fn apply_threshold_binary_inv<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<u8
     Ok(result.into_pyarray(py))
 }
 
-/// Truncate threshold: pixels > thresh → thresh, else → pixel (unchanged).
+/// apply_threshold_trunc() - Apply truncate thresholding.
+/// @py: Python interpreter token.
+/// @x: Input image array (u8).
+/// @threshold_value: Threshold value.
+///
+/// Sets pixels above the threshold value to the threshold value, leaving others unchanged.
+///
+/// Return: Thresholded image array.
 #[pyfunction]
 pub fn apply_threshold_trunc<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<u8>, threshold_value: u8) -> PyResult<&'py PyArrayDyn<u8>> {
     let arr = x.as_array();
@@ -78,7 +129,14 @@ pub fn apply_threshold_trunc<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<u8>, th
     Ok(result.into_pyarray(py))
 }
 
-/// To-zero threshold: pixels > thresh → pixel (unchanged), else → 0.
+/// apply_threshold_tozero() - Apply threshold to zero.
+/// @py: Python interpreter token.
+/// @x: Input image array (u8).
+/// @threshold_value: Threshold value.
+///
+/// Sets pixels below or equal to the threshold value to 0, leaving others unchanged.
+///
+/// Return: Thresholded image array.
 #[pyfunction]
 pub fn apply_threshold_tozero<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<u8>, threshold_value: u8) -> PyResult<&'py PyArrayDyn<u8>> {
     let arr = x.as_array();
@@ -88,7 +146,14 @@ pub fn apply_threshold_tozero<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<u8>, t
     Ok(result.into_pyarray(py))
 }
 
-/// To-zero inverse threshold: pixels > thresh → 0, else → pixel (unchanged).
+/// apply_threshold_tozero_inv() - Apply inverse threshold to zero.
+/// @py: Python interpreter token.
+/// @x: Input image array (u8).
+/// @threshold_value: Threshold value.
+///
+/// Sets pixels above the threshold value to 0, leaving others unchanged.
+///
+/// Return: Thresholded image array.
 #[pyfunction]
 pub fn apply_threshold_tozero_inv<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<u8>, threshold_value: u8) -> PyResult<&'py PyArrayDyn<u8>> {
     let arr = x.as_array();
