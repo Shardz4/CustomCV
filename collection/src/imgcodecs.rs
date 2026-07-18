@@ -1,6 +1,16 @@
 use pyo3::prelude::*;
 
-/// Reads an image from a file.
+/// imread() - Reads an image from a file.
+/// @py: Python interpreter token.
+/// @filename: Name of file to be loaded.
+/// @flags: Flags specifying the color type of a loaded image:
+///         >0: Return a 3-channel color image.
+///         =0: Return a grayscale image.
+///         <0: Return the loaded image as is (with alpha channel).
+///
+/// Loads an image from the specified file path.
+///
+/// Return: Image array PyObject.
 #[pyfunction(name = "imread")]
 #[pyo3(signature = (filename, flags = 1))]
 pub fn imread<'py>(
@@ -13,7 +23,15 @@ pub fn imread<'py>(
     Ok(res.into())
 }
 
-/// Writes an image to a specified file.
+/// imwrite() - Writes an image to a specified file.
+/// @py: Python interpreter token.
+/// @filename: Name of the file.
+/// @img: Image to be saved.
+/// @params: Format-specific parameters encoded as pairs (paramId, paramValue).
+///
+/// Saves an image to the specified file.
+///
+/// Return: Boolean success PyObject.
 #[pyfunction(name = "imwrite")]
 #[pyo3(signature = (filename, img, params = None))]
 pub fn imwrite<'py>(
@@ -30,7 +48,14 @@ pub fn imwrite<'py>(
     Ok(res.into())
 }
 
-/// Decodes an image from a memory buffer.
+/// imdecode() - Decodes an image from a memory buffer.
+/// @py: Python interpreter token.
+/// @buf: Input array or vector of bytes.
+/// @flags: Same flags as in imread.
+///
+/// Reads an image from a specified buffer in memory.
+///
+/// Return: Decoded image array PyObject.
 #[pyfunction(name = "imdecode")]
 #[pyo3(signature = (buf, flags))]
 pub fn imdecode<'py>(
@@ -43,7 +68,15 @@ pub fn imdecode<'py>(
     Ok(res.into())
 }
 
-/// Encodes an image into a memory buffer.
+/// imencode() - Encodes an image into a memory buffer.
+/// @py: Python interpreter token.
+/// @ext: File extension that defines the output format (e.g. \".png\", \".jpg\").
+/// @img: Image to be encoded.
+/// @params: Format-specific parameters.
+///
+/// Compresses the image and stores it in the memory buffer.
+///
+/// Return: A tuple containing (success status, encoded buffer).
 #[pyfunction(name = "imencode")]
 #[pyo3(signature = (ext, img, params = None))]
 pub fn imencode<'py>(
