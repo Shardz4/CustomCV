@@ -3,6 +3,14 @@ use numpy::{IntoPyArray, PyArrayDyn, PyReadonlyArrayDyn, PyArrayMethods};
 use numpy::ndarray::s;
 use crate::helpers;
 
+/// apply_filter2d() - Convolve an image with a 2D float kernel.
+/// @py: Python interpreter token.
+/// @img: Grayscale (2D) or Color (3D) u8 input image.
+/// @kernel: 2D float convolution kernel.
+///
+/// Convolves the input image with the specified kernel.
+///
+/// Return: Filtered image array.
 #[pyfunction]
 pub fn apply_filter2d<'py>(py: Python<'py>, img: PyReadonlyArrayDyn<'py, u8>, kernel: PyReadonlyArrayDyn<'py, f64>) -> PyResult<Py<PyArrayDyn<u8>>> {
     let arr = img.as_array();
@@ -31,6 +39,15 @@ pub fn apply_filter2d<'py>(py: Python<'py>, img: PyReadonlyArrayDyn<'py, u8>, ke
     }
 }
 
+/// apply_blur() - Blurs an image using a normalized box filter.
+/// @py: Python interpreter token.
+/// @img: Grayscale (2D) or Color (3D) u8 input image.
+/// @ksize_w: Width of the blur kernel.
+/// @ksize_h: Height of the blur kernel.
+///
+/// Blurs the input image by convolving it with a normalized box filter kernel.
+///
+/// Return: Blurred image array.
 #[pyfunction]
 pub fn apply_blur<'py>(py: Python<'py>, img: PyReadonlyArrayDyn<'py, u8>, ksize_w: usize, ksize_h: usize) -> PyResult<Py<PyArrayDyn<u8>>> {
     let area = (ksize_w * ksize_h) as f64;
@@ -38,6 +55,15 @@ pub fn apply_blur<'py>(py: Python<'py>, img: PyReadonlyArrayDyn<'py, u8>, ksize_
     apply_filter2d(py, img, kernel.into_dyn().into_pyarray_bound(py).readonly())
 }
 
+/// apply_gaussian_blur() - Blurs an image using a Gaussian filter.
+/// @py: Python interpreter token.
+/// @img: Grayscale (2D) or Color (3D) u8 input image.
+/// @ksize: Gaussian kernel size (ksize x ksize).
+/// @sigma: Gaussian kernel standard deviation.
+///
+/// Blurs the input image by convolving it with a Gaussian kernel.
+///
+/// Return: Blurred image array.
 #[pyfunction]
 pub fn apply_gaussian_blur<'py>(py: Python<'py>, img: PyReadonlyArrayDyn<'py, u8>, ksize: usize, sigma: f64) -> PyResult<Py<PyArrayDyn<u8>>> {
     let mut kernel = numpy::ndarray::Array2::<f64>::zeros((ksize, ksize));
@@ -57,6 +83,14 @@ pub fn apply_gaussian_blur<'py>(py: Python<'py>, img: PyReadonlyArrayDyn<'py, u8
     apply_filter2d(py, img, kernel.into_dyn().into_pyarray_bound(py).readonly())
 }
 
+/// apply_median_blur() - Blurs an image using a median filter.
+/// @py: Python interpreter token.
+/// @img: Grayscale (2D) or Color (3D) u8 input image.
+/// @ksize: Aperture linear size; must be odd and greater than 1.
+///
+/// Smooths the image by replacing each pixel with the median of its neighborhood.
+///
+/// Return: Blurred image array.
 #[pyfunction]
 pub fn apply_median_blur<'py>(py:Python<'py>, img: PyReadonlyArrayDyn<'py, u8>, ksize: usize) -> PyResult<Py<PyArrayDyn<u8>>>{
     let arr = img.as_array();
@@ -102,6 +136,16 @@ pub fn apply_median_blur<'py>(py:Python<'py>, img: PyReadonlyArrayDyn<'py, u8>, 
 }
 
 
+/// apply_bilateral_filter() - Applies a bilateral filter to an image.
+/// @py: Python interpreter token.
+/// @img: Grayscale (2D) or Color (3D) u8 input image.
+/// @diameter: Diameter of each pixel neighborhood.
+/// @sigma_color: Filter sigma in the color space.
+/// @sigma_space: Filter sigma in the coordinate space.
+///
+/// Smooths the image while preserving edges by using a combination of domain and range filters.
+///
+/// Return: Filtered image array.
 #[pyfunction]
 pub fn apply_bilateral_filter<'py>(py:Python<'py>, img: PyReadonlyArrayDyn<'py, u8>, diameter: usize, sigma_color:f64, sigma_space: f64) -> PyResult<Py<PyArrayDyn<u8>>>{
     let arr = img.as_array();
