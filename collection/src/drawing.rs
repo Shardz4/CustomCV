@@ -126,13 +126,17 @@ fn parse_color(py: Python<'_>, color: PyObject, channels: usize) -> Vec<u8> {
     parsed_color
 }
 
-/// Draw a line segment on an image.
+/// line() - Draw a line segment on an image.
+/// @py: Python interpreter token.
+/// @img: Input image array (u8).
+/// @pt1: Starting point (x, y).
+/// @pt2: Ending point (x, y).
+/// @color: Line color value (int or RGB tuple).
+/// @thickness: Line thickness.
 ///
-/// Returns a new annotated image.
-/// - `pt1`: Starting point (x, y) as integer tuple.
-/// - `pt2`: Ending point (x, y) as integer tuple.
-/// - `color`: color value, either single int or (R, G, B) tuple.
-/// - `thickness`: line thickness (default 1).
+/// Draws a line segment between pt1 and pt2 using Bresenham's algorithm.
+///
+/// Return: Annotated image array.
 #[pyfunction]
 #[pyo3(signature = (img, pt1, pt2, color, thickness = 1))]
 pub fn line<'py>(
@@ -161,13 +165,17 @@ pub fn line<'py>(
     Ok(out_arr.into_pyarray(py).to_dyn())
 }
 
-/// Draw a rectangle on an image.
+/// rectangle() - Draw a rectangle on an image.
+/// @py: Python interpreter token.
+/// @img: Input image array (u8).
+/// @pt1: One corner of the rectangle (x, y).
+/// @pt2: Opposite corner of the rectangle (x, y).
+/// @color: Rectangle color.
+/// @thickness: Line thickness (if negative, the rectangle is filled).
 ///
-/// Returns a new annotated image.
-/// - `pt1`: One corner (x, y) of the rectangle.
-/// - `pt2`: Opposite corner (x, y) of the rectangle.
-/// - `color`: color value, either single int or (R, G, B) tuple.
-/// - `thickness`: line thickness. If negative (e.g. -1), the rectangle is filled.
+/// Draws a simple, thick, or filled rectangle on the image.
+///
+/// Return: Annotated image array.
 #[pyfunction]
 #[pyo3(signature = (img, pt1, pt2, color, thickness = 1))]
 pub fn rectangle<'py>(
@@ -226,13 +234,17 @@ pub fn rectangle<'py>(
     Ok(out_arr.into_pyarray(py).to_dyn())
 }
 
-/// Draw a circle on an image.
+/// circle() - Draw a circle on an image.
+/// @py: Python interpreter token.
+/// @img: Input image array (u8).
+/// @center: Center coordinates (x, y).
+/// @radius: Circle radius.
+/// @color: Circle color.
+/// @thickness: Line thickness (if negative, the circle is filled).
 ///
-/// Returns a new annotated image.
-/// - `center`: Center coordinates (x, y) as integer tuple.
-/// - `radius`: Circle radius.
-/// - `color`: color value, either single int or (R, G, B) tuple.
-/// - `thickness`: line thickness. If negative (e.g. -1), the circle is filled.
+/// Draws a simple or filled circle using Midpoint Circle algorithm.
+///
+/// Return: Annotated image array.
 #[pyfunction]
 #[pyo3(signature = (img, center, radius, color, thickness = 1))]
 pub fn circle<'py>(
@@ -334,16 +346,20 @@ pub fn circle<'py>(
     Ok(out_arr.into_pyarray(py).to_dyn())
 }
 
-/// Draw an ellipse or elliptic arc on an image.
+/// ellipse() - Draw a simple or thick elliptic arc or an ellipsoid sector.
+/// @py: Python interpreter token.
+/// @img: Input image array (u8).
+/// @center: Center of the ellipse (x, y).
+/// @axes: Half of the size of the ellipse main axes (major, minor).
+/// @angle: Ellipse rotation angle in degrees.
+/// @start_angle: Starting angle of the elliptic arc in degrees.
+/// @end_angle: Ending angle of the elliptic arc in degrees.
+/// @color: Ellipse color.
+/// @thickness: Line thickness (if negative, the ellipse is filled).
 ///
-/// Returns a new annotated image.
-/// - `center`: Center coordinates (x, y) as integer tuple.
-/// - `axes`: Semi-axes lengths (major_axis_radius, minor_axis_radius) as integer tuple.
-/// - `angle`: Ellipse rotation angle in degrees.
-/// - `start_angle`: Starting angle of the elliptic arc in degrees.
-/// - `end_angle`: Ending angle of the elliptic arc in degrees.
-/// - `color`: color value, either single int or (R, G, B) tuple.
-/// - `thickness`: line thickness. If negative (e.g. -1), the ellipse is filled.
+/// Draws a simple or thick elliptic arc or a filled ellipse sector.
+///
+/// Return: Annotated image array.
 #[pyfunction]
 #[pyo3(signature = (img, center, axes, angle, start_angle, end_angle, color, thickness = 1))]
 pub fn ellipse<'py>(
