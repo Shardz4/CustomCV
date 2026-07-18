@@ -116,6 +116,14 @@ pub fn apply_dilation<'py>(
     Ok(result.into_pyarray(py).to_dyn())
 }
 
+/// opening() - Applies morphological opening (erosion followed by dilation) to an image.
+/// @py: Python interpreter token.
+/// @image: 2D input image array (u8).
+/// @kernel: Structuring element array.
+///
+/// Useful for removing small objects or noise.
+///
+/// Return: Opened image array.
 #[pyfunction]
 pub fn opening<'py>(py:Python<'py>, image: PyReadonlyArrayDyn<'py, u8>, kernel: PyReadonlyArrayDyn<'py, u8>)->PyResult<&'py PyArrayDyn<u8>>{
     let img_arr = image.as_array();
@@ -131,6 +139,14 @@ pub fn opening<'py>(py:Python<'py>, image: PyReadonlyArrayDyn<'py, u8>, kernel: 
     Ok(opened.into_pyarray(py).to_dyn())
 }
 
+/// apply_closing() - Applies morphological closing (dilation followed by erosion) to an image.
+/// @py: Python interpreter token.
+/// @image: 2D input image array (u8).
+/// @kernel: Structuring element array.
+///
+/// Useful for closing small holes inside the objects, or connecting components.
+///
+/// Return: Closed image array.
 #[pyfunction]
 pub fn apply_closing<'py>(py:Python<'py>, image: PyReadonlyArrayDyn<'py, u8>, kernel: PyReadonlyArrayDyn<'py, u8>)->PyResult<&'py PyArrayDyn<u8>>{
     let img_arr = image.as_array();
@@ -146,6 +162,14 @@ pub fn apply_closing<'py>(py:Python<'py>, image: PyReadonlyArrayDyn<'py, u8>, ke
     Ok(closed.into_pyarray(py).to_dyn())
 }
 
+/// morphological_gradient() - Computes the morphological gradient of an image.
+/// @py: Python interpreter token.
+/// @image: 2D input image array (u8).
+/// @kernel: Structuring element array.
+///
+/// Computes the difference between the dilation and the erosion of an image.
+///
+/// Return: Gradient image array.
 #[pyfunction]
 pub fn morphological_gradient<'py>(py:Python<'py>, image:PyReadonlyArrayDyn<'py, u8>, kernel:PyReadonlyArrayDyn<'py, u8>)->PyResult<&'py PyArrayDyn<u8>>{
     let img_arr = image.as_array();
@@ -163,6 +187,14 @@ pub fn morphological_gradient<'py>(py:Python<'py>, image:PyReadonlyArrayDyn<'py,
 }
 
 
+/// top_hat() - Computes the top-hat transform of an image.
+/// @py: Python interpreter token.
+/// @image: 2D input image array (u8).
+/// @kernel: Structuring element array.
+///
+/// Computes the difference between the input image and its opening.
+///
+/// Return: Top-hat image array.
 #[pyfunction]
 pub fn top_hat<'py>(py:Python<'py>, image: PyReadonlyArrayDyn<'py, u8>, kernel: PyReadonlyArrayDyn<'py, u8>)->PyResult<&'py PyArrayDyn<u8>>{
     let img_arr = image.as_array();
@@ -178,6 +210,14 @@ pub fn top_hat<'py>(py:Python<'py>, image: PyReadonlyArrayDyn<'py, u8>, kernel: 
     Ok(top_hat.into_pyarray(py).to_dyn())
 }
 
+/// black_hat() - Computes the black-hat transform of an image.
+/// @py: Python interpreter token.
+/// @image: 2D input image array (u8).
+/// @kernel: Structuring element array.
+///
+/// Computes the difference between the closing of the image and the input image.
+///
+/// Return: Black-hat image array.
 #[pyfunction]
 pub fn black_hat<'py>(py:Python<'py>, image: PyReadonlyArrayDyn<'py, u8>, kernel: PyReadonlyArrayDyn<'py, u8>)->PyResult<&'py PyArrayDyn<u8>>{
     let img_arr = image.as_array();
