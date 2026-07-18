@@ -135,11 +135,14 @@ fn connected_components_impl(
 // PYFUNCTION EXPORTS
 // ==========================================
 
-/// Label connected components in a binary image.
+/// connected_components() - Label connected components in a binary image.
+/// @py: Python interpreter token.
+/// @image: 2D binary image array (u8).
+/// @connectivity: 8-way or 4-way connectivity flag (default 8).
 ///
-/// - `image`: 2D binary image.
-/// - `connectivity`: 4 or 8 (default 8).
-/// Returns a 2D labeled image where 0 is background.
+/// Computes the connected components labeled image of boolean image.
+///
+/// Return: 2D labeled image array (i32).
 #[pyfunction]
 #[pyo3(signature = (image, connectivity = 8))]
 pub fn connected_components<'py>(
@@ -155,11 +158,14 @@ pub fn connected_components<'py>(
     Ok(labels.into_pyarray(py).to_dyn())
 }
 
-/// Label connected components and compute statistics.
+/// connected_components_with_stats() - Label connected components and compute statistics.
+/// @py: Python interpreter token.
+/// @image: 2D binary image array (u8).
+/// @connectivity: 8-way or 4-way connectivity flag (default 8).
 ///
-/// - `image`: 2D binary image.
-/// - `connectivity`: 4 or 8 (default 8).
-/// Returns (num_labels, labels, stats, centroids)
+/// Computes the connected components labeled image and statistics for each label.
+///
+/// Return: A tuple containing (num_labels, labels, stats, centroids).
 #[pyfunction]
 #[pyo3(signature = (image, connectivity = 8))]
 pub fn connected_components_with_stats<'py>(
@@ -238,10 +244,13 @@ pub fn connected_components_with_stats<'py>(
     ))
 }
 
-/// Compute the distance transform of a binary image.
+/// distance_transform() - Compute the distance transform of a binary image.
+/// @py: Python interpreter token.
+/// @image: 2D binary image array (u8).
 ///
-/// Computes the distance to the nearest zero pixel for every pixel in a binary image.
-/// Uses the Chamfer 3x3 distance metric.
+/// Computes the distance to the nearest zero pixel for every pixel in a binary image using the Chamfer metric.
+///
+/// Return: 2D distance transform image array (f32).
 #[pyfunction]
 pub fn distance_transform<'py>(
     py: Python<'py>,
@@ -321,14 +330,17 @@ pub fn distance_transform<'py>(
     Ok(dist.into_pyarray(py).to_dyn())
 }
 
-/// Region growing flood fill algorithm.
+/// flood_fill() - Region growing flood fill algorithm.
+/// @py: Python interpreter token.
+/// @image: Grayscale (2D) or Color (3D) u8 image.
+/// @seed_point: Starting (x, y) coordinate.
+/// @new_val: Color to fill with.
+/// @lo_diff: Lower boundary difference.
+/// @up_diff: Upper boundary difference.
 ///
-/// - `image`: Grayscale (2D) or Color (3D) u8 image.
-/// - `seed_point`: (x, y) coordinate.
-/// - `new_val`: color to fill with, either scalar or list.
-/// - `lo_diff`: lower boundary difference (default 0).
-/// - `up_diff`: upper boundary difference (default 0).
-/// Returns (num_filled_pixels, updated_image)
+/// Fills a connected component with the given color starting from the seed point.
+///
+/// Return: A tuple containing (number of filled pixels, updated image array).
 #[pyfunction]
 #[pyo3(signature = (image, seed_point, new_val, lo_diff = 0, up_diff = 0))]
 pub fn flood_fill<'py>(
@@ -438,11 +450,14 @@ pub fn flood_fill<'py>(
     Ok((filled_count, out_arr.into_pyarray(py).to_dyn()))
 }
 
-/// Meyer's marker-based watershed segmentation algorithm.
+/// watershed() - Meyer's marker-based watershed segmentation algorithm.
+/// @py: Python interpreter token.
+/// @image: Grayscale 2D image array (u8).
+/// @markers: 2D i32 array of markers where positive labels indicate seeds.
 ///
-/// - `image`: Grayscale 2D image.
-/// - `markers`: 2D i32 array of markers where positive labels indicate seeds, 0 is unknown.
-/// Modifies the markers array in-place, indicating boundaries with -1.
+/// Performs marker-based image segmentation using the watershed algorithm.
+///
+/// Return: Segmented markers image array (i32).
 #[pyfunction]
 pub fn watershed<'py>(
     py: Python<'py>,
@@ -548,18 +563,19 @@ pub fn watershed<'py>(
     Ok(markers_arr.into_pyarray(py).to_dyn())
 }
 
-/// Bounding Box / Mask based GrabCut Foreground Extraction.
+/// grab_cut() - GrabCut image segmentation.
+/// @py: Python interpreter token.
+/// @img: 3D color BGR/RGB image array.
+/// @mask: 2D u8 GrabCut status mask.
+/// @rect: Bounding box containing the foreground object.
+/// @bgd_model: Background model.
+/// @fgd_model: Foreground model.
+/// @iter_count: Number of iterations.
+/// @mode: Operation mode.
 ///
-/// Implements GMM color distribution modeling with Iterated Conditional Modes (ICM) spatial smoothing.
+/// Extracts foreground objects from the color image.
 ///
-/// - `img`: 3D color BGR/RGB image.
-/// - `mask`: 2D u8 GrabCut status mask. Obvious background (0), Obvious foreground (1), Probable background (2), Probable foreground (3).
-/// - `rect`: (x, y, w, h) bounding box. Used if mode is INIT_WITH_RECT.
-/// - `bgd_model`: background model (ignored / dummy return).
-/// - `fgd_model`: foreground model (ignored / dummy return).
-/// - `iter_count`: number of iterations (default 5).
-/// - `mode`: GrabCut mode (0 = INIT_WITH_RECT, 1 = INIT_WITH_MASK).
-/// Returns updated (mask, bgd_model, fgd_model).
+/// Return: A tuple containing (updated mask, bgd_model, fgd_model).
 #[pyfunction]
 #[pyo3(signature = (img, mask, rect, bgd_model, fgd_model, iter_count = 5, mode = 1))]
 pub fn grab_cut<'py>(
@@ -695,7 +711,19 @@ pub fn grab_cut<'py>(
     Ok((mask_arr.into_pyarray(py).to_dyn(), bgd_model, fgd_model))
 }
 
-/// Alias for grab_cut matching OpenCV name.
+/// grab_cut_cv() - GrabCut image segmentation alias.
+/// @py: Python interpreter token.
+/// @img: 3D color BGR/RGB image array.
+/// @mask: 2D u8 GrabCut status mask.
+/// @rect: Bounding box containing the foreground object.
+/// @bgd_model: Background model.
+/// @fgd_model: Foreground model.
+/// @iter_count: Number of iterations.
+/// @mode: Operation mode.
+///
+/// Alias for grab_cut. Extracts foreground objects from the color image.
+///
+/// Return: A tuple containing (updated mask, bgd_model, fgd_model).
 #[pyfunction(name = "grabCut")]
 #[pyo3(signature = (img, mask, rect, bgd_model, fgd_model, iter_count = 5, mode = 1))]
 pub fn grab_cut_cv<'py>(
