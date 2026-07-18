@@ -213,6 +213,16 @@ fn lanczos_interpolate_2d(img: &numpy::ndarray::ArrayView2<'_, u8>, src_x: f64, 
     }
 }
 
+/// apply_resize() - Resize an image.
+/// @py: Python interpreter token.
+/// @image: Input image array (u8).
+/// @new_w: Desired width.
+/// @new_h: Desired height.
+/// @interpolation: Interpolation method (0 = nearest, 1 = bilinear, 2 = bicubic, 4 = Lanczos4).
+///
+/// Resizes the input image to the specified width and height.
+///
+/// Return: Resized image array.
 #[pyfunction]
 #[pyo3(signature = (image, new_w, new_h, interpolation = 1))]
 pub fn apply_resize<'py>(
@@ -288,6 +298,15 @@ pub fn apply_resize<'py>(
     }
 }
 
+/// apply_translate() - Translate an image.
+/// @py: Python interpreter token.
+/// @image: Input image array (u8).
+/// @tx: Translation offset along x-axis.
+/// @ty: Translation offset along y-axis.
+///
+/// Translates the input image by tx and ty pixels.
+///
+/// Return: Translated image array.
 #[pyfunction]
 pub fn apply_translate<'py>(py: Python<'py>, image: PyReadonlyArrayDyn<'py, u8>, tx:isize, ty:isize)->PyResult<&'py PyArrayDyn<u8>>{
     let image_arr = image.as_array();
@@ -332,6 +351,15 @@ pub fn apply_translate<'py>(py: Python<'py>, image: PyReadonlyArrayDyn<'py, u8>,
     }
 }
 
+/// apply_rotate() - Rotate an image around a center point.
+/// @py: Python interpreter token.
+/// @image: Input image array (u8).
+/// @angle: Rotation angle in radians.
+/// @center: Optional rotation center coordinates (x, y). If None, defaults to image center.
+///
+/// Rotates the input image by the specified angle around the center point.
+///
+/// Return: Rotated image array.
 #[pyfunction]
 pub fn apply_rotate<'py>(py:Python<'py>, image:PyReadonlyArrayDyn<'py, u8>, angle:f64, center:Option<(isize,isize)>)->PyResult<&'py PyArrayDyn<u8>>{
     let img_arr = image.as_array();
@@ -394,6 +422,16 @@ pub fn apply_rotate<'py>(py:Python<'py>, image:PyReadonlyArrayDyn<'py, u8>, angl
     }
 }
 
+/// apply_warp() - Warp an image using perspective transformation.
+/// @py: Python interpreter token.
+/// @img: Input image array (u8).
+/// @inv_matrix: 3x3 inverse perspective transformation matrix.
+/// @out_w: Output image width.
+/// @out_h: Output image height.
+///
+/// Warps the input image using inverse mapping with a 3x3 perspective matrix.
+///
+/// Return: Warped image array.
 #[pyfunction]
 pub fn apply_warp<'py>(
     py: Python<'py>, 
@@ -469,13 +507,17 @@ pub fn apply_warp<'py>(
     }
 }
 
-/// Apply an affine transformation to an image.
+/// apply_warp_affine() - Warp an image using affine transformation.
+/// @py: Python interpreter token.
+/// @image: Input image array (u8).
+/// @M: 2x3 affine transformation matrix.
+/// @out_w: Output image width.
+/// @out_h: Output image height.
+/// @flags: Optional mapping flags (e.g. 16 for inverse map).
 ///
-/// Returns a new warped image.
-/// - `M`: 2x3 transformation matrix.
-/// - `out_w`: width of the output image.
-/// - `out_h`: height of the output image.
-/// - `flags`: combination of interpolation and map flags (e.g. 16 for WARP_INVERSE_MAP).
+/// Warps the input image using a 2x3 affine transformation matrix.
+///
+/// Return: Warped image array.
 #[pyfunction]
 #[allow(non_snake_case)]
 #[pyo3(signature = (image, M, out_w, out_h, flags = 0))]
@@ -574,9 +616,15 @@ pub fn apply_warp_affine<'py>(
     }
 }
 
-/// Calculate a 2D rotation matrix center by angle scale.
+/// get_rotation_matrix_2d() - Calculate a 2D rotation matrix.
+/// @py: Python interpreter token.
+/// @center: Coordinates of the rotation center (cx, cy).
+/// @angle: Rotation angle in degrees.
+/// @scale: Isotropic scale factor.
 ///
-/// Returns a 2x3 affine matrix.
+/// Calculates a 2x3 affine matrix for 2D rotation and scaling.
+///
+/// Return: Calculated 2x3 affine matrix array.
 #[pyfunction]
 pub fn get_rotation_matrix_2d<'py>(
     py: Python<'py>,
@@ -600,9 +648,14 @@ pub fn get_rotation_matrix_2d<'py>(
     Ok(m.into_pyarray(py).to_dyn())
 }
 
-/// Calculate an affine transform from three pairs of corresponding points.
+/// get_affine_transform() - Calculate an affine transform from three pairs of corresponding points.
+/// @py: Python interpreter token.
+/// @src: Coordinates of three triangle vertices in the source image (3x2 f32 array).
+/// @dst: Coordinates of the corresponding triangle vertices in the destination image (3x2 f32 array).
 ///
-/// Returns a 2x3 affine matrix.
+/// Calculates a 2x3 affine matrix representing the transformation between the point sets.
+///
+/// Return: Calculated 2x3 affine matrix array.
 #[pyfunction]
 pub fn get_affine_transform<'py>(
     py: Python<'py>,
@@ -714,9 +767,14 @@ fn solve_linear_system(mut a: [[f64; 8]; 8], mut b: [f64; 8]) -> Option<[f64; 8]
     Some(x)
 }
 
-/// Calculate a perspective transform from four pairs of corresponding points.
+/// get_perspective_transform() - Calculate a perspective transform from four pairs of corresponding points.
+/// @py: Python interpreter token.
+/// @src: Coordinates of four quadrangle vertices in the source image (4x2 f32 array).
+/// @dst: Coordinates of the corresponding quadrangle vertices in the destination image (4x2 f32 array).
 ///
-/// Returns a 3x3 perspective matrix.
+/// Calculates a 3x3 perspective matrix representing the transformation.
+///
+/// Return: Calculated 3x3 perspective matrix array.
 #[pyfunction]
 pub fn get_perspective_transform<'py>(
     py: Python<'py>,
@@ -785,9 +843,14 @@ pub fn get_perspective_transform<'py>(
     Ok(m.into_pyarray(py).to_dyn())
 }
 
-/// Flip an image horizontally, vertically, or both.
+/// apply_flip() - Flip an image horizontally, vertically, or both.
+/// @py: Python interpreter token.
+/// @image: Input image array (u8).
+/// @flip_code: 0 for vertical flip, >0 for horizontal flip, <0 for both.
 ///
-/// `flip_code`: 0 for vertical flip (x-axis), >0 for horizontal flip (y-axis), <0 for both.
+/// Flips the input image according to the specified flip code.
+///
+/// Return: Flipped image array.
 #[pyfunction]
 pub fn apply_flip<'py>(
     py: Python<'py>,
@@ -832,7 +895,13 @@ pub fn apply_flip<'py>(
     }
 }
 
-/// Transpose an image (swap rows and columns).
+/// apply_transpose() - Transpose an image (swap rows and columns).
+/// @py: Python interpreter token.
+/// @image: Input image array (u8).
+///
+/// Transposes the input image by swapping rows and columns.
+///
+/// Return: Transposed image array.
 #[pyfunction]
 pub fn apply_transpose<'py>(
     py: Python<'py>,
@@ -872,11 +941,16 @@ pub fn apply_transpose<'py>(
     }
 }
 
-/// Apply a generic geometrical transformation to an image.
+/// apply_remap() - Apply a generic geometrical transformation to an image.
+/// @py: Python interpreter token.
+/// @image: Input image array (u8).
+/// @map1: 2D array of source x coordinates (f32).
+/// @map2: 2D array of source y coordinates (f32).
+/// @interpolation: Interpolation method (0 = nearest, 1 = bilinear, 2 = bicubic, 4 = Lanczos4).
 ///
-/// - `map1`: 2D array of source x coordinates (f32).
-/// - `map2`: 2D array of source y coordinates (f32).
-/// - `interpolation`: interpolation method (0 = nearest, 1 = bilinear, 2 = bicubic, 4 = Lanczos4).
+/// Remaps the input image to a new image using the specified coordinate maps.
+///
+/// Return: Remapped image array.
 #[pyfunction]
 #[pyo3(signature = (image, map1, map2, interpolation = 1))]
 pub fn apply_remap<'py>(
@@ -966,7 +1040,13 @@ pub fn apply_remap<'py>(
     }
 }
 
-/// Invert an affine transform matrix (2x3).
+/// invert_affine_transform() - Invert an affine transform matrix (2x3).
+/// @py: Python interpreter token.
+/// @M: 2x3 affine transformation matrix.
+///
+/// Calculates the inverse of the given 2x3 affine transform matrix.
+///
+/// Return: Inverted 2x3 affine matrix array.
 #[pyfunction]
 #[allow(non_snake_case)]
 pub fn invert_affine_transform<'py>(
@@ -1004,13 +1084,18 @@ pub fn invert_affine_transform<'py>(
     Ok(out.into_pyarray(py).to_dyn())
 }
 
-/// Remap an image to linear polar coordinates.
+/// apply_linear_polar() - Remap an image to linear polar coordinates.
+/// @py: Python interpreter token.
+/// @image: Input image array (u8).
+/// @center: Coordinates of the transformation center (cx, cy).
+/// @max_radius: Bounding circle radius.
+/// @out_w: Optional output width.
+/// @out_h: Optional output height.
+/// @interpolation: Interpolation method.
 ///
-/// - `center`: coordinates of the transformation center (cx, cy).
-/// - `max_radius`: the bounding circle radius.
-/// - `out_w`: optional output width.
-/// - `out_h`: optional output height.
-/// - `interpolation`: interpolation method (0 = nearest, 1 = bilinear, 2 = bicubic, 4 = Lanczos4).
+/// Remaps the input image to linear polar space.
+///
+/// Return: Remapped image array.
 #[pyfunction]
 #[pyo3(signature = (image, center, max_radius, out_w = None, out_h = None, interpolation = 1))]
 pub fn apply_linear_polar<'py>(
