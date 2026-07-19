@@ -1,22 +1,103 @@
 use numpy::ndarray::{Array2, ArrayView2};
 
+// ==========================================
+// BORDER HANDLING HELPERS
+// ==========================================
+
+/// get_border_index() - Maps an out-of-bounds index to an in-bounds index based on border mode.
+pub fn get_border_index(i: isize, len: usize, border_type: &str) -> Option<usize> {
+    let len_i = len as isize;
+    if i >= 0 && i < len_i {
+        return Some(i as usize);
+    }
+    match border_type {
+        "reflect" | "BORDER_REFLECT" => {
+            if i < 0 {
+                let mut temp = -i - 1;
+                if temp >= len_i { temp = len_i - 1; }
+                Some(temp as usize)
+            } else {
+                let mut temp = 2 * len_i - i - 1;
+                if temp < 0 { temp = 0; }
+                Some(temp as usize)
+            }
+        }
+        "reflect_101" | "BORDER_REFLECT_101" | "BORDER_DEFAULT" | "default" => {
+            if i < 0 {
+                let mut temp = -i;
+                if temp >= len_i { temp = len_i - 1; }
+                Some(temp as usize)
+            } else {
+                let mut temp = 2 * len_i - i - 2;
+                if temp < 0 { temp = 0; }
+                Some(temp as usize)
+            }
+        }
+        "replicate" | "BORDER_REPLICATE" => {
+            Some(i.clamp(0, len_i - 1) as usize)
+        }
+        "wrap" | "BORDER_WRAP" => {
+            if i < 0 {
+                Some(((i % len_i + len_i) % len_i) as usize)
+            } else {
+                Some((i % len_i) as usize)
+            }
+        }
+        "constant" | "BORDER_CONSTANT" => {
+            None
+        }
+        _ => {
+            // Default to reflect_101 (OpenCV default)
+            if i < 0 {
+                let mut temp = -i;
+                if temp >= len_i { temp = len_i - 1; }
+                Some(temp as usize)
+            } else {
+                let mut temp = 2 * len_i - i - 2;
+                if temp < 0 { temp = 0; }
+                Some(temp as usize)
+            }
+        }
+    }
+}
+
+/// get_border_pixel() - Resolves pixel value at (y, x), supporting border padding modes.
+pub fn get_border_pixel(channel: &ArrayView2<u8>, y: isize, x: isize, border_type: &str, border_value: u8) -> u8 {
+    let h = channel.shape()[0];
+    let w = channel.shape()[1];
+    let iy = match get_border_index(y, h, border_type) {
+        Some(val) => val,
+        None => return border_value,
+    };
+    let ix = match get_border_index(x, w, border_type) {
+        Some(val) => val,
+        None => return border_value,
+    };
+    channel[[iy, ix]]
+}
+
 /// apply_median_3x3() - Applies a 3×3 median filter to a single 2D channel.
 /// @channel: 2D input image channel slice (u8).
+/// @border_type: Border padding mode ("reflect", "replicate", "wrap", "constant").
+/// @border_value: Padding value for constant border.
 ///
 /// Computes the median value in a 3x3 window around each pixel.
 ///
 /// Return: Filtered 2D channel.
-pub fn apply_median_3x3(channel: ArrayView2<u8>) -> Array2<u8> {
+pub fn apply_median_3x3(channel: ArrayView2<u8>, border_type: &str, border_value: u8) -> Array2<u8> {
     let (h, w) = (channel.shape()[0], channel.shape()[1]);
     let mut out = Array2::<u8>::zeros((h, w));
     
-    for y in 1..h-1 {
-        for x in 1..w-1 {
-            let mut window = [
-                channel[[y-1, x-1]], channel[[y-1, x]], channel[[y-1, x+1]],
-                channel[[y, x-1]],   channel[[y, x]],   channel[[y, x+1]],
-                channel[[y+1, x-1]], channel[[y+1, x]], channel[[y+1, x+1]],
-            ];
+    for y in 0..h {
+        for x in 0..w {
+            let mut window = [0u8; 9];
+            let mut idx = 0;
+            for ky in -1..=1 {
+                for kx in -1..=1 {
+                    window[idx] = get_border_pixel(&channel, y as isize + ky, x as isize + kx, border_type, border_value);
+                    idx += 1;
+                }
+            }
             window.sort_unstable();
             out[[y, x]] = window[4]; 
         }
@@ -26,21 +107,30 @@ pub fn apply_median_3x3(channel: ArrayView2<u8>) -> Array2<u8> {
 
 /// apply_laplacian_3x3() - Applies a 3×3 Laplacian filter to a single 2D channel.
 /// @channel: 2D input image channel slice (u8).
+/// @border_type: Border padding mode.
+/// @border_value: Constant border value.
 ///
 /// Approximates the Laplacian using a discrete differentiation operator.
 ///
 /// Return: Filtered 2D channel.
-pub fn apply_laplacian_3x3(channel: ArrayView2<u8>) -> Array2<u8> {
+pub fn apply_laplacian_3x3(channel: ArrayView2<u8>, border_type: &str, border_value: u8) -> Array2<u8> {
     let (h, w) = (channel.shape()[0], channel.shape()[1]);
     let mut out = Array2::<u8>::zeros((h, w));
     
-    for y in 1..h-1 {
-        for x in 1..w-1 {
-            let sum =
-                -1 * channel[[y-1, x-1]] as i32 - 1 * channel[[y-1, x]] as i32 - 1 * channel[[y-1, x+1]] as i32
-                -1 * channel[[y, x-1]] as i32   + 8 * channel[[y, x]] as i32   - 1 * channel[[y, x+1]] as i32
-                -1 * channel[[y+1, x-1]] as i32 - 1 * channel[[y+1, x]] as i32 - 1 * channel[[y+1, x+1]] as i32;
-            
+    for y in 0..h {
+        for x in 0..w {
+            let mut sum = 0i32;
+            let kernel = [
+                [-1, -1, -1],
+                [-1,  8, -1],
+                [-1, -1, -1],
+            ];
+            for ky in -1..=1 {
+                for kx in -1..=1 {
+                    let val = get_border_pixel(&channel, y as isize + ky, x as isize + kx, border_type, border_value);
+                    sum += val as i32 * kernel[(ky + 1) as usize][(kx + 1) as usize];
+                }
+            }
             out[[y, x]] = sum.clamp(0, 255) as u8;
         }
     }
@@ -241,31 +331,37 @@ pub fn compute_structure_tensor(image: &numpy::ndarray::ArrayView2<u8>, window_s
 /// convolve_2d_channel() - Convolve a 2D channel with a 2D float kernel.
 /// @channel: 2D input image channel slice (u8).
 /// @kernel: 2D float convolution kernel.
+/// @border_type: Border padding mode.
+/// @border_value: Constant border value.
 ///
 /// Convolves the 2D channel with the specified kernel, clamping the results to [0, 255].
 ///
 /// Return: Convolved 2D channel array.
-pub fn convolve_2d_channel(channel:numpy::ndarray::ArrayView2<u8>, kernel:numpy::ndarray::ArrayView2<f64>) -> numpy::ndarray::Array2<u8> {
-    let (h,w) = (channel.shape()[0], channel.shape()[1]);
+pub fn convolve_2d_channel(
+    channel: numpy::ndarray::ArrayView2<u8>,
+    kernel: numpy::ndarray::ArrayView2<f64>,
+    border_type: &str,
+    border_value: u8,
+) -> numpy::ndarray::Array2<u8> {
+    let (h, w) = (channel.shape()[0], channel.shape()[1]);
     let (kh, kw) = (kernel.shape()[0], kernel.shape()[1]);
     
-    let pad_h = kh/2;
-    let pad_w = kw/2;
+    let pad_h = kh / 2;
+    let pad_w = kw / 2;
     let mut out = numpy::ndarray::Array2::<u8>::zeros((h, w));
 
-    for y in 0..h{
-        for x in 0..w{
+    for y in 0..h {
+        for x in 0..w {
             let mut sum = 0.0;
-            for ky in 0..kh{
+            for ky in 0..kh {
                 for kx in 0..kw {
-
-                    let iy = (y as isize + ky as isize - pad_h as isize).clamp(0, h as isize - 1) as usize;
-                    let ix = (x as isize + kx as isize - pad_w as isize).clamp(0, w as isize - 1) as usize;
-
-                    sum += channel[[iy, ix]] as f64 * kernel[[ky, kx]];
+                    let iy = y as isize + ky as isize - pad_h as isize;
+                    let ix = x as isize + kx as isize - pad_w as isize;
+                    let val = get_border_pixel(&channel, iy, ix, border_type, border_value);
+                    sum += val as f64 * kernel[[ky, kx]];
                 }
             }
-            out[[y,x]] = sum.clamp(0.0, 255.0) as u8;
+            out[[y, x]] = sum.clamp(0.0, 255.0) as u8;
         }
     }
     out

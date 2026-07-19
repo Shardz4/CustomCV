@@ -13,24 +13,32 @@ use crate::helpers::{apply_median_3x3, apply_laplacian_3x3};
 /// median_filter() - Apply a median filter to an image.
 /// @py: Python interpreter token.
 /// @x: Input image array (u8).
+/// @border_type: Border padding mode ("reflect", "replicate", "wrap", "constant").
+/// @border_value: Constant border value (defaults to 0).
 ///
 /// Blurs an image using a median filter with a 3x3 aperture size.
 ///
 /// Return: Filtered image array.
 #[pyfunction]
-pub fn median_filter<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyResult<&'py PyArrayDyn<u8>> {
+#[pyo3(signature = (x, border_type = "reflect", border_value = 0))]
+pub fn median_filter<'py>(
+    py: Python<'py>,
+    x: PyReadonlyArrayDyn<'py, u8>,
+    border_type: &str,
+    border_value: u8,
+) -> PyResult<&'py PyArrayDyn<u8>> {
     let arr = x.as_array();
     let ndim = arr.ndim();
     if ndim == 2 {
         let channel = arr.into_dimensionality::<numpy::ndarray::Ix2>().unwrap();
-        let filtered = apply_median_3x3(channel.view());
+        let filtered = apply_median_3x3(channel.view(), border_type, border_value);
         return Ok(filtered.into_pyarray(py).to_dyn());
     } else if ndim == 3 {
         let (h, w, c) = (arr.shape()[0], arr.shape()[1], arr.shape()[2]);
         let mut out_arr = Array3::<u8>::zeros((h, w, c));
         for ch in 0..c {
             let channel = arr.slice(s![.., .., ch]);
-            out_arr.slice_mut(s![.., .., ch]).assign(&apply_median_3x3(channel));
+            out_arr.slice_mut(s![.., .., ch]).assign(&apply_median_3x3(channel, border_type, border_value));
         }
         return Ok(out_arr.into_pyarray(py).to_dyn());
     }
@@ -40,24 +48,32 @@ pub fn median_filter<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> Py
 /// laplacian_filter() - Apply a Laplacian filter to an image.
 /// @py: Python interpreter token.
 /// @x: Input image array (u8).
+/// @border_type: Border padding mode ("reflect", "replicate", "wrap", "constant").
+/// @border_value: Constant border value (defaults to 0).
 ///
 /// Calculates the Laplacian of an image using a 3x3 aperture size.
 ///
 /// Return: Filtered image array.
 #[pyfunction]
-pub fn laplacian_filter<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyResult<&'py PyArrayDyn<u8>> {
+#[pyo3(signature = (x, border_type = "reflect", border_value = 0))]
+pub fn laplacian_filter<'py>(
+    py: Python<'py>,
+    x: PyReadonlyArrayDyn<'py, u8>,
+    border_type: &str,
+    border_value: u8,
+) -> PyResult<&'py PyArrayDyn<u8>> {
     let arr = x.as_array();
     let ndim = arr.ndim();
     if ndim == 2 {
         let channel = arr.into_dimensionality::<numpy::ndarray::Ix2>().unwrap();
-        let filtered = apply_laplacian_3x3(channel.view());
+        let filtered = apply_laplacian_3x3(channel.view(), border_type, border_value);
         return Ok(filtered.into_pyarray(py).to_dyn());
     } else if ndim == 3 {
         let (h, w, c) = (arr.shape()[0], arr.shape()[1], arr.shape()[2]);
         let mut out_arr = Array3::<u8>::zeros((h, w, c));
         for ch in 0..c {
             let channel = arr.slice(s![.., .., ch]);
-            out_arr.slice_mut(s![.., .., ch]).assign(&apply_laplacian_3x3(channel));
+            out_arr.slice_mut(s![.., .., ch]).assign(&apply_laplacian_3x3(channel, border_type, border_value));
         }
         return Ok(out_arr.into_pyarray(py).to_dyn());
     }

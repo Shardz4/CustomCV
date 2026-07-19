@@ -39,6 +39,7 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(transforms::apply_otsu_with_mode, m)?)?;
     m.add_function(wrap_pyfunction!(transforms::rgb_to_cmy, m)?)?;
     m.add_function(wrap_pyfunction!(transforms::apply_frequency_filter, m)?)?;
+    m.add_function(wrap_pyfunction!(transforms::adaptive_threshold, m)?)?;
 
     // --- Color Space Conversions ---
     m.add_function(wrap_pyfunction!(color_convert::rgb_to_hsv, m)?)?;
@@ -50,6 +51,7 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(color_convert::bgr_to_rgb, m)?)?;
     m.add_function(wrap_pyfunction!(color_convert::gray_to_rgb, m)?)?;
     m.add_function(wrap_pyfunction!(color_convert::rgb_to_yuv, m)?)?;
+    m.add_function(wrap_pyfunction!(color_convert::cvt_color, m)?)?;
 
     // --- Histogram Operations ---
     m.add_function(wrap_pyfunction!(histogram::hist_equalize_rgb, m)?)?;
@@ -236,6 +238,10 @@ fn rust_cv_lib(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(features2d::simple_blob_detect, m)?)?;
     m.add_function(wrap_pyfunction!(features2d::bf_match, m)?)?;
     m.add_function(wrap_pyfunction!(features2d::knn_match, m)?)?;
+    m.add_function(wrap_pyfunction!(features2d::draw_keypoints, m)?)?;
+    m.add_function(wrap_pyfunction!(features2d::draw_matches, m)?)?;
+    m.add_function(wrap_pyfunction!(features2d::find_homography, m)?)?;
+    m.add_function(wrap_pyfunction!(features2d::flann_match, m)?)?;
 
     // --- Object Detection ---
     m.add_function(wrap_pyfunction!(objdetect::cascade_classifier_constructor, m)?)?;
