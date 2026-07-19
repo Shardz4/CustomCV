@@ -393,3 +393,135 @@ pub fn rgb_to_yuv<'py>(py: Python<'py>, x: PyReadonlyArrayDyn<'py, u8>) -> PyRes
     }
     Ok(out.into_pyarray(py).to_dyn())
 }
+
+/// cvt_color() - Universal color-space converter dispatcher.
+/// @py: Python interpreter token.
+/// @image: Input image array (u8).
+/// @code: Integer conversion code matching OpenCV color conversion constants.
+///
+/// Maps a standard OpenCV color conversion code to the corresponding internal
+/// conversion function.  The supported codes and their mappings are:
+///
+///   - COLOR_BGR2GRAY  (6)  / COLOR_RGB2GRAY (7)  → rgb_to_gray
+///   - COLOR_BGR2HSV   (40) / COLOR_RGB2HSV  (41) → rgb_to_hsv
+///   - COLOR_BGR2HLS   (52) / COLOR_RGB2HLS  (53) → rgb_to_hls
+///   - COLOR_BGR2YCrCb (36) / COLOR_RGB2YCrCb(37) → rgb_to_ycrcb
+///   - COLOR_BGR2XYZ   (32) / COLOR_RGB2XYZ  (33) → rgb_to_xyz
+///   - COLOR_BGR2Lab   (44) / COLOR_RGB2Lab  (45) → rgb_to_lab
+///   - COLOR_BGR2Luv   (50) / COLOR_RGB2Luv  (51) → rgb_to_luv
+///   - COLOR_BGR2RGB   (4)  / COLOR_RGB2BGR  (4)  → bgr_to_rgb
+///   - COLOR_GRAY2BGR  (8)  / COLOR_GRAY2RGB (8)  → gray_to_rgb
+///   - COLOR_BGR2YUV   (82) / COLOR_RGB2YUV  (83) → rgb_to_yuv
+///   - COLOR_RGB2CMY   (128)                      → rgb_to_cmy (custom)
+///
+/// For BGR‐prefixed codes the input is first channel-swapped to RGB before
+/// the conversion is applied.
+///
+/// Return: Converted image as a PyObject (array type depends on conversion).
+#[pyfunction]
+#[pyo3(name = "cvtColor")]
+pub fn cvt_color<'py>(
+    py: Python<'py>,
+    image: PyReadonlyArrayDyn<'py, u8>,
+    code: i32,
+) -> PyResult<PyObject> {
+    // BGR-prefixed codes require a channel swap first.
+    // We handle pairs: (bgr_code, rgb_code) → same converter
+    match code {
+        // --- To Grayscale ---
+        6 | 7 => {
+            let input = if code == 6 { swap_rb(py, &image)? } else { image };
+            let result = crate::transforms::rgb_to_gray(py, input)?;
+            Ok(result.into_py(py))
+        }
+        // --- To HSV ---
+        40 | 41 => {
+            let input = if code == 40 { swap_rb(py, &image)? } else { image };
+            let result = rgb_to_hsv(py, input)?;
+            Ok(result.into_py(py))
+        }
+        // --- To HLS ---
+        52 | 53 => {
+            let input = if code == 52 { swap_rb(py, &image)? } else { image };
+            let result = rgb_to_hls(py, input)?;
+            Ok(result.into_py(py))
+        }
+        // --- To YCrCb ---
+        36 | 37 => {
+            let input = if code == 36 { swap_rb(py, &image)? } else { image };
+            let result = rgb_to_ycrcb(py, input)?;
+            Ok(result.into_py(py))
+        }
+        // --- To XYZ ---
+        32 | 33 => {
+            let input = if code == 32 { swap_rb(py, &image)? } else { image };
+            let result = rgb_to_xyz(py, input)?;
+            Ok(result.into_py(py))
+        }
+        // --- To Lab ---
+        44 | 45 => {
+            let input = if code == 44 { swap_rb(py, &image)? } else { image };
+            let result = rgb_to_lab(py, input)?;
+            Ok(result.into_py(py))
+        }
+        // --- To Luv ---
+        50 | 51 => {
+            let input = if code == 50 { swap_rb(py, &image)? } else { image };
+            let result = rgb_to_luv(py, input)?;
+            Ok(result.into_py(py))
+        }
+        // --- BGR ↔ RGB swap ---
+        4 => {
+            let result = bgr_to_rgb(py, image)?;
+            Ok(result.into_py(py))
+        }
+        // --- Gray to BGR / RGB ---
+        8 => {
+            let result = gray_to_rgb(py, image)?;
+            Ok(result.into_py(py))
+        }
+        // --- To YUV ---
+        82 | 83 => {
+            let input = if code == 82 { swap_rb(py, &image)? } else { image };
+            let result = rgb_to_yuv(py, input)?;
+            Ok(result.into_py(py))
+        }
+        // --- Custom: RGB to CMY (128) ---
+        128 => {
+            let result = crate::transforms::rgb_to_cmy(py, image)?;
+            Ok(result.into_py(py))
+        }
+        _ => Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "Unsupported color conversion code: {}. See OpenCV COLOR_* constants.",
+            code
+        ))),
+    }
+}
+
+/// swap_rb() - Swap the R and B channels of a 3-channel image.
+///
+/// Internal helper used by cvt_color to convert BGR input to RGB
+/// before passing to the RGB-based converter functions.
+fn swap_rb<'py>(
+    py: Python<'py>,
+    image: &PyReadonlyArrayDyn<'py, u8>,
+) -> PyResult<PyReadonlyArrayDyn<'py, u8>> {
+    let arr = image.as_array();
+    let shape = arr.shape();
+    if shape.len() != 3 || shape[2] != 3 {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "BGR↔RGB swap requires a 3-channel image (H, W, 3)",
+        ));
+    }
+    let (rows, cols) = (shape[0], shape[1]);
+    let mut out = Array3::<u8>::zeros((rows, cols, 3));
+    for r in 0..rows {
+        for c in 0..cols {
+            out[[r, c, 0]] = arr[[r, c, 2]];
+            out[[r, c, 1]] = arr[[r, c, 1]];
+            out[[r, c, 2]] = arr[[r, c, 0]];
+        }
+    }
+    let py_arr = out.into_pyarray(py).to_dyn();
+    Ok(py_arr.readonly())
+}

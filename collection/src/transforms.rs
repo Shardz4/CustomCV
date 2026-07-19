@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 use numpy::{
-    ndarray::{s, Array3},
+    ndarray::{s, Array2, Array3},
     IntoPyArray, PyArray3, PyArrayDyn, PyArrayMethods, PyReadonlyArray3, PyReadonlyArrayDyn,
 };
 use num_complex::Complex64;
@@ -272,4 +272,124 @@ pub fn apply_frequency_filter<'py>(py: Python<'py>, f_shifted: PyReadonlyArray3<
         }
     }
     output.into_pyarray(py)
+}
+
+/// adaptive_threshold() - Per-region adaptive thresholding.
+/// @py: Python interpreter token.
+/// @image: 2D single-channel grayscale input image (u8).
+/// @max_value: Non-zero value assigned to pixels that pass the threshold test.
+/// @adaptive_method: Adaptive thresholding algorithm to use.
+///     - 0 (ADAPTIVE_THRESH_MEAN_C): threshold is the mean of the
+///       block_size × block_size neighbourhood minus constant c.
+///     - 1 (ADAPTIVE_THRESH_GAUSSIAN_C): threshold is a Gaussian-weighted
+///       sum of the neighbourhood minus constant c.
+/// @threshold_type: Type of thresholding to apply.
+///     - 0 (THRESH_BINARY):     dst = if src > T { max_value } else { 0 }
+///     - 1 (THRESH_BINARY_INV): dst = if src > T { 0 } else { max_value }
+/// @block_size: Size of the pixel neighbourhood used to compute the
+///     threshold value.  Must be an odd number >= 3.
+/// @c: Constant subtracted from the computed mean / weighted mean before
+///     the threshold comparison.  Can be positive or negative.
+///
+/// The function computes a per-pixel threshold by averaging the surrounding
+/// block_size × block_size neighbourhood (mean or Gaussian-weighted), then
+/// subtracting c.  Each pixel is compared against its own local threshold to
+/// produce the binary output.
+///
+/// Context: Adaptive thresholding is superior to global thresholding when
+/// illumination varies across the image, e.g. scanned documents or natural
+/// scenes.
+///
+/// Return: Thresholded 2D image array (u8).
+#[pyfunction]
+pub fn adaptive_threshold<'py>(
+    py: Python<'py>,
+    image: PyReadonlyArrayDyn<'py, u8>,
+    max_value: f64,
+    adaptive_method: i32,
+    threshold_type: i32,
+    block_size: usize,
+    c: f64,
+) -> PyResult<&'py PyArrayDyn<u8>> {
+    if block_size < 3 || block_size % 2 == 0 {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "block_size must be an odd number >= 3",
+        ));
+    }
+    let arr = image.as_array();
+    let arr2d = arr.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err(
+            "adaptiveThreshold requires a 2D single-channel image",
+        ))?;
+    let (h, w) = (arr2d.shape()[0], arr2d.shape()[1]);
+    let half = (block_size / 2) as isize;
+    let max_val = max_value.round().clamp(0.0, 255.0) as u8;
+
+    // Pre-compute Gaussian kernel weights if needed.
+    let gauss_weights: Option<Vec<Vec<f64>>> = if adaptive_method == 1 {
+        let sigma = 0.3 * ((block_size as f64 / 2.0) - 1.0) + 0.8;
+        let mut kernel = vec![vec![0.0f64; block_size]; block_size];
+        let mut sum = 0.0;
+        for ky in 0..block_size {
+            for kx in 0..block_size {
+                let dy = ky as f64 - half as f64;
+                let dx = kx as f64 - half as f64;
+                let val = (-(dx * dx + dy * dy) / (2.0 * sigma * sigma)).exp();
+                kernel[ky][kx] = val;
+                sum += val;
+            }
+        }
+        // Normalise
+        for row in kernel.iter_mut() {
+            for v in row.iter_mut() {
+                *v /= sum;
+            }
+        }
+        Some(kernel)
+    } else {
+        None
+    };
+
+    let block_area = (block_size * block_size) as f64;
+    let mut out = Array2::<u8>::zeros((h, w));
+
+    for y in 0..h {
+        for x in 0..w {
+            let local_threshold = if adaptive_method == 0 {
+                // ADAPTIVE_THRESH_MEAN_C: arithmetic mean of neighbourhood
+                let mut sum = 0.0f64;
+                for ky in -half..=half {
+                    for kx in -half..=half {
+                        let iy = (y as isize + ky).clamp(0, h as isize - 1) as usize;
+                        let ix = (x as isize + kx).clamp(0, w as isize - 1) as usize;
+                        sum += arr2d[[iy, ix]] as f64;
+                    }
+                }
+                sum / block_area - c
+            } else {
+                // ADAPTIVE_THRESH_GAUSSIAN_C: Gaussian-weighted mean
+                let kernel = gauss_weights.as_ref().unwrap();
+                let mut sum = 0.0f64;
+                for (ky_i, ky) in (-half..=half).enumerate() {
+                    for (kx_i, kx) in (-half..=half).enumerate() {
+                        let iy = (y as isize + ky).clamp(0, h as isize - 1) as usize;
+                        let ix = (x as isize + kx).clamp(0, w as isize - 1) as usize;
+                        sum += arr2d[[iy, ix]] as f64 * kernel[ky_i][kx_i];
+                    }
+                }
+                sum - c
+            };
+
+            let pixel = arr2d[[y, x]] as f64;
+            out[[y, x]] = if threshold_type == 0 {
+                // THRESH_BINARY
+                if pixel > local_threshold { max_val } else { 0 }
+            } else {
+                // THRESH_BINARY_INV
+                if pixel > local_threshold { 0 } else { max_val }
+            };
+        }
+    }
+
+    Ok(out.into_pyarray(py).to_dyn())
 }
