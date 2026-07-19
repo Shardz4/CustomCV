@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 use numpy::{
-    ndarray::{Array2, ArrayView2},
+    ndarray::{s, Array2, Array3, ArrayView2},
     IntoPyArray, PyArrayDyn, PyReadonlyArrayDyn,
 };
 
@@ -72,165 +72,160 @@ pub fn dilate_2d(image: ArrayView2<u8>, kernel: ArrayView2<u8>) -> Array2<u8> {
     out
 }
 
+// Helper to process 2D or 3D images channel-by-channel.
+fn run_morph_op<'py, F>(
+    py: Python<'py>,
+    image: PyReadonlyArrayDyn<'py, u8>,
+    kernel: PyReadonlyArrayDyn<'py, u8>,
+    op: F,
+) -> PyResult<&'py PyArrayDyn<u8>>
+where
+    F: Fn(ArrayView2<u8>, ArrayView2<u8>) -> Array2<u8>,
+{
+    let img_arr = image.as_array();
+    let k_arr = kernel.as_array();
+    let k_2d = k_arr.into_dimensionality::<numpy::ndarray::Ix2>()
+        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Kernel must be 2D"))?;
+        
+    let ndim = img_arr.ndim();
+    if ndim == 2 {
+        let img_2d = img_arr.into_dimensionality::<numpy::ndarray::Ix2>().unwrap();
+        let res = op(img_2d, k_2d);
+        Ok(res.into_pyarray(py).to_dyn())
+    } else if ndim == 3 {
+        let shape = img_arr.shape();
+        let (h, w, c) = (shape[0], shape[1], shape[2]);
+        let mut out = Array3::<u8>::zeros((h, w, c));
+        for ch in 0..c {
+            let channel = img_arr.slice(s![.., .., ch]);
+            let channel_2d = channel.into_dimensionality::<numpy::ndarray::Ix2>().unwrap();
+            let res = op(channel_2d, k_2d);
+            out.slice_mut(s![.., .., ch]).assign(&res);
+        }
+        Ok(out.into_pyarray(py).to_dyn())
+    } else {
+        Err(pyo3::exceptions::PyValueError::new_err("Image must be 2D or 3D"))
+    }
+}
+
 /// apply_erosion() - Applies erosion to an image using a structuring element.
 /// @py: Python interpreter token.
-/// @image: 2D input image array (u8).
+/// @image: Input image array (u8), 2D or 3D.
 /// @kernel: Structuring element array.
 ///
-/// Erodes the input image using the specified structuring element.
+/// Erodes the input image using the specified structuring element. If the image
+/// is 3D, the operation is applied channel-by-channel.
 ///
 /// Return: Eroded image array.
 #[pyfunction]
 pub fn apply_erosion<'py>(
     py: Python<'py>, image: PyReadonlyArrayDyn<'py, u8>, kernel: PyReadonlyArrayDyn<'py, u8>
 ) -> PyResult<&'py PyArrayDyn<u8>> {
-    let img_arr = image.as_array();
-    let k_arr = kernel.as_array();
-    let img_2d = img_arr.into_dimensionality::<numpy::ndarray::Ix2>()
-        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Erosion requires a 2D image"))?;
-    let k_2d = k_arr.into_dimensionality::<numpy::ndarray::Ix2>()
-        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Kernel must be 2D"))?;
-    let result = erode_2d(img_2d.view(), k_2d.view());
-    Ok(result.into_pyarray(py).to_dyn())
+    run_morph_op(py, image, kernel, |img, k| erode_2d(img, k))
 }
 
 /// apply_dilation() - Applies dilation to an image using a structuring element.
 /// @py: Python interpreter token.
-/// @image: 2D input image array (u8).
+/// @image: Input image array (u8), 2D or 3D.
 /// @kernel: Structuring element array.
 ///
-/// Dilates the input image using the specified structuring element.
+/// Dilates the input image using the specified structuring element. If the image
+/// is 3D, the operation is applied channel-by-channel.
 ///
 /// Return: Dilated image array.
 #[pyfunction]
 pub fn apply_dilation<'py>(
     py: Python<'py>, image: PyReadonlyArrayDyn<'py, u8>, kernel: PyReadonlyArrayDyn<'py, u8>
 ) -> PyResult<&'py PyArrayDyn<u8>> {
-    let img_arr = image.as_array();
-    let k_arr = kernel.as_array();
-    let img_2d = img_arr.into_dimensionality::<numpy::ndarray::Ix2>()
-        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Dilation requires a 2D image"))?;
-    let k_2d = k_arr.into_dimensionality::<numpy::ndarray::Ix2>()
-        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Kernel must be 2D"))?;
-    let result = dilate_2d(img_2d.view(), k_2d.view());
-    Ok(result.into_pyarray(py).to_dyn())
+    run_morph_op(py, image, kernel, |img, k| dilate_2d(img, k))
 }
 
 /// opening() - Applies morphological opening (erosion followed by dilation) to an image.
 /// @py: Python interpreter token.
-/// @image: 2D input image array (u8).
+/// @image: Input image array (u8), 2D or 3D.
 /// @kernel: Structuring element array.
 ///
-/// Useful for removing small objects or noise.
+/// Useful for removing small objects or noise. If the image is 3D, the operation
+/// is applied channel-by-channel.
 ///
 /// Return: Opened image array.
 #[pyfunction]
 pub fn opening<'py>(py:Python<'py>, image: PyReadonlyArrayDyn<'py, u8>, kernel: PyReadonlyArrayDyn<'py, u8>)->PyResult<&'py PyArrayDyn<u8>>{
-    let img_arr = image.as_array();
-    let k_arr = kernel.as_array();
-    let img_2d = img_arr.into_dimensionality::<numpy::ndarray::Ix2>()
-        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Opening requires 2D image"))?;
-    let k_2d = k_arr.into_dimensionality::<numpy::ndarray::Ix2>()
-        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Kernel must be 2D"))?;
-    
-    let eroded = erode_2d(img_2d.view(), k_2d.view());
-    let opened = dilate_2d(eroded.view(), k_2d.view());
-    
-    Ok(opened.into_pyarray(py).to_dyn())
+    run_morph_op(py, image, kernel, |img, k| {
+        let eroded = erode_2d(img, k);
+        dilate_2d(eroded.view(), k)
+    })
 }
 
 /// apply_closing() - Applies morphological closing (dilation followed by erosion) to an image.
 /// @py: Python interpreter token.
-/// @image: 2D input image array (u8).
+/// @image: Input image array (u8), 2D or 3D.
 /// @kernel: Structuring element array.
 ///
 /// Useful for closing small holes inside the objects, or connecting components.
+/// If the image is 3D, the operation is applied channel-by-channel.
 ///
 /// Return: Closed image array.
 #[pyfunction]
 pub fn apply_closing<'py>(py:Python<'py>, image: PyReadonlyArrayDyn<'py, u8>, kernel: PyReadonlyArrayDyn<'py, u8>)->PyResult<&'py PyArrayDyn<u8>>{
-    let img_arr = image.as_array();
-    let k_arr = kernel.as_array();
-    let img_2d = img_arr.into_dimensionality::<numpy::ndarray::Ix2>()
-        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Closing requires 2D image"))?;
-    let k_2d = k_arr.into_dimensionality::<numpy::ndarray::Ix2>()
-        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Kernel must be 2D"))?;
-    
-    let dilated = dilate_2d(img_2d.view(), k_2d.view());
-    let closed = erode_2d(dilated.view(), k_2d.view());
-    
-    Ok(closed.into_pyarray(py).to_dyn())
+    run_morph_op(py, image, kernel, |img, k| {
+        let dilated = dilate_2d(img, k);
+        erode_2d(dilated.view(), k)
+    })
 }
 
 /// morphological_gradient() - Computes the morphological gradient of an image.
 /// @py: Python interpreter token.
-/// @image: 2D input image array (u8).
+/// @image: Input image array (u8), 2D or 3D.
 /// @kernel: Structuring element array.
 ///
 /// Computes the difference between the dilation and the erosion of an image.
+/// If the image is 3D, the operation is applied channel-by-channel.
 ///
 /// Return: Gradient image array.
 #[pyfunction]
 pub fn morphological_gradient<'py>(py:Python<'py>, image:PyReadonlyArrayDyn<'py, u8>, kernel:PyReadonlyArrayDyn<'py, u8>)->PyResult<&'py PyArrayDyn<u8>>{
-    let img_arr = image.as_array();
-    let k_arr = kernel.as_array();
-    let img_2d = img_arr.into_dimensionality::<numpy::ndarray::Ix2>()
-    .map_err(|_| pyo3::exceptions::PyValueError::new_err("Morphological Gradient requires 2D image"))?;
-    let k_2d = k_arr.into_dimensionality::<numpy::ndarray::Ix2>()
-    .map_err(|_| pyo3::exceptions::PyValueError::new_err("Kernel must be 2D"))?;
-    
-    let dilated = dilate_2d(img_2d.view(), k_2d.view());
-    let eroded = erode_2d(img_2d.view(), k_2d.view());
-    
-    let gradient = &dilated - &eroded;
-    Ok(gradient.into_pyarray(py).to_dyn())
+    run_morph_op(py, image, kernel, |img, k| {
+        let dilated = dilate_2d(img, k);
+        let eroded = erode_2d(img, k);
+        dilated - eroded
+    })
 }
-
 
 /// top_hat() - Computes the top-hat transform of an image.
 /// @py: Python interpreter token.
-/// @image: 2D input image array (u8).
+/// @image: Input image array (u8), 2D or 3D.
 /// @kernel: Structuring element array.
 ///
 /// Computes the difference between the input image and its opening.
+/// If the image is 3D, the operation is applied channel-by-channel.
 ///
 /// Return: Top-hat image array.
 #[pyfunction]
 pub fn top_hat<'py>(py:Python<'py>, image: PyReadonlyArrayDyn<'py, u8>, kernel: PyReadonlyArrayDyn<'py, u8>)->PyResult<&'py PyArrayDyn<u8>>{
-    let img_arr = image.as_array();
-    let k_arr = kernel.as_array();
-    let img_2d = img_arr.into_dimensionality::<numpy::ndarray::Ix2>()
-        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Top Hat requires 2D image"))?;
-    let k_2d = k_arr.into_dimensionality::<numpy::ndarray::Ix2>()
-        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Kernel must be 2D"))?;
-    
-    let eroded = erode_2d(img_2d.view(), k_2d.view());
-    let opened = dilate_2d(eroded.view(), k_2d.view());
-    let top_hat = &img_2d - &opened;
-    Ok(top_hat.into_pyarray(py).to_dyn())
+    run_morph_op(py, image, kernel, |img, k| {
+        let eroded = erode_2d(img, k);
+        let opened = dilate_2d(eroded.view(), k);
+        img.to_owned() - opened
+    })
 }
 
 /// black_hat() - Computes the black-hat transform of an image.
 /// @py: Python interpreter token.
-/// @image: 2D input image array (u8).
+/// @image: Input image array (u8), 2D or 3D.
 /// @kernel: Structuring element array.
 ///
 /// Computes the difference between the closing of the image and the input image.
+/// If the image is 3D, the operation is applied channel-by-channel.
 ///
 /// Return: Black-hat image array.
 #[pyfunction]
 pub fn black_hat<'py>(py:Python<'py>, image: PyReadonlyArrayDyn<'py, u8>, kernel: PyReadonlyArrayDyn<'py, u8>)->PyResult<&'py PyArrayDyn<u8>>{
-    let img_arr = image.as_array();
-    let k_arr = kernel.as_array();
-    let img_2d = img_arr.into_dimensionality::<numpy::ndarray::Ix2>()
-        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Black Hat requires 2D image"))?;
-    let k_2d = k_arr.into_dimensionality::<numpy::ndarray::Ix2>()
-        .map_err(|_| pyo3::exceptions::PyValueError::new_err("Kernel must be 2D"))?;
-    
-    let dilated = dilate_2d(img_2d.view(), k_2d.view());
-    let closed = erode_2d(dilated.view(), k_2d.view());
-    let black_hat = &closed - &img_2d;
-    Ok(black_hat.into_pyarray(py).to_dyn())
+    run_morph_op(py, image, kernel, |img, k| {
+        let dilated = dilate_2d(img, k);
+        let closed = erode_2d(dilated.view(), k);
+        closed - img.to_owned()
+    })
 }
 
 

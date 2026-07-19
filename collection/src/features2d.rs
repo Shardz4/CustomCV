@@ -1932,3 +1932,805 @@ pub fn knn_match<'py>(
         Err(pyo3::exceptions::PyTypeError::new_err("Descriptors must be either np.uint8 or np.float32"))
     }
 }
+
+// ==========================================
+// DRAWING & HOMOGRAPHY HELPERS
+// ==========================================
+
+fn draw_line_3d(arr: &mut ndarray::Array3<u8>, pt1: (i32, i32), pt2: (i32, i32), color: [u8; 3]) {
+    let (h, w) = (arr.shape()[0] as i32, arr.shape()[1] as i32);
+    let x1 = pt1.0;
+    let y1 = pt1.1;
+    let x2 = pt2.0;
+    let y2 = pt2.1;
+    
+    let dx = (x2 - x1).abs();
+    let dy = (y2 - y1).abs();
+    let sx = if x1 < x2 { 1 } else { -1 };
+    let sy = if y1 < y2 { 1 } else { -1 };
+    let mut err = dx - dy;
+    
+    let mut cx = x1;
+    let mut cy = y1;
+    
+    loop {
+        if cx >= 0 && cx < w && cy >= 0 && cy < h {
+            arr[[cy as usize, cx as usize, 0]] = color[0];
+            arr[[cy as usize, cx as usize, 1]] = color[1];
+            arr[[cy as usize, cx as usize, 2]] = color[2];
+        }
+        if cx == x2 && cy == y2 {
+            break;
+        }
+        let e2 = 2 * err;
+        if e2 > -dy {
+            err -= dy;
+            cx += sx;
+        }
+        if e2 < dx {
+            err += dx;
+            cy += sy;
+        }
+    }
+}
+
+fn draw_circle_3d(arr: &mut ndarray::Array3<u8>, center: (i32, i32), radius: i32, color: [u8; 3]) {
+    let (h, w) = (arr.shape()[0] as i32, arr.shape()[1] as i32);
+    let cx = center.0;
+    let cy = center.1;
+    
+    let mut x = 0;
+    let mut y = radius;
+    let mut d = 3 - 2 * radius;
+    
+    let mut draw_pts = |px: i32, py: i32| {
+        let pts = [
+            (cx + px, cy + py), (cx - px, cy + py),
+            (cx + px, cy - py), (cx - px, cy - py),
+            (cx + py, cy + px), (cx - py, cy + px),
+            (cx + py, cy - px), (cx - py, cy - px),
+        ];
+        for &(tx, ty) in &pts {
+            if tx >= 0 && tx < w && ty >= 0 && ty < h {
+                arr[[ty as usize, tx as usize, 0]] = color[0];
+                arr[[ty as usize, tx as usize, 1]] = color[1];
+                arr[[ty as usize, tx as usize, 2]] = color[2];
+            }
+        }
+    };
+    
+    draw_pts(x, y);
+    while y >= x {
+        x += 1;
+        if d > 0 {
+            y -= 1;
+            d = d + 4 * (x - y) + 10;
+        } else {
+            d = d + 4 * x + 6;
+        }
+        draw_pts(x, y);
+    }
+}
+
+fn extract_points(points: &pyo3::PyAny) -> PyResult<Vec<(f64, f64)>> {
+    if let Ok(arr_f64) = points.extract::<PyReadonlyArrayDyn<f64>>() {
+        let arr = arr_f64.as_array();
+        let shape = arr.shape();
+        if shape.len() == 2 && shape[1] == 2 {
+            let mut v = Vec::new();
+            for i in 0..shape[0] {
+                v.push((arr[[i, 0]], arr[[i, 1]]));
+            }
+            return Ok(v);
+        } else if shape.len() == 3 && shape[1] == 1 && shape[2] == 2 {
+            let mut v = Vec::new();
+            for i in 0..shape[0] {
+                v.push((arr[[i, 0, 0]], arr[[i, 0, 1]]));
+            }
+            return Ok(v);
+        }
+    } else if let Ok(arr_f32) = points.extract::<PyReadonlyArrayDyn<f32>>() {
+        let arr = arr_f32.as_array();
+        let shape = arr.shape();
+        if shape.len() == 2 && shape[1] == 2 {
+            let mut v = Vec::new();
+            for i in 0..shape[0] {
+                v.push((arr[[i, 0]] as f64, arr[[i, 1]] as f64));
+            }
+            return Ok(v);
+        } else if shape.len() == 3 && shape[1] == 1 && shape[2] == 2 {
+            let mut v = Vec::new();
+            for i in 0..shape[0] {
+                v.push((arr[[i, 0, 0]] as f64, arr[[i, 0, 1]] as f64));
+            }
+            return Ok(v);
+        }
+    } else if let Ok(list) = points.extract::<Vec<(f64, f64)>>() {
+        return Ok(list);
+    }
+    Err(pyo3::exceptions::PyTypeError::new_err("Points must be Nx2 or Nx1x2 array or list of coordinate pairs"))
+}
+
+fn normalize_points(pts: &[(f64, f64)]) -> (Vec<(f64, f64)>, ndarray::Array2<f64>) {
+    let n = pts.len() as f64;
+    let mut sum_x = 0.0;
+    let mut sum_y = 0.0;
+    for &(x, y) in pts {
+        sum_x += x;
+        sum_y += y;
+    }
+    let mean_x = sum_x / n;
+    let mean_y = sum_y / n;
+    
+    let mut sum_dist = 0.0;
+    for &(x, y) in pts {
+        let dx = x - mean_x;
+        let dy = y - mean_y;
+        sum_dist += (dx * dx + dy * dy).sqrt();
+    }
+    let mean_dist = sum_dist / n;
+    let scale = if mean_dist > 0.0 {
+        2.0f64.sqrt() / mean_dist
+    } else {
+        1.0
+    };
+    
+    let mut norm_pts = Vec::with_capacity(pts.len());
+    for &(x, y) in pts {
+        norm_pts.push(((x - mean_x) * scale, (y - mean_y) * scale));
+    }
+    
+    let mut t = ndarray::Array2::<f64>::zeros((3, 3));
+    t[[0, 0]] = scale;
+    t[[0, 2]] = -mean_x * scale;
+    t[[1, 1]] = scale;
+    t[[1, 2]] = -mean_y * scale;
+    t[[2, 2]] = 1.0;
+    
+    (norm_pts, t)
+}
+
+fn invert_transform(t: &ndarray::Array2<f64>) -> ndarray::Array2<f64> {
+    let scale = t[[0, 0]];
+    let mean_x = -t[[0, 2]] / scale;
+    let mean_y = -t[[1, 2]] / scale;
+    
+    let mut inv = ndarray::Array2::<f64>::zeros((3, 3));
+    inv[[0, 0]] = 1.0 / scale;
+    inv[[0, 2]] = mean_x;
+    inv[[1, 1]] = 1.0 / scale;
+    inv[[1, 2]] = mean_y;
+    inv[[2, 2]] = 1.0;
+    inv
+}
+
+fn matmul_3x3(a: &ndarray::Array2<f64>, b: &ndarray::Array2<f64>) -> ndarray::Array2<f64> {
+    let mut c = ndarray::Array2::<f64>::zeros((3, 3));
+    for i in 0..3 {
+        for j in 0..3 {
+            let mut sum = 0.0;
+            for k in 0..3 {
+                sum += a[[i, k]] * b[[k, j]];
+            }
+            c[[i, j]] = sum;
+        }
+    }
+    c
+}
+
+fn jacobi_eigen(mut a: ndarray::Array2<f64>) -> (ndarray::Array1<f64>, ndarray::Array2<f64>) {
+    let n = 9;
+    let mut v = ndarray::Array2::<f64>::eye(n);
+    let max_rotations = 100;
+    let eps = 1e-15;
+    
+    for _ in 0..max_rotations {
+        let mut max_val = 0.0;
+        let mut p = 0;
+        let mut q = 0;
+        for i in 0..n {
+            for j in (i+1)..n {
+                let abs_val = a[[i, j]].abs();
+                if abs_val > max_val {
+                    max_val = abs_val;
+                    p = i;
+                    q = j;
+                }
+            }
+        }
+        
+        if max_val < eps {
+            break;
+        }
+        
+        let app = a[[p, p]];
+        let aqq = a[[q, q]];
+        let apq = a[[p, q]];
+        let phi = 0.5 * (2.0 * apq).atan2(aqq - app);
+        let c = phi.cos();
+        let s = phi.sin();
+        
+        let mut next_a = a.clone();
+        next_a[[p, p]] = c * c * app - 2.0 * c * s * apq + s * s * aqq;
+        next_a[[q, q]] = s * s * app + 2.0 * c * s * apq + c * c * aqq;
+        next_a[[p, q]] = 0.0;
+        next_a[[q, p]] = 0.0;
+        
+        for i in 0..n {
+            if i != p && i != q {
+                let aip = a[[i, p]];
+                let aiq = a[[i, q]];
+                next_a[[i, p]] = c * aip - s * aiq;
+                next_a[[p, i]] = next_a[[i, p]];
+                next_a[[i, q]] = s * aip + c * aiq;
+                next_a[[q, i]] = next_a[[i, q]];
+            }
+        }
+        a = next_a;
+        
+        for i in 0..n {
+            let vip = v[[i, p]];
+            let viq = v[[i, q]];
+            v[[i, p]] = c * vip - s * viq;
+            v[[i, q]] = s * vip + c * viq;
+        }
+    }
+    
+    let mut eigenvalues = ndarray::Array1::<f64>::zeros(n);
+    for i in 0..n {
+        eigenvalues[i] = a[[i, i]];
+    }
+    (eigenvalues, v)
+}
+
+fn compute_homography_dlt(src: &[(f64, f64)], dst: &[(f64, f64)]) -> Option<ndarray::Array2<f64>> {
+    if src.len() < 4 {
+        return None;
+    }
+    let (src_norm, t_src) = normalize_points(src);
+    let (dst_norm, t_dst) = normalize_points(dst);
+    
+    let n = src.len();
+    let mut a = ndarray::Array2::<f64>::zeros((2 * n, 9));
+    for i in 0..n {
+        let (x, y) = src_norm[i];
+        let (xp, yp) = dst_norm[i];
+        a[[2 * i, 0]] = -x;
+        a[[2 * i, 1]] = -y;
+        a[[2 * i, 2]] = -1.0;
+        a[[2 * i, 6]] = x * xp;
+        a[[2 * i, 7]] = y * xp;
+        a[[2 * i, 8]] = xp;
+        
+        a[[2 * i + 1, 3]] = -x;
+        a[[2 * i + 1, 4]] = -y;
+        a[[2 * i + 1, 5]] = -1.0;
+        a[[2 * i + 1, 6]] = x * yp;
+        a[[2 * i + 1, 7]] = y * yp;
+        a[[2 * i + 1, 8]] = yp;
+    }
+    
+    let mut ata = ndarray::Array2::<f64>::zeros((9, 9));
+    for j in 0..9 {
+        for k in 0..9 {
+            let mut sum = 0.0;
+            for i in 0..(2 * n) {
+                sum += a[[i, j]] * a[[i, k]];
+            }
+            ata[[j, k]] = sum;
+        }
+    }
+    
+    let (eigenvals, eigenvectors) = jacobi_eigen(ata);
+    
+    let mut min_val = f64::MAX;
+    let mut min_idx = 0;
+    for i in 0..9 {
+        if eigenvals[i] < min_val {
+            min_val = eigenvals[i];
+            min_idx = i;
+        }
+    }
+    
+    let mut h_norm = ndarray::Array2::<f64>::zeros((3, 3));
+    for r in 0..3 {
+        for c in 0..3 {
+            h_norm[[r, c]] = eigenvectors[[r * 3 + c, min_idx]];
+        }
+    }
+    
+    let t_dst_inv = invert_transform(&t_dst);
+    let tmp = matmul_3x3(&t_dst_inv, &h_norm);
+    let mut h = matmul_3x3(&tmp, &t_src);
+    
+    let h22 = h[[2, 2]];
+    if h22.abs() > 1e-9 {
+        h.mapv_inplace(|x| x / h22);
+    }
+    Some(h)
+}
+
+struct KdNode {
+    idx: usize,
+    axis: usize,
+    left: Option<Box<KdNode>>,
+    right: Option<Box<KdNode>>,
+}
+
+fn build_kdtree(indices: &mut [usize], descriptors: &ndarray::ArrayView2<f32>, depth: usize) -> Option<Box<KdNode>> {
+    if indices.is_empty() {
+        return None;
+    }
+    let k = descriptors.shape()[1];
+    let axis = depth % k;
+    
+    indices.sort_by(|&a, &b| {
+        descriptors[[a, axis]].partial_cmp(&descriptors[[b, axis]]).unwrap_or(std::cmp::Ordering::Equal)
+    });
+    
+    let median = indices.len() / 2;
+    let idx = indices[median];
+    
+    let left = build_kdtree(&mut indices[..median], descriptors, depth + 1);
+    let right = build_kdtree(&mut indices[median + 1..], descriptors, depth + 1);
+    
+    Some(Box::new(KdNode {
+        idx,
+        axis,
+        left,
+        right,
+    }))
+}
+
+fn kdtree_search(
+    node: &Option<Box<KdNode>>,
+    query: &ndarray::ArrayView1<f32>,
+    descriptors: &ndarray::ArrayView2<f32>,
+    best_idx: &mut usize,
+    best_dist: &mut f32,
+) {
+    let node = match node {
+        Some(n) => n,
+        None => return,
+    };
+    
+    let d_val = descriptors.row(node.idx);
+    let mut dist = 0.0;
+    for i in 0..query.len() {
+        dist += (query[i] - d_val[i]).powi(2);
+    }
+    dist = dist.sqrt();
+    
+    if dist < *best_dist {
+        *best_dist = dist;
+        *best_idx = node.idx;
+    }
+    
+    let axis = node.axis;
+    let diff = query[axis] - d_val[axis];
+    
+    let (first, second) = if diff < 0.0 {
+        (&node.left, &node.right)
+    } else {
+        (&node.right, &node.left)
+    };
+    
+    kdtree_search(first, query, descriptors, best_idx, best_dist);
+    
+    if diff.abs() < *best_dist {
+        kdtree_search(second, query, descriptors, best_idx, best_dist);
+    }
+}
+
+// ==========================================
+// EXPORTED FUNCTIONS
+// ==========================================
+
+/// draw_keypoints() - Draws keypoints on an image.
+/// @py: Python interpreter token.
+/// @image: Input image array (u8). Can be 2D grayscale or 3D color.
+/// @keypoints: Vector of KeyPoints to draw.
+/// @color: Color of the keypoints (scalar or tuple). If None, random colors are used.
+/// @flags: Flags setting drawing features.
+///     - 0 (DEFAULT): draws keypoints as circles.
+///     - 4 (DRAW_RICH_KEYPOINTS): draws circle with size and orientation.
+///
+/// Draws a circle at each keypoint location. If flags is DRAW_RICH_KEYPOINTS,
+/// the circle's radius matches keypoint size, and a line is drawn indicating orientation.
+///
+/// Return: Converted/drawn image array (u8).
+#[pyfunction]
+#[pyo3(name = "drawKeypoints")]
+#[pyo3(signature = (image, keypoints, color = None, flags = 0))]
+pub fn draw_keypoints<'py>(
+    py: Python<'py>,
+    image: PyReadonlyArrayDyn<'py, u8>,
+    keypoints: Vec<KeyPoint>,
+    color: Option<PyObject>,
+    flags: i32,
+) -> PyResult<&'py PyArrayDyn<u8>> {
+    let arr = image.as_array();
+    let ndim = arr.ndim();
+    let shape = arr.shape();
+    
+    let mut out = if ndim == 2 {
+        let h = shape[0];
+        let w = shape[1];
+        let mut three_chan = ndarray::Array3::<u8>::zeros((h, w, 3));
+        for r in 0..h {
+            for c in 0..w {
+                let val = arr[[r, c]];
+                three_chan[[r, c, 0]] = val;
+                three_chan[[r, c, 1]] = val;
+                three_chan[[r, c, 2]] = val;
+            }
+        }
+        three_chan
+    } else if ndim == 3 && shape[2] == 3 {
+        arr.into_dimensionality::<numpy::ndarray::Ix3>().unwrap().to_owned()
+    } else if ndim == 3 && shape[2] == 1 {
+        let h = shape[0];
+        let w = shape[1];
+        let mut three_chan = ndarray::Array3::<u8>::zeros((h, w, 3));
+        for r in 0..h {
+            for c in 0..w {
+                let val = arr[[r, c, 0]];
+                three_chan[[r, c, 0]] = val;
+                three_chan[[r, c, 1]] = val;
+                three_chan[[r, c, 2]] = val;
+            }
+        }
+        three_chan
+    } else {
+        return Err(pyo3::exceptions::PyValueError::new_err("Image must be 2D or 3D 1/3-channel"));
+    };
+    
+    let parsed_color: Option<[u8; 3]> = if let Some(c_obj) = color {
+        if let Ok(tuple) = c_obj.extract::<(u8, u8, u8)>(py) {
+            Some([tuple.0, tuple.1, tuple.2])
+        } else if let Ok(list) = c_obj.extract::<Vec<u8>>(py) {
+            if list.len() >= 3 {
+                Some([list[0], list[1], list[2]])
+            } else if list.len() == 1 {
+                Some([list[0], list[0], list[0]])
+            } else {
+                None
+            }
+        } else if let Ok(val) = c_obj.extract::<u8>(py) {
+            Some([val, val, val])
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+    
+    for kp in keypoints {
+        let pt = (kp.pt.0.round() as i32, kp.pt.1.round() as i32);
+        let r_val = ((kp.pt.0 * 123.456 + kp.pt.1 * 456.789) as u32 % 256) as u8;
+        let g_val = ((kp.pt.0 * 789.123 + kp.pt.1 * 123.789) as u32 % 256) as u8;
+        let b_val = ((kp.pt.0 * 456.123 + kp.pt.1 * 789.789) as u32 % 256) as u8;
+        let k_color = parsed_color.unwrap_or([b_val, g_val, r_val]);
+        
+        if flags == 4 {
+            // DRAW_RICH_KEYPOINTS
+            let radius = (kp.size / 2.0).round() as i32;
+            let radius = if radius < 1 { 3 } else { radius };
+            draw_circle_3d(&mut out, pt, radius, k_color);
+            if kp.angle >= 0.0 {
+                let angle_rad = kp.angle.to_radians() as f64;
+                let line_end_x = (kp.pt.0 + radius as f64 * angle_rad.cos()).round() as i32;
+                let line_end_y = (kp.pt.1 + radius as f64 * angle_rad.sin()).round() as i32;
+                draw_line_3d(&mut out, pt, (line_end_x, line_end_y), k_color);
+            }
+        } else {
+            // DEFAULT
+            draw_circle_3d(&mut out, pt, 3, k_color);
+        }
+    }
+    
+    Ok(out.into_pyarray(py).to_dyn())
+}
+
+/// draw_matches() - Draws keypoint matches from two images side-by-side.
+/// @py: Python interpreter token.
+/// @img1: First input image (u8).
+/// @keypoints1: Keypoints from the first image.
+/// @img2: Second input image (u8).
+/// @keypoints2: Keypoints from the second image.
+/// @matches: Matches between keypoints (vector of DMatch).
+/// @match_color: Color of matches and connection lines. If None, random colors are used.
+/// @single_point_color: Color of single keypoints (not matched). If None, random colors are used.
+///
+/// Concatenates the two images side-by-side and draws lines connecting matched keypoints.
+///
+/// Return: Combined image array with drawn matches (u8).
+#[pyfunction]
+#[pyo3(name = "drawMatches")]
+#[pyo3(signature = (img1, keypoints1, img2, keypoints2, matches, match_color = None, single_point_color = None))]
+pub fn draw_matches<'py>(
+    py: Python<'py>,
+    img1: PyReadonlyArrayDyn<'py, u8>,
+    keypoints1: Vec<KeyPoint>,
+    img2: PyReadonlyArrayDyn<'py, u8>,
+    keypoints2: Vec<KeyPoint>,
+    matches: Vec<DMatch>,
+    match_color: Option<PyObject>,
+    single_point_color: Option<PyObject>,
+) -> PyResult<&'py PyArrayDyn<u8>> {
+    let arr1 = img1.as_array();
+    let arr2 = img2.as_array();
+    let (h1, w1) = (arr1.shape()[0], arr1.shape()[1]);
+    let (h2, w2) = (arr2.shape()[0], arr2.shape()[1]);
+    
+    let max_h = h1.max(h2);
+    let total_w = w1 + w2;
+    let mut out = ndarray::Array3::<u8>::zeros((max_h, total_w, 3));
+    
+    // Copy img1 to left side
+    let ndim1 = arr1.ndim();
+    for r in 0..h1 {
+        for c in 0..w1 {
+            let (b, g, r_val) = if ndim1 == 2 {
+                let v = arr1[[r, c]];
+                (v, v, v)
+            } else if arr1.shape()[2] == 3 {
+                (arr1[[r, c, 0]], arr1[[r, c, 1]], arr1[[r, c, 2]])
+            } else {
+                let v = arr1[[r, c, 0]];
+                (v, v, v)
+            };
+            out[[r, c, 0]] = b;
+            out[[r, c, 1]] = g;
+            out[[r, c, 2]] = r_val;
+        }
+    }
+    
+    // Copy img2 to right side
+    let ndim2 = arr2.ndim();
+    for r in 0..h2 {
+        for c in 0..w2 {
+            let (b, g, r_val) = if ndim2 == 2 {
+                let v = arr2[[r, c]];
+                (v, v, v)
+            } else if arr2.shape()[2] == 3 {
+                (arr2[[r, c, 0]], arr2[[r, c, 1]], arr2[[r, c, 2]])
+            } else {
+                let v = arr2[[r, c, 0]];
+                (v, v, v)
+            };
+            out[[r, c + w1, 0]] = b;
+            out[[r, c + w1, 1]] = g;
+            out[[r, c + w1, 2]] = r_val;
+        }
+    }
+    
+    let parsed_match_color: Option<[u8; 3]> = if let Some(c_obj) = match_color {
+        if let Ok(tuple) = c_obj.extract::<(u8, u8, u8)>(py) {
+            Some([tuple.0, tuple.1, tuple.2])
+        } else if let Ok(list) = c_obj.extract::<Vec<u8>>(py) {
+            if list.len() >= 3 { Some([list[0], list[1], list[2]]) } else { None }
+        } else { None }
+    } else {
+        None
+    };
+    
+    let parsed_single_color: Option<[u8; 3]> = if let Some(c_obj) = single_point_color {
+        if let Ok(tuple) = c_obj.extract::<(u8, u8, u8)>(py) {
+            Some([tuple.0, tuple.1, tuple.2])
+        } else if let Ok(list) = c_obj.extract::<Vec<u8>>(py) {
+            if list.len() >= 3 { Some([list[0], list[1], list[2]]) } else { None }
+        } else { None }
+    } else {
+        None
+    };
+    
+    // Set of matched indices to draw single keypoints later
+    let mut matched_kps1 = vec![false; keypoints1.len()];
+    let mut matched_kps2 = vec![false; keypoints2.len()];
+    
+    for m in &matches {
+        let q_idx = m.query_idx as usize;
+        let t_idx = m.train_idx as usize;
+        if q_idx < keypoints1.len() && t_idx < keypoints2.len() {
+            matched_kps1[q_idx] = true;
+            matched_kps2[t_idx] = true;
+            
+            let pt1 = (keypoints1[q_idx].pt.0.round() as i32, keypoints1[q_idx].pt.1.round() as i32);
+            let pt2 = ((keypoints2[t_idx].pt.0.round() as i32) + w1 as i32, keypoints2[t_idx].pt.1.round() as i32);
+            
+            let r_val = ((keypoints1[q_idx].pt.0 * 123.456 + keypoints1[q_idx].pt.1 * 456.789) as u32 % 256) as u8;
+            let g_val = ((keypoints1[q_idx].pt.0 * 789.123 + keypoints1[q_idx].pt.1 * 123.789) as u32 % 256) as u8;
+            let b_val = ((keypoints1[q_idx].pt.0 * 456.123 + keypoints1[q_idx].pt.1 * 789.789) as u32 % 256) as u8;
+            let k_color = parsed_match_color.unwrap_or([b_val, g_val, r_val]);
+            
+            draw_circle_3d(&mut out, pt1, 4, k_color);
+            draw_circle_3d(&mut out, pt2, 4, k_color);
+            draw_line_3d(&mut out, pt1, pt2, k_color);
+        }
+    }
+    
+    // Draw unmatched keypoints on image 1
+    for (i, kp) in keypoints1.iter().enumerate() {
+        if !matched_kps1[i] {
+            let pt = (kp.pt.0.round() as i32, kp.pt.1.round() as i32);
+            let r_val = ((kp.pt.0 * 123.456 + kp.pt.1 * 456.789) as u32 % 256) as u8;
+            let g_val = ((kp.pt.0 * 789.123 + kp.pt.1 * 123.789) as u32 % 256) as u8;
+            let b_val = ((kp.pt.0 * 456.123 + kp.pt.1 * 789.789) as u32 % 256) as u8;
+            let k_color = parsed_single_color.unwrap_or([b_val, g_val, r_val]);
+            draw_circle_3d(&mut out, pt, 3, k_color);
+        }
+    }
+    
+    // Draw unmatched keypoints on image 2
+    for (i, kp) in keypoints2.iter().enumerate() {
+        if !matched_kps2[i] {
+            let pt = ((kp.pt.0.round() as i32) + w1 as i32, kp.pt.1.round() as i32);
+            let r_val = ((kp.pt.0 * 123.456 + kp.pt.1 * 456.789) as u32 % 256) as u8;
+            let g_val = ((kp.pt.0 * 789.123 + kp.pt.1 * 123.789) as u32 % 256) as u8;
+            let b_val = ((kp.pt.0 * 456.123 + kp.pt.1 * 789.789) as u32 % 256) as u8;
+            let k_color = parsed_single_color.unwrap_or([b_val, g_val, r_val]);
+            draw_circle_3d(&mut out, pt, 3, k_color);
+        }
+    }
+    
+    Ok(out.into_pyarray(py).to_dyn())
+}
+
+/// find_homography() - Find homography matrix using DLT and optional RANSAC.
+/// @py: Python interpreter token.
+/// @src_points: Source coordinates (list of tuples or Nx2 array).
+/// @dst_points: Destination coordinates (list of tuples or Nx2 array).
+/// @method: Parameter estimation method. 0 = Least Squares (DLT), 8 = RANSAC.
+/// @ransac_reproj_threshold: Maximum allowed reprojection error to treat a point pair as an inlier.
+///
+/// Computes a perspective transform matrix between source and destination planes.
+/// RANSAC robustly handles mismatched coordinates.
+///
+/// Return: A tuple of (homography_matrix_3x3, inlier_mask).
+#[pyfunction]
+#[pyo3(name = "findHomography")]
+#[pyo3(signature = (src_points, dst_points, method = 0, ransac_reproj_threshold = 3.0))]
+pub fn find_homography<'py>(
+    py: Python<'py>,
+    src_points: &pyo3::PyAny,
+    dst_points: &pyo3::PyAny,
+    method: i32,
+    ransac_reproj_threshold: f64,
+) -> PyResult<(&'py PyArrayDyn<f64>, &'py PyArrayDyn<u8>)> {
+    let src = extract_points(src_points)?;
+    let dst = extract_points(dst_points)?;
+    if src.len() != dst.len() {
+        return Err(pyo3::exceptions::PyValueError::new_err("Source and destination point counts must match"));
+    }
+    if src.len() < 4 {
+        return Err(pyo3::exceptions::PyValueError::new_err("At least 4 points are required to compute a homography"));
+    }
+    
+    let n = src.len();
+    let mut best_h = ndarray::Array2::<f64>::eye(3);
+    let mut best_inliers = ndarray::Array1::<u8>::zeros(n);
+    let mut max_inlier_count = 0;
+    
+    if method == 8 {
+        let mut seed = 123456789u32;
+        let mut rand_idx = |s: &mut u32| -> usize {
+            *s = s.wrapping_mul(1664525).wrapping_add(1013904223);
+            (*s as usize) % n
+        };
+        
+        let num_iterations = 2000;
+        for _ in 0..num_iterations {
+            let mut sample_idx = [0; 4];
+            let mut count = 0;
+            let mut attempts = 0;
+            while count < 4 && attempts < 100 {
+                let idx = rand_idx(&mut seed);
+                if !sample_idx[..count].contains(&idx) {
+                    sample_idx[count] = idx;
+                    count += 1;
+                }
+                attempts += 1;
+            }
+            if count < 4 { continue; }
+            
+            let sample_src = [src[sample_idx[0]], src[sample_idx[1]], src[sample_idx[2]], src[sample_idx[3]]];
+            let sample_dst = [dst[sample_idx[0]], dst[sample_idx[1]], dst[sample_idx[2]], dst[sample_idx[3]]];
+            
+            if let Some(h) = compute_homography_dlt(&sample_src, &sample_dst) {
+                let mut inliers = ndarray::Array1::<u8>::zeros(n);
+                let mut inlier_count = 0;
+                for i in 0..n {
+                    let (x, y) = src[i];
+                    let (xp, yp) = dst[i];
+                    let w = h[[2, 0]] * x + h[[2, 1]] * y + h[[2, 2]];
+                    if w.abs() > 1e-9 {
+                        let proj_x = (h[[0, 0]] * x + h[[0, 1]] * y + h[[0, 2]]) / w;
+                        let proj_y = (h[[1, 0]] * x + h[[1, 1]] * y + h[[1, 2]]) / w;
+                        let err = ((xp - proj_x).powi(2) + (yp - proj_y).powi(2)).sqrt();
+                        if err <= ransac_reproj_threshold {
+                            inliers[i] = 1;
+                            inlier_count += 1;
+                        }
+                    }
+                }
+                if inlier_count > max_inlier_count {
+                    max_inlier_count = inlier_count;
+                    best_inliers = inliers;
+                    best_h = h;
+                }
+            }
+        }
+        
+        let mut final_src = Vec::new();
+        let mut final_dst = Vec::new();
+        for i in 0..n {
+            if best_inliers[i] == 1 {
+                final_src.push(src[i]);
+                final_dst.push(dst[i]);
+            }
+        }
+        if final_src.len() >= 4 {
+            if let Some(h) = compute_homography_dlt(&final_src, &final_dst) {
+                best_h = h;
+            }
+        }
+    } else {
+        if let Some(h) = compute_homography_dlt(&src, &dst) {
+            best_h = h;
+            best_inliers.fill(1);
+        }
+    }
+    
+    Ok((best_h.into_pyarray(py).to_dyn(), best_inliers.into_pyarray(py).to_dyn()))
+}
+
+/// flann_match() - Approximate nearest-neighbor matcher (FLANN-like).
+/// @py: Python interpreter token.
+/// @query_descriptors: Matrix of query descriptors (u8 or f32).
+/// @train_descriptors: Matrix of train descriptors (u8 or f32).
+///
+/// For f32 descriptors (e.g. SIFT), builds a KD-tree to perform fast approximate
+/// nearest neighbor search.  For u8 binary descriptors, falls back to brute force
+/// Hamming distance matching.
+///
+/// Return: A vector of DMatch instances.
+#[pyfunction]
+pub fn flann_match<'py>(
+    py: Python<'py>,
+    query_descriptors: &pyo3::PyAny,
+    train_descriptors: &pyo3::PyAny,
+) -> PyResult<Vec<DMatch>> {
+    if let Ok(q_f32) = query_descriptors.extract::<PyReadonlyArrayDyn<f32>>() {
+        let t_f32 = train_descriptors.extract::<PyReadonlyArrayDyn<f32>>()?;
+        let q_arr = q_f32.as_array();
+        let t_arr = t_f32.as_array();
+        let q_2d = q_arr.into_dimensionality::<numpy::ndarray::Ix2>()
+            .map_err(|_| pyo3::exceptions::PyValueError::new_err("Descriptors must be 2D"))?;
+        let t_2d = t_arr.into_dimensionality::<numpy::ndarray::Ix2>()
+            .map_err(|_| pyo3::exceptions::PyValueError::new_err("Descriptors must be 2D"))?;
+            
+        let q_rows = q_2d.shape()[0];
+        let t_rows = t_2d.shape()[0];
+        
+        let mut indices: Vec<usize> = (0..t_rows).collect();
+        let tree = build_kdtree(&mut indices, &t_2d, 0);
+        
+        let mut matches = Vec::with_capacity(q_rows);
+        for i in 0..q_rows {
+            let q_row = q_2d.row(i);
+            let mut best_idx = 0;
+            let mut best_dist = f32::MAX;
+            kdtree_search(&tree, &q_row, &t_2d, &mut best_idx, &mut best_dist);
+            matches.push(DMatch {
+                query_idx: i as i32,
+                train_idx: best_idx as i32,
+                img_idx: 0,
+                distance: best_dist,
+            });
+        }
+        Ok(matches)
+    } else {
+        bf_match(py, query_descriptors, train_descriptors, false, "HAMMING")
+    }
+}
