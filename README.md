@@ -69,11 +69,10 @@ Operations execute natively in Rust through [PyO3](https://pyo3.rs) + [rust-nump
 
 ```python
 import numpy as np
-import cv2
 import rust_cv_lib
 
-# Load an image (any loader that gives you a NumPy array works)
-image = cv2.imread("photo.png")
+# Load an image natively using our imread function
+image = rust_cv_lib.imread("photo.png")
 
 # Convert to grayscale
 gray = rust_cv_lib.rgb_to_gray(image)
@@ -85,10 +84,8 @@ edges = rust_cv_lib.apply_canny(gray, 50.0, 150.0)
 kernel = np.ones((3, 3), dtype=np.uint8)
 dilated = rust_cv_lib.apply_dilation(edges.astype(np.uint8), kernel)
 
-# Show result
-cv2.imshow("Edges", dilated)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+# Save result natively using our imwrite function
+rust_cv_lib.imwrite("edges.png", dilated)
 ```
 
 ---
