@@ -1937,6 +1937,15 @@ pub fn knn_match<'py>(
 // DRAWING & HOMOGRAPHY HELPERS
 // ==========================================
 
+/// draw_line_3d() - Draws a line segment between two points on a 3D image.
+/// @arr: Mutable reference to target 3D image array (u8).
+/// @pt1: Starting coordinates (x, y).
+/// @pt2: Ending coordinates (x, y).
+/// @color: BGR line color array.
+///
+/// Draws a 1-pixel wide line on the image using Bresenham's line algorithm.
+///
+/// Return: Void.
 fn draw_line_3d(arr: &mut ndarray::Array3<u8>, pt1: (i32, i32), pt2: (i32, i32), color: [u8; 3]) {
     let (h, w) = (arr.shape()[0] as i32, arr.shape()[1] as i32);
     let x1 = pt1.0;
@@ -1974,6 +1983,15 @@ fn draw_line_3d(arr: &mut ndarray::Array3<u8>, pt1: (i32, i32), pt2: (i32, i32),
     }
 }
 
+/// draw_circle_3d() - Draws a circle on a 3D image.
+/// @arr: Mutable reference to target 3D image array (u8).
+/// @center: Circle center coordinates (x, y).
+/// @radius: Circle radius in pixels.
+/// @color: BGR circle outline color array.
+///
+/// Draws a circle outline using the Midpoint Circle (Bresenham) algorithm.
+///
+/// Return: Void.
 fn draw_circle_3d(arr: &mut ndarray::Array3<u8>, center: (i32, i32), radius: i32, color: [u8; 3]) {
     let (h, w) = (arr.shape()[0] as i32, arr.shape()[1] as i32);
     let cx = center.0;
@@ -2012,6 +2030,12 @@ fn draw_circle_3d(arr: &mut ndarray::Array3<u8>, center: (i32, i32), radius: i32
     }
 }
 
+/// extract_points() - Extracts Coordinate pairs from PyAny points wrapper.
+/// @points: PyAny reference to input coordinate data (Nx2, Nx1x2 arrays, or list of tuples).
+///
+/// Standardizes coordinate inputs to a flat Rust vector of coordinate pairs.
+///
+/// Return: Vector of (x, y) coordinates on success, PyErr on failure.
 fn extract_points(points: &pyo3::PyAny) -> PyResult<Vec<(f64, f64)>> {
     if let Ok(arr_f64) = points.extract::<PyReadonlyArrayDyn<f64>>() {
         let arr = arr_f64.as_array();
@@ -2051,6 +2075,13 @@ fn extract_points(points: &pyo3::PyAny) -> PyResult<Vec<(f64, f64)>> {
     Err(pyo3::exceptions::PyTypeError::new_err("Points must be Nx2 or Nx1x2 array or list of coordinate pairs"))
 }
 
+/// normalize_points() - Normalizes coordinates for numerical stability in DLT.
+/// @pts: Slice of coordinate pairs.
+///
+/// Centers points around their centroid and scales them so that their mean distance
+/// from the origin is sqrt(2).
+///
+/// Return: A tuple containing (normalized points vector, 3x3 normalization matrix).
 fn normalize_points(pts: &[(f64, f64)]) -> (Vec<(f64, f64)>, ndarray::Array2<f64>) {
     let n = pts.len() as f64;
     let mut sum_x = 0.0;
@@ -2090,6 +2121,12 @@ fn normalize_points(pts: &[(f64, f64)]) -> (Vec<(f64, f64)>, ndarray::Array2<f64
     (norm_pts, t)
 }
 
+/// invert_transform() - Inverts a 3x3 normalization matrix.
+/// @t: Reference to 3x3 transformation matrix.
+///
+/// Performs direct analytical inversion of standard scaling and translation matrices.
+///
+/// Return: Inverse 3x3 transformation matrix.
 fn invert_transform(t: &ndarray::Array2<f64>) -> ndarray::Array2<f64> {
     let scale = t[[0, 0]];
     let mean_x = -t[[0, 2]] / scale;
@@ -2104,6 +2141,13 @@ fn invert_transform(t: &ndarray::Array2<f64>) -> ndarray::Array2<f64> {
     inv
 }
 
+/// matmul_3x3() - Multiplies two 3x3 matrices.
+/// @a: Reference to left 3x3 matrix.
+/// @b: Reference to right 3x3 matrix.
+///
+/// Computes standard matrix multiplication for 3x3 f64 dimensions.
+///
+/// Return: Resulting 3x3 matrix.
 fn matmul_3x3(a: &ndarray::Array2<f64>, b: &ndarray::Array2<f64>) -> ndarray::Array2<f64> {
     let mut c = ndarray::Array2::<f64>::zeros((3, 3));
     for i in 0..3 {
@@ -2118,6 +2162,13 @@ fn matmul_3x3(a: &ndarray::Array2<f64>, b: &ndarray::Array2<f64>) -> ndarray::Ar
     c
 }
 
+/// jacobi_eigen() - Computes eigenvalues and eigenvectors of a symmetric 9x9 matrix.
+/// @a: Input symmetric 9x9 matrix (gets modified during computation).
+///
+/// Uses the Jacobi rotation method to compute the eigenvalues and eigenvectors
+/// of a real symmetric matrix.
+///
+/// Return: A tuple containing (eigenvalues vector of size 9, eigenvectors 9x9 matrix).
 fn jacobi_eigen(mut a: ndarray::Array2<f64>) -> (ndarray::Array1<f64>, ndarray::Array2<f64>) {
     let n = 9;
     let mut v = ndarray::Array2::<f64>::eye(n);
@@ -2183,6 +2234,13 @@ fn jacobi_eigen(mut a: ndarray::Array2<f64>) -> (ndarray::Array1<f64>, ndarray::
     (eigenvalues, v)
 }
 
+/// compute_homography_dlt() - Computes homography matrix via Direct Linear Transformation.
+/// @src: Normalized source coordinate pairs.
+/// @dst: Normalized destination coordinate pairs.
+///
+/// Solves the homogeneous linear system Ah = 0 using SVD (via Jacobi eigenvalue solver on A^T A).
+///
+/// Return: 3x3 homography matrix normalized so H[2, 2] = 1.0, or None if underdetermined.
 fn compute_homography_dlt(src: &[(f64, f64)], dst: &[(f64, f64)]) -> Option<ndarray::Array2<f64>> {
     if src.len() < 4 {
         return None;
@@ -2257,6 +2315,14 @@ struct KdNode {
     right: Option<Box<KdNode>>,
 }
 
+/// build_kdtree() - Recursively builds a KD-tree for spatial searches.
+/// @indices: Mutable slice of train descriptor row indices.
+/// @descriptors: Reference to 2D descriptors matrix.
+/// @depth: Current recursion depth.
+///
+/// Partitions the descriptors along alternating axes based on the median coordinate.
+///
+/// Return: Root KdNode if indices is not empty, else None.
 fn build_kdtree(indices: &mut [usize], descriptors: &ndarray::ArrayView2<f32>, depth: usize) -> Option<Box<KdNode>> {
     if indices.is_empty() {
         return None;
@@ -2282,6 +2348,17 @@ fn build_kdtree(indices: &mut [usize], descriptors: &ndarray::ArrayView2<f32>, d
     }))
 }
 
+/// kdtree_search() - Searches KD-tree for nearest neighbor.
+/// @node: Reference to current KdNode wrapper.
+/// @query: Query descriptor 1D view.
+/// @descriptors: Train descriptors matrix.
+/// @best_idx: Mutable reference tracking closest match index.
+/// @best_dist: Mutable reference tracking minimum distance found.
+///
+/// Recursively traverses KD-tree branch closest to query point, pruning search space
+/// via bounding box distance checks.
+///
+/// Return: Void.
 fn kdtree_search(
     node: &Option<Box<KdNode>>,
     query: &ndarray::ArrayView1<f32>,

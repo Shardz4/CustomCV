@@ -499,9 +499,13 @@ pub fn cvt_color<'py>(
 }
 
 /// swap_rb() - Swap the R and B channels of a 3-channel image.
+/// @py: Python interpreter token.
+/// @image: Reference to input 3D image array (u8).
 ///
 /// Internal helper used by cvt_color to convert BGR input to RGB
 /// before passing to the RGB-based converter functions.
+///
+/// Return: A readonly 3D PyReadonlyArrayDyn representing the RGB image.
 fn swap_rb<'py>(
     py: Python<'py>,
     image: &PyReadonlyArrayDyn<'py, u8>,

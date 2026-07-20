@@ -5,6 +5,13 @@ use numpy::ndarray::{Array2, ArrayView2};
 // ==========================================
 
 /// get_border_index() - Maps an out-of-bounds index to an in-bounds index based on border mode.
+/// @i: The index (may be negative or out of bounds).
+/// @len: The length of the dimension.
+/// @border_type: Border padding mode ("reflect", "replicate", "wrap", "constant").
+///
+/// Resolves an index according to standard border extrapolation algorithms.
+///
+/// Return: Some(index) if mapped successfully, or None if constant border was selected.
 pub fn get_border_index(i: isize, len: usize, border_type: &str) -> Option<usize> {
     let len_i = len as isize;
     if i >= 0 && i < len_i {
@@ -62,6 +69,15 @@ pub fn get_border_index(i: isize, len: usize, border_type: &str) -> Option<usize
 }
 
 /// get_border_pixel() - Resolves pixel value at (y, x), supporting border padding modes.
+/// @channel: 2D input image channel slice (u8).
+/// @y: Pixel row coordinate.
+/// @x: Pixel column coordinate.
+/// @border_type: Border padding mode.
+/// @border_value: Padding value for constant border.
+///
+/// Looks up pixel value with boundary checks, delegating to get_border_index.
+///
+/// Return: Pixel intensity (u8) at the mapped boundary or constant color.
 pub fn get_border_pixel(channel: &ArrayView2<u8>, y: isize, x: isize, border_type: &str, border_value: u8) -> u8 {
     let h = channel.shape()[0];
     let w = channel.shape()[1];
