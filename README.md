@@ -109,4 +109,4 @@ The project also ships a GitHub Actions CI workflow (`.github/workflows/CI.yml`)
 
 ## 📄 License
 
-MIT License
+Apache-2.0 License
