@@ -75,6 +75,7 @@ Images are passed in as NumPy arrays (`np.ndarray`) and results are returned the
 | `apply_otsu_with_mode` | `(image: ndarray[u8], mode: str) → (int, ndarray[u8])` | Otsu auto-threshold + any mode (`binary`, `binary_inv`, `trunc`, `tozero`, `tozero_inv`). |
 | `rgb_to_cmy` | `(image: ndarray[u8]) → ndarray[f32]` | Converts RGB [0, 255] → CMY [0.0, 1.0]. Input must be (H, W, 3). |
 | `apply_frequency_filter` | `(f_shifted: ndarray[complex128], d0: float, filter_type: str) → ndarray[complex128]` | Applies a frequency-domain mask. Supported types: `"ILPF"`, `"IHPF"`, `"GLPF"`, `"GHPF"`. |
+| `adaptive_threshold` | `(image: ndarray[u8], max_value: float, adaptive_method: int, threshold_type: int, block_size: int, c: float) → ndarray[u8]` | Per-region adaptive thresholding (mean or Gaussian-weighted). |
 
 ---
 
@@ -93,6 +94,7 @@ All colour functions accept and return NumPy arrays. RGB inputs must have shape 
 | `bgr_to_rgb` | `(image: ndarray[u8]) → ndarray[u8]` | Swaps channels 0 ↔ 2 (BGR to RGB or vice-versa). |
 | `gray_to_rgb` | `(image: ndarray[u8]) → ndarray[u8]` | 2D grayscale (H, W) → 3-channel (H, W, 3) by replication. |
 | `rgb_to_yuv` | `(image: ndarray[u8]) → ndarray[u8]` | RGB → YUV (BT.601). All channels ∈ [0, 255]. U/V offset by 128. |
+| `cvt_color` | `(image: ndarray[u8], code: int) → PyObject` | Universal color-space converter (supporting 150+ conversion codes). |
 
 ---
 
@@ -117,8 +119,8 @@ All colour functions accept and return NumPy arrays. RGB inputs must have shape 
 
 | Function | Signature | Description |
 |---|---|---|
-| `median_filter` | `(image: ndarray[u8]) → ndarray[u8]` | 3×3 median filter. Supports 2D (grayscale) and 3D (colour) images. |
-| `laplacian_filter` | `(image: ndarray[u8]) → ndarray[u8]` | 3×3 Laplacian edge-sharpening filter. Supports 2D and 3D images. |
+| `median_filter` | `(image: ndarray[u8], border_type: str = "reflect", border_value: int = 0) → ndarray[u8]` | 3×3 median filter. Supports 2D (grayscale) and 3D (colour) images, and custom border padding modes. |
+| `laplacian_filter` | `(image: ndarray[u8], border_type: str = "reflect", border_value: int = 0) → ndarray[u8]` | 3×3 Laplacian edge-sharpening filter. Supports 2D/3D images and custom border padding modes. |
 
 ---
 
@@ -131,7 +133,7 @@ These functions return signed gradients or allow custom 2D filtering.
 | `apply_sobel` | `(image: ndarray[u8], dx: int, dy: int, ksize: int) → ndarray[f32]` | Sobel gradient operator. `dx`/`dy` ∈ {0, 1, 2}, `ksize` ∈ {1, 3, 5, 7}. Returns signed float values. |
 | `apply_scharr` | `(image: ndarray[u8], dx: int, dy: int) → ndarray[f32]` | Scharr gradient operator (3x3). `dx`/`dy` must be exactly one 1 and one 0. Returns signed float values. |
 | `apply_laplacian` | `(image: ndarray[u8], ksize: int) → ndarray[f32]` | Laplacian operator with configurable `ksize` ∈ {1, 3, 5, 7}. Returns signed float values. |
-| `apply_filter2d` | `(image: ndarray[u8], kernel: ndarray[f64]) → ndarray[u8]` | General 2D convolution with any custom 2D float kernel. |
+| `apply_filter2d` | `(image: ndarray[u8], kernel: ndarray[f64], border_type: str = "reflect", border_value: int = 0) → ndarray[u8]` | General 2D convolution with any custom 2D float kernel and custom border modes. |
 
 ---
 
@@ -149,7 +151,7 @@ These functions return signed gradients or allow custom 2D filtering.
 
 ### 5. Morphological Operations — `morphological.rs`
 
-All morphological functions require **2D grayscale** input and a **2D structuring element (kernel)**.
+All morphological functions support **2D grayscale** and **3D color** input images using a **2D structuring element (kernel)**. If the input is 3D, the operation is applied channel-by-channel.
 
 | Function | Signature | Description |
 |---|---|---|
@@ -198,10 +200,10 @@ All smoothing functions support **2D (grayscale)** and **3D (colour)** images.
 
 | Function | Signature | Description |
 |---|---|---|
-| `apply_blur` | `(image: ndarray[u8], ksize_w: int, ksize_h: int) → ndarray[u8]` | Applies a normalized box filter to blur the image. |
-| `apply_gaussian_blur` | `(image: ndarray[u8], ksize: int, sigma: float) → ndarray[u8]` | Applies a Gaussian blur with the specified kernel size and standard deviation. |
-| `apply_median_blur` | `(image: ndarray[u8], ksize: int) → ndarray[u8]` | Applies a median filter to blur the image using a sliding window. |
-| `apply_bilateral_filter` | `(image: ndarray[u8], diameter: int, sigma_color: float, sigma_space: float) → ndarray[u8]` | Applies a bilateral filter to the image, reducing noise while preserving edges. |
+| `apply_blur` | `(image: ndarray[u8], ksize_w: int, ksize_h: int, border_type: str = "reflect", border_value: int = 0) → ndarray[u8]` | Applies a normalized box filter to blur the image, supporting custom border modes. |
+| `apply_gaussian_blur` | `(image: ndarray[u8], ksize: int, sigma: float, border_type: str = "reflect", border_value: int = 0) → ndarray[u8]` | Applies a Gaussian blur with custom border modes. |
+| `apply_median_blur` | `(image: ndarray[u8], ksize: int, border_type: str = "reflect", border_value: int = 0) → ndarray[u8]` | Applies a median filter using a sliding window and custom border modes. |
+| `apply_bilateral_filter` | `(image: ndarray[u8], diameter: int, sigma_color: float, sigma_space: float, border_type: str = "reflect", border_value: int = 0) → ndarray[u8]` | Applies a bilateral filter to the image, preserving edges with custom border modes. |
 
 ---
 
@@ -271,6 +273,10 @@ Matches are returned as `DMatch` objects containing:
 | `simple_blob_detect` | `(image: ndarray[u8], ...) → list[KeyPoint]` | Detects blobs filtering by size, color, circularity, inertia, and convexity. |
 | `bf_match` | `(query_descriptors: ndarray, train_descriptors: ndarray, cross_check: bool = False, norm_type: str = "L2") → list[DMatch]` | Brute-force descriptor matcher. Supports Hamming norm (for binary) and L2/L1 norms (for float). |
 | `knn_match` | `(query_descriptors: ndarray, train_descriptors: ndarray, k: int, norm_type: str = "L2") → list[list[DMatch]]` | K-Nearest Neighbor descriptor matcher. Returns top $k$ matches for each query descriptor. |
+| `draw_keypoints` | `(image: ndarray[u8], keypoints: list[KeyPoint], color: Optional[Union[int, list[int]]] = None, flags: int = 0) → ndarray[u8]` | Draws keypoints as circles. Supports `DRAW_RICH_KEYPOINTS` (4) showing neighborhood size/orientation. |
+| `draw_matches` | `(img1: ndarray[u8], keypoints1: list[KeyPoint], img2: ndarray[u8], keypoints2: list[KeyPoint], matches: list[DMatch], match_color: Optional[list[int]] = None, single_point_color: Optional[list[int]] = None) → ndarray[u8]` | Draws matches side-by-side with connection lines. |
+| `find_homography` | `(src_points: Union[ndarray, list], dst_points: Union[ndarray, list], method: int = 0, ransac_reproj_threshold: float = 3.0) → (ndarray[f64], ndarray[u8])` | Estimates 3x3 homography matrix using DLT or RANSAC. |
+| `flann_match` | `(query_descriptors: ndarray, train_descriptors: ndarray) → list[DMatch]` | FLANN approximate matcher using custom KD-Trees (for float descriptors) or Hamming matching (for binary). |
 
 ---
 
@@ -422,8 +428,10 @@ These are **not** exposed to Python. They are used internally by other modules.
 
 | Function | Used By | Purpose |
 |---|---|---|
-| `apply_median_3x3` | `filters.rs` | Applies a 3×3 median filter to a single 2D channel. |
-| `apply_laplacian_3x3` | `filters.rs` | Applies a 3×3 Laplacian kernel to a single 2D channel. |
+| `get_border_index` | `helpers.rs` | Maps out-of-bounds coordinate index according to the border padding mode. |
+| `get_border_pixel` | `helpers.rs` | Resolves boundary pixel value, supporting border modes and constant fill. |
+| `apply_median_3x3` | `filters.rs` | Applies a 3×3 median filter to a single 2D channel, supporting border modes. |
+| `apply_laplacian_3x3` | `filters.rs` | Applies a 3×3 Laplacian kernel to a single 2D channel, supporting border modes. |
 | `calculate_otsu_threshold` | `histogram.rs` | Computes the optimal Otsu threshold for a grayscale channel. |
 | `compute_structure_tensor` | `edge_detection.rs` | Computes Sxx, Syy, Sxy structure tensor components (Sobel-based) for corner detection. |
-| `convolve_2d_channel` | `smoothing.rs` | Convolves a single 2D channel with an arbitrary 2D float kernel. |
+| `convolve_2d_channel` | `smoothing.rs` | Convolves a single 2D channel with an arbitrary 2D float kernel, supporting border modes. |

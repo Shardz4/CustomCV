@@ -9,18 +9,19 @@ Operations execute natively in Rust through [PyO3](https://pyo3.rs) + [rust-nump
 
 | Category | Highlights |
 |---|---|
-| **Point / Pixel Transforms** | Negative, log, gamma, threshold, RGB ↔ Gray / CMY, frequency-domain filtering |
-| **Color Space Conversions** | HSV, HLS, YCrCb, XYZ, CIE Lab, CIE Luv, YUV, BGR ↔ RGB, Gray → RGB |
+| **Point / Pixel Transforms** | Negative, log, gamma, threshold, RGB ↔ Gray / CMY, frequency-domain filtering, **adaptive thresholding** |
+| **Color Space Conversions** | HSV, HLS, YCrCb, XYZ, CIE Lab, CIE Luv, YUV, BGR ↔ RGB, Gray → RGB, **universal `cvtColor` dispatcher** |
 | **Histogram Operations** | Equalization (RGB & gray), specification, Otsu's thresholding, 1D histogram calculation (`calcHist`), histogram comparison (`compareHist` via Correlation/Chi-Square/Intersection/Bhattacharyya), template matching (`matchTemplate` via SQDIFF/CCORR/CCOEFF and normalized modes), back projection (`calcBackProject`), Earth Mover's Distance (`EMD` / `emd_1d`) |
-| **Spatial Filters & Smoothing** | 3×3 median, Laplacian edge sharpening, box blur, Gaussian blur, median blur, Bilateral filter |
-| **Gradient & Edge Operators** | Sobel, Scharr, Laplacian (variable kernel size), filter2D (custom convolution) |
+| **Spatial Filters & Smoothing** | 3×3 median, Laplacian edge sharpening, box blur, Gaussian blur, median blur, Bilateral filter (all supporting custom **border padding modes**: reflect, replicate, wrap, constant) |
+| **Gradient & Edge Operators** | Sobel, Scharr, Laplacian (variable kernel size), filter2D (custom convolution with border modes) |
 | **Edge & Feature Detection** | Canny, Harris corners, Shi-Tomasi corners, Hough lines & circles |
+| **Feature Matching** | **KD-Tree FLANN matching**, brute-force matching, KNN matching, **drawKeypoints** (standard/rich), **drawMatches** |
+| **Geometry & Alignment** | Resize, translate, rotate, perspective warp, **homography estimation (DLT + RANSAC solved via Jacobi rotations)** |
 | **Contour & Shape Analysis** | Outer & inner contours (Suzuki85), draw contours (with thickness & fill), area, perimeter (arc length), bounding box, rotated box, enclosing circle, ellipse fitting |
 | **Drawing & Annotation** | Draw line segments, rectangles (outline/filled), circles (outline/filled), ellipses & elliptic arcs (outline/filled), polylines (outline), fillPoly (filled polygons) |
 | **Image Segmentation** | Marker-based watershed, GrabCut foreground extraction (GMM + ICM spatial smoothing), connected components (4/8 connectivity with stats/centroids), distance transform (Chamfer 3x3), region-growing flood fill |
-| **Morphological Operations** | Erosion, dilation, opening, closing, gradient, top-hat, black-hat |
+| **Morphological Operations** | Erosion, dilation, opening, closing, gradient, top-hat, black-hat (**all supporting 2D grayscale & 3D color images**) |
 | **Arithmetic & Bitwise Ops** | Add, subtract, weighted blend, AND / OR / XOR / NOT |
-| **Geometric Transforms** | Resize (nearest-neighbor), translate, rotate, perspective warp |
 | **Video & Background Subtraction** | Webcam capture, frame extraction, image→video, MOG2 background subtraction |
 
 > For the complete function reference and repo structure, see [`collection/README.md`](collection/README.md).
